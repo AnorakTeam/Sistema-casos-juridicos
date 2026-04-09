@@ -36,7 +36,9 @@ y ubicarse en la raíz del módulo a ejecutar (donde se encuentra el pom.xml).
 
 Primero, compilar: `mvn compile`, y luego:
 
-- Para la app principal, `mvn exec:java -Dexec.mainClass="co.edu.ufps.legal_cases.App"`
+```bash
+./mvnw spring-boot:run
+```
 
 #### frontend
 
