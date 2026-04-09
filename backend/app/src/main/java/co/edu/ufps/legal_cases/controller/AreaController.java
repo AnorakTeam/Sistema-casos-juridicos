@@ -1,7 +1,9 @@
 package co.edu.ufps.legal_cases.controller;
 
-import co.edu.ufps.legal_cases.model.Area;
+import co.edu.ufps.legal_cases.dto.AreaDTO;
 import co.edu.ufps.legal_cases.service.AreaService;
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/areas")
+//Modificar despues
 @CrossOrigin(origins = "*")
 public class AreaController {
 
@@ -19,24 +22,24 @@ public class AreaController {
     }
 
     @GetMapping
-    public List<Area> listar() {
+    public List<AreaDTO> listar() {
         return areaService.listar();
     }
 
     @GetMapping("/{id}")
-    public Area obtenerPorId(@PathVariable Long id) {
+    public AreaDTO obtenerPorId(@PathVariable Long id) {
         return areaService.obtenerPorId(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Area crear(@RequestBody Area area) {
-        return areaService.crear(area);
+    public AreaDTO crear(@Valid @RequestBody AreaDTO areaDTO) {
+        return areaService.crear(areaDTO);
     }
 
     @PutMapping("/{id}")
-    public Area actualizar(@PathVariable Long id, @RequestBody Area area) {
-        return areaService.actualizar(id, area);
+    public AreaDTO actualizar(@PathVariable Long id, @Valid @RequestBody AreaDTO areaDTO) {
+        return areaService.actualizar(id, areaDTO);
     }
 
     @DeleteMapping("/{id}")

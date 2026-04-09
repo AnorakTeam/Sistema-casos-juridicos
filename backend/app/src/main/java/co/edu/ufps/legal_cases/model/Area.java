@@ -1,10 +1,14 @@
 package co.edu.ufps.legal_cases.model;
 
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,11 +16,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@AllArgsConstructor
-@NoArgsConstructor
+@Table(name = "area")
 @Getter
 @Setter
-@Table(name = "area")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Area {
 
     @Id
@@ -26,4 +30,8 @@ public class Area {
     @Column(name = "nombre", nullable = false, unique = true, length = 50)
     private String nombre;
 
+    @JsonIgnore
+    // Permite acceder a los temas asociados a un área
+    @OneToMany(mappedBy = "area")
+    private List<Tema> temas;
 }
