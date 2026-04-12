@@ -12,10 +12,9 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Home, Settings, User, LayoutDashboard, FileText } from "lucide-react"
+import { LayoutDashboard } from "lucide-react"
 
-
-export function AppSidebar() {
+export function AppSidebar({ mainItems = [], footerItems = [] }) {
   return (
     <Sidebar className="[--sidebar:white] border-r border-gray-200">
       <SidebarHeader className="p-4 flex items-center gap-2">
@@ -40,27 +39,13 @@ export function AppSidebar() {
                   cuántos casos tiene dentro del acordeón */}
 
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Inicio">
-              <Home className="size-4" />
-              <span>Inicio</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Casos">
-              <FileText className="size-4" />
-              <span>Casos Jurídicos</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Perfil">
-              <User className="size-4" />
-              <span>Mi Perfil</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        
+          {mainItems.map((item, index) => (
+            <SidebarMenuItem key={index}>
+              <SidebarMenuButton tooltip={item.tooltip}>
+                <span>{item.title}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
         </SidebarMenu>
       </SidebarContent>
 
@@ -68,14 +53,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4">
         <SidebarMenu>
+          {footerItems.map((item, index) => (
+            <SidebarMenuItem key={index}>
+              <SidebarMenuButton tooltip={item.tooltip}>
+                <span>{item.title}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
 
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Configuración">
-              <Settings className="size-4" />
-              <span>Configuración</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          
           <SidebarMenuItem className="mt-4">
             <div className="flex items-center gap-3 px-2 py-1.5">
               <Avatar className="size-8">
@@ -88,7 +73,6 @@ export function AppSidebar() {
               </div>
             </div>
           </SidebarMenuItem>
-        
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
