@@ -1,7 +1,6 @@
 package co.edu.ufps.legal_cases.model;
 
 import java.time.LocalDate;
-import java.time.Period;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
