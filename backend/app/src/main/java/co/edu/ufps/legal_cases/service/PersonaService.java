@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import co.edu.ufps.legal_cases.dto.PersonaDTO;
+import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Persona;
 import co.edu.ufps.legal_cases.repository.PersonaRepository;
 
@@ -28,7 +29,7 @@ public class PersonaService {
 
     public PersonaDTO obtenerPorId(Long id) {
         Persona persona = personaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Persona no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Persona no encontrada con id: " + id));
 
         return convertirADTO(persona);
     }
@@ -40,7 +41,7 @@ public class PersonaService {
         String numeroDocumento = normalizarTexto(personaDTO.getNumeroDocumento());
 
         if (personaRepository.existsByNumeroDocumento(numeroDocumento)) {
-            throw new RuntimeException("Ya existe una persona con ese numero de documento");
+            throw new BusinessException("Ya existe una persona con ese numero de documento");
         }
 
         Persona persona = convertirAEntidad(personaDTO);
@@ -52,7 +53,7 @@ public class PersonaService {
 
     public PersonaDTO actualizar(Long id, PersonaDTO personaDTO) {
         Persona personaExistente = personaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Persona no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Persona no encontrada con id: " + id));
 
         validarTelefonoOCorreo(personaDTO);
         validarDatosAcudienteSiEsMenor(personaDTO);
@@ -61,7 +62,7 @@ public class PersonaService {
 
         if (!personaExistente.getNumeroDocumento().equalsIgnoreCase(numeroDocumentoNuevo)
                 && personaRepository.existsByNumeroDocumento(numeroDocumentoNuevo)) {
-            throw new RuntimeException("Ya existe una persona con ese numero de documento");
+            throw new BusinessException("Ya existe una persona con ese numero de documento");
         }
 
         Persona personaActualizada = convertirAEntidad(personaDTO);
@@ -74,7 +75,7 @@ public class PersonaService {
 
     public void eliminar(Long id) {
         Persona persona = personaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Persona no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Persona no encontrada con id: " + id));
 
         personaRepository.delete(persona);
     }
@@ -89,18 +90,18 @@ public class PersonaService {
     private void validarDatosAcudienteSiEsMenor(PersonaDTO personaDTO) {
         if (esMenorDeEdad(personaDTO.getFechaNacimiento())) {
             if (!estaInformado(personaDTO.getNombreCompletoAcudiente())) {
-                throw new RuntimeException("Si la persona es menor de edad, el nombre del acudiente es obligatorio");
+                throw new BusinessException("Si la persona es menor de edad, el nombre del acudiente es obligatorio");
             }
 
             if (!estaInformado(personaDTO.getRelacionAcudiente())) {
-                throw new RuntimeException("Si la persona es menor de edad, la relacion del acudiente es obligatoria");
+                throw new BusinessException("Si la persona es menor de edad, la relacion del acudiente es obligatoria");
             }
 
             boolean telefonoAcudienteInformado = estaInformado(personaDTO.getTelefonoAcudiente());
             boolean correoAcudienteInformado = estaInformado(personaDTO.getCorreoAcudiente());
 
             if (!telefonoAcudienteInformado && !correoAcudienteInformado) {
-                throw new RuntimeException(
+                throw new BusinessException(
                         "Si la persona es menor de edad, debe informar telefono o correo del acudiente");
             }
         }
@@ -119,7 +120,7 @@ public class PersonaService {
         boolean correoInformado = estaInformado(personaDTO.getCorreo());
 
         if (!telefonoInformado && !correoInformado) {
-            throw new RuntimeException("Debe informar al menos telefono o correo");
+            throw new BusinessException("Debe informar al menos telefono o correo");
         }
     }
 

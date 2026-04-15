@@ -1,6 +1,7 @@
 package co.edu.ufps.legal_cases.service;
 
 import co.edu.ufps.legal_cases.dto.AreaDTO;
+import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Area;
 import co.edu.ufps.legal_cases.repository.AreaRepository;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class AreaService {
 
     public AreaDTO obtenerPorId(Long id) {
         Area area = areaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + id));
 
         return convertirADTO(area);
     }
@@ -35,11 +36,11 @@ public class AreaService {
         String nombre = normalizarNombre(areaDTO.getNombre());
 
         if (nombre == null || nombre.isBlank()) {
-            throw new RuntimeException("El nombre del área es obligatorio");
+            throw new BusinessException("El nombre del área es obligatorio");
         }
 
         if (areaRepository.existsByNombreIgnoreCase(nombre)) {
-            throw new RuntimeException("Ya existe un área con ese nombre");
+            throw new BusinessException("Ya existe un área con ese nombre");
         }
 
         Area area = new Area();
@@ -52,22 +53,22 @@ public class AreaService {
     public AreaDTO actualizar(Long id, AreaDTO areaDTO) {
 
         Area area = areaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + id));
 
         String nuevoNombre = normalizarNombre(areaDTO.getNombre());
 
         if (nuevoNombre == null || nuevoNombre.isBlank()) {
-            throw new RuntimeException("El nombre del área es obligatorio");
+            throw new BusinessException("El nombre del área es obligatorio");
         }
 
         //VALIDAR SI ES EL MISMO
         if (area.getNombre().equalsIgnoreCase(nuevoNombre)) {
-            throw new RuntimeException("El nombre es el mismo, no hay cambios");
+            throw new BusinessException("El nombre es el mismo, no hay cambios");
         }
 
         //VALIDAR DUPLICADO
         if (areaRepository.existsByNombreIgnoreCase(nuevoNombre)) {
-            throw new RuntimeException("Ya existe un área con ese nombre");
+            throw new BusinessException("Ya existe un área con ese nombre");
         }
 
         area.setNombre(nuevoNombre);
@@ -78,11 +79,11 @@ public class AreaService {
 
     public void eliminar(Long id) {
         Area area = areaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + id));
+                .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + id));
 
         // Para evitar eliminar temas accidentalmente en cascada
         if (area.getTemas() != null && !area.getTemas().isEmpty()) {
-            throw new RuntimeException("No se puede eliminar el área porque tiene temas asociados");
+            throw new BusinessException("No se puede eliminar el área porque tiene temas asociados");
         }
 
         areaRepository.delete(area);

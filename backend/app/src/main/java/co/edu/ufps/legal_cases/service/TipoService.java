@@ -1,6 +1,7 @@
 package co.edu.ufps.legal_cases.service;
 
 import co.edu.ufps.legal_cases.dto.TipoDTO;
+import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Tema;
 import co.edu.ufps.legal_cases.model.Tipo;
 import co.edu.ufps.legal_cases.repository.TemaRepository;
@@ -36,7 +37,7 @@ public class TipoService {
 
     public TipoDTO obtenerPorId(Long id) {
         Tipo tipo = tipoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo no encontrado con id: " + id));
+                .orElseThrow(() -> new BusinessException("Tipo no encontrado con id: " + id));
 
         return convertirADTO(tipo);
     }
@@ -45,10 +46,10 @@ public class TipoService {
         String nombre = tipoDTO.getNombre().trim();
 
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
-                .orElseThrow(() -> new RuntimeException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
+                .orElseThrow(() -> new BusinessException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
 
         if (tipoRepository.existsByNombreIgnoreCaseAndTemaId(nombre, tema.getId())) {
-            throw new RuntimeException("Ya existe un tipo con ese nombre en el tema seleccionado");
+            throw new BusinessException("Ya existe un tipo con ese nombre en el tema seleccionado");
         }
 
         Tipo tipo = new Tipo();
@@ -62,32 +63,32 @@ public class TipoService {
     public TipoDTO actualizar(Long id, TipoDTO tipoDTO) {
 
         Tipo tipo = tipoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo no encontrado con id: " + id));
+                .orElseThrow(() -> new BusinessException("Tipo no encontrado con id: " + id));
 
         if (tipoDTO.getNombre() == null || tipoDTO.getNombre().isBlank()) {
-            throw new RuntimeException("El nombre del tipo es obligatorio");
+            throw new BusinessException("El nombre del tipo es obligatorio");
         }
 
         if (tipoDTO.getTemaId() == null) {
-            throw new RuntimeException("El tema es obligatorio");
+            throw new BusinessException("El tema es obligatorio");
         }
 
         String nuevoNombre = tipoDTO.getNombre().trim();
 
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
-                .orElseThrow(() -> new RuntimeException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
+                .orElseThrow(() -> new BusinessException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
 
         //VALIDAR SI NO HAY CAMBIOS
         boolean mismoNombre = tipo.getNombre().equalsIgnoreCase(nuevoNombre);
         boolean mismoTema = tipo.getTema().getId().equals(tema.getId());
 
         if (mismoNombre && mismoTema) {
-            throw new RuntimeException("No hay cambios para actualizar");
+            throw new BusinessException("No hay cambios para actualizar");
         }
 
         //VALIDAR DUPLICADO
         if (tipoRepository.existsByNombreIgnoreCaseAndTemaId(nuevoNombre, tema.getId())) {
-            throw new RuntimeException("Ya existe un tipo con ese nombre en el tema seleccionado");
+            throw new BusinessException("Ya existe un tipo con ese nombre en el tema seleccionado");
         }
 
         tipo.setNombre(nuevoNombre);
@@ -99,7 +100,7 @@ public class TipoService {
 
     public void eliminar(Long id) {
         Tipo tipo = tipoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo no encontrado con id: " + id));
+                .orElseThrow(() -> new BusinessException("Tipo no encontrado con id: " + id));
 
         tipoRepository.delete(tipo);
     }
