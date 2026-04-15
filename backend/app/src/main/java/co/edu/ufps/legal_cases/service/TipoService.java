@@ -47,7 +47,7 @@ public class TipoService {
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
                 .orElseThrow(() -> new RuntimeException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
 
-        if (tipoRepository.existsByNombreAndTemaId(nombre, tema.getId())) {
+        if (tipoRepository.existsByNombreIgnoreCaseAndTemaId(nombre, tema.getId())) {
             throw new RuntimeException("Ya existe un tipo con ese nombre en el tema seleccionado");
         }
 
@@ -60,16 +60,33 @@ public class TipoService {
     }
 
     public TipoDTO actualizar(Long id, TipoDTO tipoDTO) {
+
         Tipo tipo = tipoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tipo no encontrado con id: " + id));
+
+        if (tipoDTO.getNombre() == null || tipoDTO.getNombre().isBlank()) {
+            throw new RuntimeException("El nombre del tipo es obligatorio");
+        }
+
+        if (tipoDTO.getTemaId() == null) {
+            throw new RuntimeException("El tema es obligatorio");
+        }
 
         String nuevoNombre = tipoDTO.getNombre().trim();
 
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
                 .orElseThrow(() -> new RuntimeException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
 
-        if ((!tipo.getNombre().equalsIgnoreCase(nuevoNombre) || !tipo.getTema().getId().equals(tema.getId()))
-                && tipoRepository.existsByNombreAndTemaId(nuevoNombre, tema.getId())) {
+        //VALIDAR SI NO HAY CAMBIOS
+        boolean mismoNombre = tipo.getNombre().equalsIgnoreCase(nuevoNombre);
+        boolean mismoTema = tipo.getTema().getId().equals(tema.getId());
+
+        if (mismoNombre && mismoTema) {
+            throw new RuntimeException("No hay cambios para actualizar");
+        }
+
+        //VALIDAR DUPLICADO
+        if (tipoRepository.existsByNombreIgnoreCaseAndTemaId(nuevoNombre, tema.getId())) {
             throw new RuntimeException("Ya existe un tipo con ese nombre en el tema seleccionado");
         }
 
@@ -91,7 +108,6 @@ public class TipoService {
         return new TipoDTO(
                 tipo.getId(),
                 tipo.getNombre(),
-                tipo.getTema().getId()
-        );
+                tipo.getTema().getId());
     }
 }

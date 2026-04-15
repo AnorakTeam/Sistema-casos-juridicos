@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface TipoRepository extends JpaRepository<Tipo, Long> {
 
-    boolean existsByNombreAndTemaId(String nombre, Long temaId);
+    boolean existsByNombreIgnoreCaseAndTemaId(String nombre, Long temaId);
 
     List<Tipo> findByTemaId(Long temaId);
 }
