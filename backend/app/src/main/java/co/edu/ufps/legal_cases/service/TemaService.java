@@ -47,7 +47,7 @@ public class TemaService {
         Area area = areaRepository.findById(temaDTO.getAreaId())
                 .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + temaDTO.getAreaId()));
 
-        if (temaRepository.existsByNombreAndAreaId(nombre, area.getId())) {
+        if (temaRepository.existsByNombreIgnoreCaseAndAreaId(nombre, area.getId())) {
             throw new RuntimeException("Ya existe un tema con ese nombre en el área seleccionada");
         }
 
@@ -60,16 +60,33 @@ public class TemaService {
     }
 
     public TemaDTO actualizar(Long id, TemaDTO temaDTO) {
+
         Tema tema = temaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tema no encontrado con id: " + id));
+
+        if (temaDTO.getNombre() == null || temaDTO.getNombre().isBlank()) {
+            throw new RuntimeException("El nombre del tema es obligatorio");
+        }
+
+        if (temaDTO.getAreaId() == null) {
+            throw new RuntimeException("El área es obligatoria");
+        }
 
         String nuevoNombre = temaDTO.getNombre().trim();
 
         Area area = areaRepository.findById(temaDTO.getAreaId())
                 .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + temaDTO.getAreaId()));
 
-        if ((!tema.getNombre().equalsIgnoreCase(nuevoNombre) || !tema.getArea().getId().equals(area.getId()))
-                && temaRepository.existsByNombreAndAreaId(nuevoNombre, area.getId())) {
+        //VALIDAR SI NO HAY CAMBIOS
+        boolean mismoNombre = tema.getNombre().equalsIgnoreCase(nuevoNombre);
+        boolean mismaArea = tema.getArea().getId().equals(area.getId());
+
+        if (mismoNombre && mismaArea) {
+            throw new RuntimeException("No hay cambios para actualizar");
+        }
+
+        //VALIDAR DUPLICADO
+        if (temaRepository.existsByNombreIgnoreCaseAndAreaId(nuevoNombre, area.getId())) {
             throw new RuntimeException("Ya existe un tema con ese nombre en el área seleccionada");
         }
 
@@ -95,7 +112,6 @@ public class TemaService {
         return new TemaDTO(
                 tema.getId(),
                 tema.getNombre(),
-                tema.getArea().getId()
-        );
+                tema.getArea().getId());
     }
 }
