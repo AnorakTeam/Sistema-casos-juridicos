@@ -10,5 +10,5 @@ import co.edu.ufps.legal_cases.model.Area;
 @Repository
 public interface AreaRepository extends JpaRepository<Area, Long> {
     Optional<Area> findByNombre(String nombre);
-    boolean existsByNombre(String nombre);
+    boolean existsByNombreIgnoreCase(String nombre);
 }

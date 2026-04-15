@@ -38,7 +38,7 @@ public class AreaService {
             throw new RuntimeException("El nombre del área es obligatorio");
         }
 
-        if (areaRepository.existsByNombre(nombre)) {
+        if (areaRepository.existsByNombreIgnoreCase(nombre)) {
             throw new RuntimeException("Ya existe un área con ese nombre");
         }
 
@@ -50,6 +50,7 @@ public class AreaService {
     }
 
     public AreaDTO actualizar(Long id, AreaDTO areaDTO) {
+
         Area area = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + id));
 
@@ -59,8 +60,13 @@ public class AreaService {
             throw new RuntimeException("El nombre del área es obligatorio");
         }
 
-        if (!area.getNombre().equalsIgnoreCase(nuevoNombre)
-                && areaRepository.existsByNombre(nuevoNombre)) {
+        //VALIDAR SI ES EL MISMO
+        if (area.getNombre().equalsIgnoreCase(nuevoNombre)) {
+            throw new RuntimeException("El nombre es el mismo, no hay cambios");
+        }
+
+        //VALIDAR DUPLICADO
+        if (areaRepository.existsByNombreIgnoreCase(nuevoNombre)) {
             throw new RuntimeException("Ya existe un área con ese nombre");
         }
 
@@ -74,7 +80,7 @@ public class AreaService {
         Area area = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Área no encontrada con id: " + id));
 
-        //Para evitar eliminar temas accidentalmente en cascada 
+        // Para evitar eliminar temas accidentalmente en cascada
         if (area.getTemas() != null && !area.getTemas().isEmpty()) {
             throw new RuntimeException("No se puede eliminar el área porque tiene temas asociados");
         }
@@ -90,7 +96,7 @@ public class AreaService {
         if (nombre == null) {
             return null;
         }
-        //eliminar espacios vacios a los extremos
+        // eliminar espacios vacios a los extremos
         return nombre.trim();
     }
 }
