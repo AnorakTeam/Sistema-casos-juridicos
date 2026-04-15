@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 export function PersonaForm({ onSubmit, initialValues = {} }) {
   const methods = useForm({
     defaultValues: {
-      sabeLeerEscribir: false,
+      sabeLeerEscribir: true,
       necesitaAjustePcd: false,
       ingresosAdicionales: false,
       energiaElectrica: false,
@@ -19,18 +19,105 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
     },
   });
 
+  const API_URL_BASE = ""
+
+  // sí, tuve que googlear esto, segun la página va a salir el 8, lo dejo así mejor
+  const MAX_ESTRATO = 7
+
+  // TODO: no sé si hay límite *legal*? buscar y corregir si es así
+  const MAX_PERSONAS_A_CARGO = 10
+
+  const tipoDocumentoOptions = [
+                { value: 'CC', label: 'Cédula de Ciudadanía' },
+                { value: 'TI', label: 'Tarjeta de Identidad' },
+                { value: 'CE', label: 'Cédula de Extranjería' },
+                { value: 'PA', label: 'Pasaporte' },
+              ]
+  
+  const pronombreOptions = [
+                { value: 'el', label: 'Él' },
+                { value: 'ella', label: 'Ella' },
+                { value: 'elle', label: 'Elle' },
+                { value: 'otro', label: 'Otro' },
+              ]
+  
+  const sexoOptions = [
+                { value: 'hombre', label: 'Hombre' },
+                { value: 'mujer', label: 'Mujer' },
+                { value: 'intersexual', label: 'Intersexual' },
+              ]
+
+  const tipoUsuarioOptions = [
+                { value: 'victima', label: 'Víctima' },
+                { value: 'usuario_general', label: 'Usuario General' },
+              ]
+
+  const generoOptions = [
+                { value: 'masculino', label: 'Masculino' },
+                { value: 'femenino', label: 'Femenino' },
+                { value: 'no_binario', label: 'No Binario' },
+                { value: 'transgenero', label: 'Transgénero' },
+                { value: 'otro', label: 'Otro' },
+              ]
+  
+  const orientacionSexualOptions = [
+                { value: 'heterosexual', label: 'Heterosexual' },
+                { value: 'homosexual', label: 'Homosexual' },
+                { value: 'bisexual', label: 'Bisexual' },
+                { value: 'pansexual', label: 'Pansexual' },
+                { value: 'asexual', label: 'Asexual' },
+                { value: 'otro', label: 'Otro' },
+              ]
+
+  const estadoCivilOptions = [
+                { value: 'soltero', label: 'Soltero/a' },
+                { value: 'casado', label: 'Casado/a' },
+                { value: 'union_libre', label: 'Unión Libre' },
+                { value: 'divorciado', label: 'Divorciado/a' },
+                { value: 'viudo', label: 'Viudo/a' },
+              ]
+
+  const escolaridadOptions = [
+                { value: 'ninguna', label: 'Ninguna' },
+                { value: 'primaria', label: 'Primaria' },
+                { value: 'secundaria', label: 'Secundaria' },
+                { value: 'tecnico', label: 'Técnico' },
+                { value: 'tecnologo', label: 'Tecnólogo' },
+                { value: 'universitario', label: 'Universitario' },
+                { value: 'postgrado', label: 'Postgrado' },
+              ]
+
+  const zonaOptions = [
+                { value: 'urbana', label: 'Urbana' },
+                { value: 'rural', label: 'Rural' },
+              ]
+
+  
+
   const { handleSubmit } = methods;
+
+  const sendData = (data) => {
+    // comunicarse con el backend
+  }
 
   const handleFormSubmit = (data) => {
     if (onSubmit) {
       onSubmit(data);
     } else {
-      console.log('Form data:', data);
+      console.log('=== Form Data ===');
+      Object.entries(data).forEach(([key, value]) => {
+        const formattedValue = typeof value === 'object' && value !== null
+          ? JSON.stringify(value)
+          : value;
+        console.log(`${key}: ${formattedValue}`);
+      });
+      console.log('=================');
       // Aqui va la logica de envio al backend por defecto
       // (hay que hablar con el backend para el tema de cómo le mandamos
       // la info, eché un ojo y solo ese dto es de casi 1000 líneas)
+      sendData(data)
     }
-  };
+  }
 
   return (
     <FormProvider {...methods}>
@@ -47,21 +134,13 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormSelect
               name="tipoUsuario"
               label="Tipo de Usuario"
-              options={[
-                { value: 'victima', label: 'Víctima' },
-                { value: 'usuario_general', label: 'Usuario General' },
-              ]}
+              options={tipoUsuarioOptions}
               required
             />
             <FormSelect
               name="tipoDocumento"
               label="Tipo de Documento"
-              options={[
-                { value: 'CC', label: 'Cédula de Ciudadanía' },
-                { value: 'TI', label: 'Tarjeta de Identidad' },
-                { value: 'CE', label: 'Cédula de Extranjería' },
-                { value: 'PA', label: 'Pasaporte' },
-              ]}
+              options={tipoDocumentoOptions}
               required
             />
             <FormInput name="numeroDocumento" label="Número de Documento" required />
@@ -73,47 +152,25 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormSelect
               name="pronombre"
               label="Pronombre"
-              options={[
-                { value: 'el', label: 'Él' },
-                { value: 'ella', label: 'Ella' },
-                { value: 'elle', label: 'Elle' },
-                { value: 'otro', label: 'Otro' },
-              ]}
+              options={pronombreOptions}
               required
             />
             <FormSelect
               name="sexo"
               label="Sexo"
-              options={[
-                { value: 'hombre', label: 'Hombre' },
-                { value: 'mujer', label: 'Mujer' },
-                { value: 'intersexual', label: 'Intersexual' },
-              ]}
+              options={sexoOptions}
               required
             />
             <FormSelect
               name="genero"
               label="Género"
-              options={[
-                { value: 'masculino', label: 'Masculino' },
-                { value: 'femenino', label: 'Femenino' },
-                { value: 'no_binario', label: 'No Binario' },
-                { value: 'transgenero', label: 'Transgénero' },
-                { value: 'otro', label: 'Otro' },
-              ]}
+              options={generoOptions}
               required
             />
             <FormSelect
               name="orientacionSexual"
               label="Orientación Sexual"
-              options={[
-                { value: 'heterosexual', label: 'Heterosexual' },
-                { value: 'homosexual', label: 'Homosexual' },
-                { value: 'bisexual', label: 'Bisexual' },
-                { value: 'pansexual', label: 'Pansexual' },
-                { value: 'asexual', label: 'Asexual' },
-                { value: 'otro', label: 'Otro' },
-              ]}
+              options={orientacionSexualOptions}
               required
             />
             <FormInput name="fechaNacimiento" label="Fecha de Nacimiento" type="date" required />
@@ -123,27 +180,13 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormSelect
               name="estadoCivil"
               label="Estado Civil"
-              options={[
-                { value: 'soltero', label: 'Soltero/a' },
-                { value: 'casado', label: 'Casado/a' },
-                { value: 'union_libre', label: 'Unión Libre' },
-                { value: 'divorciado', label: 'Divorciado/a' },
-                { value: 'viudo', label: 'Viudo/a' },
-              ]}
+              options={estadoCivilOptions}
               required
             />
             <FormSelect
               name="escolaridad"
               label="Escolaridad"
-              options={[
-                { value: 'ninguna', label: 'Ninguna' },
-                { value: 'primaria', label: 'Primaria' },
-                { value: 'secundaria', label: 'Secundaria' },
-                { value: 'tecnico', label: 'Técnico' },
-                { value: 'tecnologo', label: 'Tecnólogo' },
-                { value: 'universitario', label: 'Universitario' },
-                { value: 'postgrado', label: 'Postgrado' },
-              ]}
+              options={escolaridadOptions}
               required
             />
             <FormInput name="grupoEtnico" label="Grupo Étnico" required />
@@ -170,19 +213,16 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormInput name="direccion" label="Dirección" required />
             <FormInput name="comuna" label="Comuna" required />
             <FormInput name="localidad" label="Localidad" required />
-            <FormInput name="estrato" label="Estrato" type="number" required />
+            <FormInput name="estrato" label="Estrato" type="number" max={MAX_ESTRATO} min={0} required />
             <FormInput name="tipoVivienda" label="Tipo de Vivienda" required />
             <FormSelect
               name="zona"
               label="Zona"
-              options={[
-                { value: 'urbana', label: 'Urbana' },
-                { value: 'rural', label: 'Rural' },
-              ]}
+              options={zonaOptions}
               required
             />
             <FormInput name="tenencia" label="Tenencia de la Vivienda" required />
-            <FormInput name="numeroPersonasACargo" label="Número de Personas a Cargo" type="number" required />
+            <FormInput name="numeroPersonasACargo" label="Número de Personas a Cargo" type="number" min={0} max={MAX_PERSONAS_A_CARGO} required />
           </div>
 
           <div className="flex flex-wrap gap-6 mt-4 p-4 bg-gray-50 rounded-lg">
@@ -201,7 +241,7 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <FormInput name="ocupacion" label="Ocupación" required />
             <FormInput name="empresa" label="Empresa donde labora" required />
-            <FormInput name="salario" label="Salario" type="number" required />
+            <FormInput name="salario" label="Salario" type="number" step={10000} min={0} required />
             <FormInput name="cargo" label="Cargo" required />
             <FormInput name="direccionEmpresa" label="Dirección de la Empresa" required />
             <FormInput name="telefonoEmpresa" label="Teléfono de la Empresa" required />
