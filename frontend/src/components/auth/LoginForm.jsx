@@ -10,6 +10,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("")
   const router = useRouter()
     
+  //funcion para cambiar de pagina con los datos en este casoel email del usuario
   function handleSubmit(event) {
   event.preventDefault()
   localStorage.setItem("userEmail", email)
@@ -21,6 +22,11 @@ export function LoginForm() {
       <div className="mb-6 space-y-2">
         <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
       </div>
+
+      //formulario de login con campos para correo electrónico y contraseña, y un botón para enviar el formulario. 
+      También incluye un enlace para recuperar la contraseña en caso de que el usuario la haya olvidado(no codificado) 
+      Al enviar el formulario, se guarda el correo electrónico en el almacenamiento local y se redirige al usuario 
+      a la página de inicio.
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="grid gap-2 text-sm font-medium">
