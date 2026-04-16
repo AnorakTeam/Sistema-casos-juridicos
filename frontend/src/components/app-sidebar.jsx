@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import {
   Sidebar,
@@ -15,8 +13,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LayoutDashboard } from "lucide-react"
 
 export function AppSidebar({ mainItems = [], footerItems = [] }) {
+  const [email, setEmail] = React.useState("")
+  const [name, setName] = React.useState("")
+
+  React.useEffect(() => {
+    const storedEmail = localStorage.getItem("userEmail") || ""
+    setEmail(storedEmail)
+
+    if (storedEmail.includes("@")) {
+      setName(storedEmail.split("@")[0])
+    }
+  }, [])
+
   return (
-    <Sidebar className="[--sidebar:white] border-r border-gray-200">
+    <Sidebar className="bg-blue-500 border-r border-gray-200">
       <SidebarHeader className="p-4 flex items-center gap-2">
         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-black text-white">
           <LayoutDashboard className="size-4" />
@@ -30,14 +40,6 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
       <SidebarSeparator />
 
       <SidebarContent className="px-2 py-4">
-
-        {/* TODO: Cambiar los items a un map para recibirlos por prop
-                  A menos que no agreguemos más opciones. En ese caso, hacer
-                  el item de casos jurídicos un acordeón, dentro de ese nuevo
-                  componente tocaría hacer que antes de mostrarse, consulte 
-                  todos los casos que tiene la persona logueada y así saber
-                  cuántos casos tiene dentro del acordeón */}
-
         <SidebarMenu>
           {mainItems.map((item, index) => (
             <SidebarMenuItem key={index}>
@@ -65,11 +67,11 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
             <div className="flex items-center gap-3 px-2 py-1.5">
               <Avatar className="size-8">
                 <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback>Perosna</AvatarFallback>
+                <AvatarFallback>{name?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Perosna</span>
-                <span className="truncate text-xs text-gray-500">Perosna@example.com</span>
+                <span className="truncate font-semibold">{name}</span>
+                <span className="truncate text-xs text-gray-500">{email}</span>
               </div>
             </div>
           </SidebarMenuItem>
