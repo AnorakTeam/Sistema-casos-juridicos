@@ -26,14 +26,14 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
   }, [])
 
   return (
-    <Sidebar className="bg-blue-500 border-r border-gray-200">
+    <Sidebar className="bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
       <SidebarHeader className="p-4 flex items-center gap-2">
-        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-black text-white">
+        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <LayoutDashboard className="size-4" />
         </div>
         <div className="flex flex-col gap-0.5 leading-none items-center">
-          <span className="font-semibold text-gray-900 text-sm">Sistema Casos</span>
-          <span className="text-xs text-gray-500">v1.0.0</span>
+          <span className="font-semibold text-foreground text-sm">Sistema Casos</span>
+          <span className="text-xs text-muted-foreground">v1.0.0</span>
         </div>
       </SidebarHeader>
 
@@ -71,7 +71,7 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
               </Avatar>
               <div className="flex flex-col text-left text-sm leading-tight">
                 <span className="truncate font-semibold">{name}</span>
-                <span className="truncate text-xs text-gray-500">{email}</span>
+                <span className="truncate text-xs text-muted-foreground">{email}</span>
               </div>
             </div>
           </SidebarMenuItem>

@@ -121,10 +121,10 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-card rounded-xl shadow-sm border border-border">
         <div>
           <h2 className="text-2xl font-bold tracking-tight mb-2">Registro de Persona</h2>
-          <p className="text-gray-500 mb-6">Complete la siguiente información para el sistema de casos jurídicos.</p>
+          <p className="text-muted-foreground mb-6">Complete la siguiente información para el sistema de casos jurídicos.</p>
         </div>
 
         {/* Información Básica */}
@@ -195,7 +195,7 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormInput name="caracterizacionPcd" label="Caracterización PCD" required />
           </div>
 
-          <div className="flex gap-6 mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex gap-6 mt-4 p-4 rounded-lg bg-muted/20 dark:bg-muted/30">
             <FormCheckbox name="sabeLeerEscribir" label="¿Sabe leer y escribir?" />
             <FormCheckbox name="necesitaAjustePcd" label="¿Necesita ajuste razonable (PCD)?" />
           </div>
@@ -225,7 +225,7 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
             <FormInput name="numeroPersonasACargo" label="Número de Personas a Cargo" type="number" min={0} max={MAX_PERSONAS_A_CARGO} required />
           </div>
 
-          <div className="flex flex-wrap gap-6 mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex flex-wrap gap-6 mt-4 p-4 rounded-lg bg-muted/20 dark:bg-muted/30">
             <FormCheckbox name="ingresosAdicionales" label="¿Recibe ingresos adicionales?" />
             <FormCheckbox name="energiaElectrica" label="¿Cuenta con energía eléctrica?" />
             <FormCheckbox name="acueducto" label="¿Cuenta con acueducto?" />

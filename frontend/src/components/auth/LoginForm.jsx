@@ -9,12 +9,10 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const router = useRouter()
-
+    
   function handleSubmit(event) {
   event.preventDefault()
-
   localStorage.setItem("userEmail", email)
-
   router.push("/home")
 }
 

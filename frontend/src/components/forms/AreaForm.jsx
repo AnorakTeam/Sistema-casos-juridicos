@@ -33,10 +33,10 @@ export function AreaForm({ onSubmit, initialValues = {} }) {
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-card rounded-xl shadow-sm border border-border">
         <div>
           <h2 className="text-2xl font-bold tracking-tight mb-2">Registro de Área</h2>
-          <p className="text-gray-500 mb-6">Complete la siguiente información:</p>
+          <p className="text-muted-foreground mb-6">Complete la siguiente información:</p>
         </div>
 
         {/* Información Básica */}
