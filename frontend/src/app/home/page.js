@@ -43,7 +43,6 @@ export default function Home() {
           mainItems={mainItems}
           footerItems={footerItems}
         />
-        //boton de tema
         <SidebarInset>
           <header className="flex h-16 items-center gap-2 border-b px-4">
             <DropdownMenu>
@@ -67,7 +66,6 @@ export default function Home() {
               </DropdownMenuContent>
             </DropdownMenu>
             <SidebarTrigger />
-          //
           </header>
 
           <div className="flex flex-col gap-4 p-4 lg:p-8">

@@ -17,7 +17,6 @@ export default function LoginPage() {
   return (
     <main className="relative grid min-h-screen lg:grid-cols-2">
       <div className="absolute top-4 right-4 z-50">
-        // boton para cambiar el tema de la aplicacion
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon">
@@ -40,12 +39,10 @@ export default function LoginPage() {
         </DropdownMenu>
       </div>
 
-      //llamamos al componente del formulario de login
       <div className="flex items-center justify-center px-4 py-12">
         <LoginForm />
       </div>
 
-      //imagen decorativa para el lado derecho de la pantalla en dispositivos grandes
       <div className="relative hidden lg:block">
         <img
           src="/Consultorio-Juridico.jpg"
