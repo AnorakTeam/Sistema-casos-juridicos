@@ -1,73 +1,89 @@
-import React, { useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { FormInput } from './parts/FormInput';
-import { FormMultiSelect } from './parts/FormMultiSelect';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import { useApiForm } from "@/hooks/useApiForm";
+import { useForm } from "react-hook-form";
+import { FormInput } from "./parts/FormInput";
+import { FormSelect } from "./parts/FormSelect";
+import { Button } from "@/components/ui/button";
 
-export function TipoForm({ onSubmit, initialValues = {} }) {
-  const methods = useForm();
-  const [selectedTemas, setSelectedTemas] = useState(initialValues.temas || []);
+export function TipoForm() {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      nombre: "",
+      temaId: "",
+    },
+  });
 
-  const { handleSubmit } = methods;
+  const [temas, setTemas] = useState([]);
+  const { submit, isSubmitting } = useApiForm({
+    endpoint: `${API_URL_BASE}/tipos`,
+    reset: () => reset({ nombre: "", temaId: "" }),
+  });
+  const API_URL_BASE = "http://localhost:8080/api";
 
-  // Claramente, cambiar esto por un useState y useEffect para hacer fetch a la API
-  const allTemas = [
-    {value: 'temaid1', label: 'tema numero 1'},
-    {value: 'temaid2', label: 'tema numero 2'},
-    {value: 'temaid3', label: 'tema numero 3'},
-  ]
+  useEffect(() => {
+    const fetchTemas = async () => {
+      try {
+        const response = await fetch(`${API_URL_BASE}/temas`);
+        if (response.ok) {
+          const temasData = await response.json();
 
-  const sendData = (data) => {
-    // comunicarse con el backend
-  }
+          const temaOptions = temasData.map((tema) => ({
+            value: tema.id,
+            label: tema.nombre,
+          }));
 
-  const handleFormSubmit = (data) => {
-    const formData = {
-      ...data,
-      temas: selectedTemas
+          setTemas(temaOptions);
+        } else {
+          console.error("Error al cargar temas");
+        }
+      } catch (error) {
+        console.error("Error de red al cargar temas:", error);
+      }
     };
 
-    if (onSubmit) {
-      onSubmit(formData);
-    } else {
-      console.log('=== Form Data ===');
-      Object.entries(formData).forEach(([key, value]) => {
-        const formattedValue = typeof value === 'object' && value !== null
-          ? JSON.stringify(value)
-          : value;
-        console.log(`${key}: ${formattedValue}`);
-      });
-      console.log('=================');
-      // Aqui va la logica de envio al backend por defecto
-      // (hay que hablar con el backend para el tema de cómo le mandamos
-      // la info, eché un ojo y solo ese dto es de casi 1000 líneas)
-      sendData(formData)
-    }
-  }
+    fetchTemas();
+  }, []);
+
+  const onSubmit = async (data) => {
+    await submit({
+      ...data,
+      temaId: Number(data.temaId),
+    });
+  };
 
   return (
-    <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-card rounded-xl shadow-sm border border-border">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Registro de Tipo</h2>
-          <p className="text-muted-foreground mb-6">Complete la siguiente información:</p>
-        </div>
+    <div className="space-y-6 p-6 bg-card rounded-xl border">
+      <div>
+        <h2 className="text-2xl font-bold">Registro de Tipo</h2>
+        <p className="text-muted-foreground">
+          Complete la siguiente información
+        </p>
+      </div>
 
-        {/* Información Básica */}
-        <FormInput name="nombre" label="Nombre del tipo" required />
-        <FormMultiSelect
-          label="Temas a relacionar"
-          placeholder="Selecciona un tema para agregar"
-          selectedItems={selectedTemas}
-          availableItems={allTemas}
-          onSelectionChange={setSelectedTemas}
-          itemLabel="Temas seleccionados"
-          addButtonText="Agregar"
-        />
-        <Button type="submit">
-          Guardar tema
-        </Button>
-      </form>
-    </FormProvider>
+      <FormInput
+        name="nombre"
+        label="Nombre del tipo"
+        register={register}
+        errors={errors}
+        rules={{ required: "El nombre es obligatorio" }}
+      />
+
+      <FormSelect
+        name="temaId"
+        label="Tema"
+        options={temas}
+        register={register}
+        errors={errors}
+      />
+
+      <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+        {isSubmitting ? "Guardando..." : "Guardar tipo"}
+      </Button>
+    </div>
   );
 }

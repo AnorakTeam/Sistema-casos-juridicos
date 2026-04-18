@@ -1,24 +1,41 @@
-import React from 'react';
-import { useFormContext } from 'react-hook-form';
+import React from "react";
 
-export function FormCheckbox({ name, label, ...props }) {
-  const { register, formState: { errors } } = useFormContext();
-
+export function FormCheckbox({
+  name,
+  label,
+  register,
+  errors,
+  rules,
+  ...props
+}) {
   return (
     <div className="flex flex-col gap-1 w-full">
       <div className="flex items-center gap-2">
         <input
           id={name}
           type="checkbox"
-          {...register(name)}
+          {...register(name, rules)}
           {...props}
-          className={`h-4 w-4 rounded border-input bg-transparent text-primary focus:ring-ring ${
-            errors[name] ? 'border-red-500' : ''
+          className={`h-4 w-4 rounded border-input ${
+            errors?.[name] ? "border-red-500" : ""
           }`}
         />
-        {label && <label htmlFor={name} className="text-sm font-medium leading-none cursor-pointer">{label}</label>}
+
+        {label && (
+          <label
+            htmlFor={name}
+            className="text-sm font-medium leading-none cursor-pointer"
+          >
+            {label}
+          </label>
+        )}
       </div>
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]?.message}</p>}
+
+      {errors?.[name] && (
+        <p className="text-xs text-red-500">
+          {errors[name]?.message}
+        </p>
+      )}
     </div>
   );
 }

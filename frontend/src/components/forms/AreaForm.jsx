@@ -1,50 +1,54 @@
-import React from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { FormInput } from './parts/FormInput';
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { useApiForm } from "@/hooks/useApiForm";
+import { useForm } from "react-hook-form";
+import { FormInput } from "./parts/FormInput";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 
-export function AreaForm({ onSubmit, initialValues = {} }) {
-  const methods = useForm();
+export function AreaForm() {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      nombre: "",
+    },
+  });
 
-  const { handleSubmit } = methods;
+  const { submit, isSubmitting } = useApiForm({
+    endpoint: "http://localhost:8080/api/areas",
+    reset: () => reset({ nombre: "" }),
+  });
+  
 
-  const sendData = (data) => {
-    // comunicarse con el backend
-  }
+  const API_URL_BASE = "http://localhost:8080/api"
 
-  const handleFormSubmit = (data) => {
-    if (onSubmit) {
-      onSubmit(data);
-    } else {
-      console.log('=== Form Data ===');
-      Object.entries(data).forEach(([key, value]) => {
-        const formattedValue = typeof value === 'object' && value !== null
-          ? JSON.stringify(value)
-          : value;
-        console.log(`${key}: ${formattedValue}`);
-      });
-      console.log('=================');
-      // Aqui va la logica de envio al backend por defecto
-      // (hay que hablar con el backend para el tema de cómo le mandamos
-      // la info, eché un ojo y solo ese dto es de casi 1000 líneas)
-      sendData(data)
-    }
-  }
+  const onSubmit = async (data) => {
+    await submit(data);
+  };
 
   return (
-    <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-card rounded-xl shadow-sm border border-border">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Registro de Área</h2>
-          <p className="text-muted-foreground mb-6">Complete la siguiente información:</p>
-        </div>
+    <div className="space-y-6 p-6 bg-card rounded-xl border">
+      <div>
+        <h2 className="text-2xl font-bold">Registro de Área</h2>
+        <p className="text-muted-foreground">
+          Complete la siguiente información
+        </p>
+      </div>
 
-        {/* Información Básica */}
-        <FormInput name="nombre" label="Nombre del área" required />
-        <Button type="submit">
-          Guardar área
-        </Button>
-      </form>
-    </FormProvider>
+      <FormInput
+        name="nombre"
+        label="Nombre del área"
+        register={register}
+        errors={errors}
+        rules={{ required: "El nombre es obligatorio" }}
+      />
+
+      <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+        {isSubmitting ? "Guardando..." : "Guardar área"}
+      </Button>
+    </div>
   );
 }

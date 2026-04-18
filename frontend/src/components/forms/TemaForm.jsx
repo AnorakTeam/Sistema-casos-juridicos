@@ -1,77 +1,70 @@
-import React, { useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { FormInput } from './parts/FormInput';
-import { FormSelect } from './parts/FormSelect';
-import { Button } from '@/components/ui/button';
-import { FormMultiSelect } from './parts/FormMultiSelect';
+import React, { useState, useEffect } from "react";
+import { useApiForm } from "@/hooks/useApiForm";
+import { useForm } from "react-hook-form";
+import { FormInput } from "./parts/FormInput";
+import { FormSelect } from "./parts/FormSelect";
+import { Button } from "@/components/ui/button";
 
+export default function TemaForm() {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm();
 
-export function TemaForm({ onSubmit, initialValues = {} }) {
-  const methods = useForm();
-  const [selectedAreas, setSelectedAreas] = useState(initialValues.areas || []);
+  const API_URL_BASE = "http://localhost:8080/api"
 
-  const { handleSubmit } = methods;
+  const [areas, setAreas] = useState([]);
+  const { submit, isSubmitting } = useApiForm({
+    endpoint: `${API_URL_BASE}/temas`,
+    reset: () => reset({ nombre: "", areaId: "" }),
+  });
 
-  // Claramente, cambiar esto por un useState y useEffect para hacer fetch a la API
-  const allAreas = [
-    {value: 'areaid1', label: 'Area numero 1'},
-    {value: 'areaid2', label: 'Area numero 2'},
-    {value: 'areaid3', label: 'Area numero 3'},
-  ]
+  useEffect(() => {
+      const fetchAreas = async () => {
+        try {
+          const response = await fetch(`${API_URL_BASE}/areas`);
+          if (response.ok) {
+            const areasData = await response.json();
+            const areaOptions = areasData.map(area => ({
+              value: area.id.toString(),
+              label: area.nombre
+            }));
+            setAreas(areaOptions);
+          } else {
+            console.error('Error al cargar áreas');
+          }
+        } catch (error) {
+          console.error('Error de red al cargar áreas:', error);
+        }
+      };
+      fetchAreas();
+  }, []);
 
-  const sendData = (data) => {
-    // comunicarse con el backend
-  }
-
-  const handleFormSubmit = (data) => {
-    const formData = {
-      ...data,
-      areas: selectedAreas,
-    };
-
-    if (onSubmit) {
-      onSubmit(formData);
-    } else {
-      console.log("=== Form Data ===");
-      Object.entries(formData).forEach(([key, value]) => {
-        const formattedValue =
-          typeof value === "object" && value !== null
-            ? JSON.stringify(value)
-            : value;
-        console.log(`${key}: ${formattedValue}`);
-      });
-      console.log("=================");
-      // Aqui va la logica de envio al backend por defecto
-      // (hay que hablar con el backend para el tema de cómo le mandamos
-      // la info, eché un ojo y solo ese dto es de casi 1000 líneas)
-      sendData(formData);
-    }
+  const onSubmit = async (data) => {
+    await submit(data);
   };
 
   return (
-    <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-6 bg-card rounded-xl shadow-sm border border-border">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Registro de Área</h2>
-          <p className="text-muted-foreground mb-6">Complete la siguiente información:</p>
-        </div>
-
-        {/* Información Básica */}
-        <FormInput name="nombre" label="Nombre del tema" required />
-
-        <FormMultiSelect
-          label="Áreas a relacionar"
-          placeholder="Selecciona un área para agregar"
-          selectedItems={selectedAreas}
-          availableItems={allAreas}
-          onSelectionChange={setSelectedAreas}
-          itemLabel="Áreas seleccionadas"
-          addButtonText="Agregar"
+    <div>
+        <FormInput
+            name="nombre"
+            label="Nombre"
+            register={register}
+            errors={errors}
+            rules={{ required: "El nombre es obligatorio" }}
         />
-        <Button type="submit">
-          Guardar tema
+        <FormSelect
+            name="areaId"
+            label="Área"
+            options={areas}
+            register={register}
+            errors={errors}
+        />
+        <Button className="my-2" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+            Guardar tema
         </Button>
-      </form>
-    </FormProvider>
-  );
+    </div>
+  )
 }
