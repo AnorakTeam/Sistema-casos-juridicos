@@ -8,6 +8,7 @@ import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import { Toaster } from "@/components/ui/sonner"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +76,8 @@ export default function Home() {
           </div>
 
         </SidebarInset>
+
+      <Toaster richColors position="bottom-right" />  
 
       </SidebarProvider>
     </TooltipProvider>
