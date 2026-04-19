@@ -6,6 +6,8 @@ import { FormSelect } from "./parts/FormSelect";
 import { Button } from "@/components/ui/button";
 
 export function TipoForm() {
+  const API_URL_BASE = "http://localhost:8080/api";
+
   const {
     register,
     handleSubmit,
@@ -19,11 +21,11 @@ export function TipoForm() {
   });
 
   const [temas, setTemas] = useState([]);
+
   const { submit, isSubmitting } = useApiForm({
     endpoint: `${API_URL_BASE}/tipos`,
     reset: () => reset({ nombre: "", temaId: "" }),
   });
-  const API_URL_BASE = "http://localhost:8080/api";
 
   useEffect(() => {
     const fetchTemas = async () => {
@@ -47,7 +49,7 @@ export function TipoForm() {
     };
 
     fetchTemas();
-  }, []);
+  }, [API_URL_BASE]);
 
   const onSubmit = async (data) => {
     await submit({
