@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import {
   Sidebar,
@@ -11,10 +13,12 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LayoutDashboard } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export function AppSidebar({ mainItems = [], footerItems = [] }) {
   const [email, setEmail] = React.useState("")
   const [name, setName] = React.useState("")
+  const router = useRouter()
 
   React.useEffect(() => {
     const storedEmail = localStorage.getItem("userEmail") || ""
@@ -24,6 +28,23 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
       setName(storedEmail.split("@")[0])
     }
   }, [])
+
+  function normalizePath(text) {
+    return `/${String(text).toLowerCase().replace(/\s+/g, "")}`
+  }
+
+  function handleSubmit(item) {
+    const path = item.path
+      ? item.path.startsWith("/")
+        ? item.path
+        : `/${item.path}`
+      : normalizePath(item.title)
+
+    if (!path) return
+
+    localStorage.setItem("userEmail", email)
+    router.push(path)
+  }
 
   return (
     <Sidebar className="bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
@@ -42,8 +63,8 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
       <SidebarContent className="px-2 py-4">
         <SidebarMenu>
           {mainItems.map((item, index) => (
-            <SidebarMenuItem key={index}>
-              <SidebarMenuButton tooltip={item.tooltip}>
+            <SidebarMenuItem key={item.title || index}>
+              <SidebarMenuButton tooltip={item.tooltip} onClick={() => handleSubmit(item)}>
                 <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -56,8 +77,8 @@ export function AppSidebar({ mainItems = [], footerItems = [] }) {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           {footerItems.map((item, index) => (
-            <SidebarMenuItem key={index}>
-              <SidebarMenuButton tooltip={item.tooltip}>
+            <SidebarMenuItem key={item.title || index}>
+              <SidebarMenuButton tooltip={item.tooltip} onClick={() => handleSubmit(item)}>
                 <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

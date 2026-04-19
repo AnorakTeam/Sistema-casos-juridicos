@@ -14,7 +14,7 @@ export function LoginForm() {
   function handleSubmit(event) {
   event.preventDefault()
   localStorage.setItem("userEmail", email)
-  router.push("/home")
+  router.push("/Inicio")
 }
       //formulario de login con campos para correo electrónico y contraseña, y un botón para enviar el formulario. 
       //También incluye un enlace para recuperar la contraseña en caso de que el usuario la haya olvidado(no codificado) 
