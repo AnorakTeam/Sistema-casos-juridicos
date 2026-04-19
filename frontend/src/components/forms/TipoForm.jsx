@@ -22,10 +22,7 @@ export function TipoForm() {
 
   const [temas, setTemas] = useState([]);
 
-  const { submit, isSubmitting } = useApiForm({
-    endpoint: `${API_URL_BASE}/tipos`,
-    reset: () => reset({ nombre: "", temaId: "" }),
-  });
+  const { submit, isSubmitting } = useApiForm({endpoint: `${API_URL_BASE}/tipos`});
 
   useEffect(() => {
     const fetchTemas = async () => {

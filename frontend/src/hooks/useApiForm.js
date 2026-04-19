@@ -9,7 +9,7 @@ import { toast } from "sonner";
  * @param {*} param0 
  * @returns 
  */
-export function useApiForm({ endpoint, reset }) {
+export function useApiForm({ endpoint }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submit = async (data) => {
@@ -28,10 +28,6 @@ export function useApiForm({ endpoint, reset }) {
         const result = await response.json();
 
         toast.success("Registro exitoso");
-
-        // reset si existe, quizás toca adaptar esto para cuando coloquemos de nuevo
-        // el form provider del react hook form
-        if (reset) reset();
 
         return { success: true, data: result };
       } else {

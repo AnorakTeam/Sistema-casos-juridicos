@@ -27,10 +27,7 @@ export function PersonaForm({ onSubmit, initialValues = {} }) {
 
   const API_URL_BASE = "http://localhost:8080/api";
 
-  const { submit, isSubmitting } = useApiForm({
-    endpoint: `${API_URL_BASE}/personas`,
-    //reset: () => reset(defaultFormValues),
-  });
+  const { submit, isSubmitting } = useApiForm({ endpoint: `${API_URL_BASE}/personas` });
 
   const MAX_ESTRATO = 7;
   const MAX_PERSONAS_A_CARGO = 10;

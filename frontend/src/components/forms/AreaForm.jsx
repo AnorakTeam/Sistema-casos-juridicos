@@ -17,10 +17,7 @@ export function AreaForm() {
     },
   });
 
-  const { submit, isSubmitting } = useApiForm({
-    endpoint: "http://localhost:8080/api/areas",
-    reset: () => reset({ nombre: "" }),
-  });
+  const { submit, isSubmitting } = useApiForm({endpoint: "http://localhost:8080/api/areas"});
   
 
   const API_URL_BASE = "http://localhost:8080/api"

@@ -16,10 +16,7 @@ export default function TemaForm() {
   const API_URL_BASE = "http://localhost:8080/api"
 
   const [areas, setAreas] = useState([]);
-  const { submit, isSubmitting } = useApiForm({
-    endpoint: `${API_URL_BASE}/temas`,
-    reset: () => reset({ nombre: "", areaId: "" }),
-  });
+  const { submit, isSubmitting } = useApiForm({ endpoint: `${API_URL_BASE}/temas`})
 
   useEffect(() => {
       const fetchAreas = async () => {
