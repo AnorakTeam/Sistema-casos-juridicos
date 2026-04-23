@@ -3,77 +3,98 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 
-//Creado con el objetivo de pruebas debe ser remplazado por fetch a la base de datos mas adelante
-const sampleConsultas = [
-  { id: "1", consulta: "Demanda de arrendamiento", fecha: "2026-04-18" },
-  { id: "2", consulta: "Solicitud de asesoría laboral", fecha: "2026-04-17" },
-  { id: "3", consulta: "Revisión de contrato civil", fecha: "2026-04-16" },
-]
-
 export function ConsultasJuridicasForm() {
   const [searchText, setSearchText] = React.useState("")
   const [rows, setRows] = React.useState([])
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState("")
 
-  function handleSearch(event) {
+  async function handleSearch(event) {
     event.preventDefault()
 
-    const query = searchText.trim().toLowerCase()
-    const filteredRows = sampleConsultas.filter((row) => {
-      return (
-        row.id.includes(query) ||
-        row.consulta.toLowerCase().includes(query) ||
-        row.fecha.includes(query)
-      )
-    })
+    setLoading(true)
+    setError("")
 
-    setRows(filteredRows)
+    try {
+      const token = localStorage.getItem("token")
+
+      const res = await fetch(
+        `http://localhost:8080/consultas?search=${searchText}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error("Error al obtener datos")
+      }
+
+      const data = await res.json()
+
+      setRows(data)
+
+    } catch (err) {
+      setError("No se pudieron cargar las consultas")
+      setRows([])
+    } finally {
+      setLoading(false)
+    }
   }
-  //
 
   return (
     <div className="space-y-6">
       <form onSubmit={handleSearch} className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
         <div className="space-y-2">
-          <label htmlFor="consulta" className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium">
             Buscar consulta
           </label>
           <input
-            id="consulta"
             value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
+            onChange={(e) => setSearchText(e.target.value)}
             placeholder="Escribe tu búsqueda"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary"
+            className="w-full rounded-md border px-3 py-2 text-sm"
           />
         </div>
-        <Button type="submit">Buscar</Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Buscando..." : "Buscar"}
+        </Button>
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="min-w-full divide-y divide-border">
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <table className="min-w-full">
           <thead className="bg-muted">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">ID</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Consulta</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Fecha</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">nombre</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">apellido</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">cedula</th>
+              <th className="px-4 py-3 text-left text-xs">ID</th>
+              <th className="px-4 py-3 text-left text-xs">Consulta</th>
+              <th className="px-4 py-3 text-left text-xs">Fecha</th>
+              <th className="px-4 py-3 text-left text-xs">Nombre</th>
+              <th className="px-4 py-3 text-left text-xs">Apellido</th>
+              <th className="px-4 py-3 text-left text-xs">Cédula</th>
             </tr>
           </thead>
-          <tbody className="bg-background">
+
+          <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No hay resultados. Usa el botón Buscar para cargar datos.
+                <td colSpan={6} className="text-center py-6 text-sm">
+                  {loading ? "Cargando..." : "Sin resultados"}
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-4 py-3 text-sm">{row.id}</td>
-                  <td className="px-4 py-3 text-sm">{row.consulta}</td>
-                  <td className="px-4 py-3 text-sm">{row.fecha}</td>
-                  
+                  <td className="px-4 py-3">{row.id}</td>
+                  <td className="px-4 py-3">{row.consulta}</td>
+                  <td className="px-4 py-3">{row.fecha}</td>
+                  <td className="px-4 py-3">{row.nombre}</td>
+                  <td className="px-4 py-3">{row.apellido}</td>
+                  <td className="px-4 py-3">{row.cedula}</td>
                 </tr>
               ))
             )}

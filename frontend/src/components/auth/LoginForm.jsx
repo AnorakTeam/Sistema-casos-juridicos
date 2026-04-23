@@ -8,14 +8,38 @@ import { Input } from "@/components/ui/input"
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
-    
-  //funcion para cambiar de pagina con los datos en este casoel email del usuario
-  function handleSubmit(event) {
-  event.preventDefault()
-  localStorage.setItem("userEmail", email)
-  router.push("/inicio")
-}
+
+  // autenticacion de usuario en la que se envían las credenciales al servidor para verificar
+  // si son correctas. Si la autenticación es exitosa, se almacena el token de autenticación 
+  // y el correo electrónico del usuario en el almacenamiento local del navegador, y se redirige 
+  // al usuario a la página de inicio. Si la autenticación falla, se muestra un mensaje de error.
+  
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setErrorMessage("")
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ""
+    const response = await fetch(`${apiUrl}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      localStorage.setItem("authToken", result.token)
+      localStorage.setItem("userEmail", result.email)
+      router.push("/inicio")
+      return
+    }
+
+    const errorData = await response.json().catch(() => null)
+    setErrorMessage(errorData?.message || "Credenciales inválidas")
+  }
       //formulario de login con campos para correo electrónico y contraseña, y un botón para enviar el formulario. 
       //También incluye un enlace para recuperar la contraseña en caso de que el usuario la haya olvidado(no codificado) 
       //Al enviar el formulario, se guarda el correo electrónico en el almacenamiento local y se redirige al usuario 
@@ -57,6 +81,9 @@ export function LoginForm() {
         <Button type="submit" className="w-full">
           Acceder
         </Button>
+        {errorMessage ? (
+          <p className="text-sm text-destructive">{errorMessage}</p>
+        ) : null}
       </form>
     </div>
   )
