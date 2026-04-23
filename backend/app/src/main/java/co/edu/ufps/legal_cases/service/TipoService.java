@@ -7,6 +7,7 @@ import co.edu.ufps.legal_cases.model.Tipo;
 import co.edu.ufps.legal_cases.repository.TemaRepository;
 import co.edu.ufps.legal_cases.repository.TipoRepository;
 import org.springframework.stereotype.Service;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class TipoService {
     }
 
     public TipoDTO crear(TipoDTO tipoDTO) {
-        String nombre = tipoDTO.getNombre().trim();
+        String nombre = normalizarTexto(tipoDTO.getNombre());
 
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
                 .orElseThrow(() -> new BusinessException("Tema no encontrado con id: " + tipoDTO.getTemaId()));
@@ -73,7 +74,7 @@ public class TipoService {
             throw new BusinessException("El tema es obligatorio");
         }
 
-        String nuevoNombre = tipoDTO.getNombre().trim();
+        String nuevoNombre = normalizarTexto(tipoDTO.getNombre());
 
         Tema tema = temaRepository.findById(tipoDTO.getTemaId())
                 .orElseThrow(() -> new BusinessException("Tema no encontrado con id: " + tipoDTO.getTemaId()));

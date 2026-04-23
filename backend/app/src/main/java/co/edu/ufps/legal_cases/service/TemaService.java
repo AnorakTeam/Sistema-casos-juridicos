@@ -7,6 +7,7 @@ import co.edu.ufps.legal_cases.model.Tema;
 import co.edu.ufps.legal_cases.repository.AreaRepository;
 import co.edu.ufps.legal_cases.repository.TemaRepository;
 import org.springframework.stereotype.Service;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class TemaService {
     }
 
     public TemaDTO crear(TemaDTO temaDTO) {
-        String nombre = temaDTO.getNombre().trim();
+        String nombre = normalizarTexto(temaDTO.getNombre());
 
         Area area = areaRepository.findById(temaDTO.getAreaId())
                 .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + temaDTO.getAreaId()));
@@ -73,7 +74,7 @@ public class TemaService {
             throw new BusinessException("El área es obligatoria");
         }
 
-        String nuevoNombre = temaDTO.getNombre().trim();
+        String nuevoNombre = normalizarTexto(temaDTO.getNombre());
 
         Area area = areaRepository.findById(temaDTO.getAreaId())
                 .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + temaDTO.getAreaId()));

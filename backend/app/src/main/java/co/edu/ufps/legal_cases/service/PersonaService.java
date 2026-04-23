@@ -11,6 +11,11 @@ import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Persona;
 import co.edu.ufps.legal_cases.repository.PersonaRepository;
 
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.estaInformado;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarNumeroDocumento;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTelefono;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
+
 @Service
 public class PersonaService {
 
@@ -38,7 +43,7 @@ public class PersonaService {
         validarTelefonoOCorreo(personaDTO);
         validarDatosAcudienteSiEsMenor(personaDTO);
 
-        String numeroDocumento = normalizarTexto(personaDTO.getNumeroDocumento());
+        String numeroDocumento = normalizarNumeroDocumento(personaDTO.getNumeroDocumento());
 
         if (personaRepository.existsByNumeroDocumento(numeroDocumento)) {
             throw new BusinessException("Ya existe una persona con ese numero de documento");
@@ -58,7 +63,7 @@ public class PersonaService {
         validarTelefonoOCorreo(personaDTO);
         validarDatosAcudienteSiEsMenor(personaDTO);
 
-        String numeroDocumentoNuevo = normalizarTexto(personaDTO.getNumeroDocumento());
+        String numeroDocumentoNuevo = normalizarNumeroDocumento(personaDTO.getNumeroDocumento());
 
         if (!personaExistente.getNumeroDocumento().equalsIgnoreCase(numeroDocumentoNuevo)
                 && personaRepository.existsByNumeroDocumento(numeroDocumentoNuevo)) {
@@ -109,12 +114,6 @@ public class PersonaService {
 
     // En algunos casos el frontend envia "No informa" cuando la parte no tiene info
     // de la contraparte
-    private boolean estaInformado(String valor) {
-        return valor != null
-                && !valor.trim().isBlank()
-                && !valor.trim().equalsIgnoreCase("No informa");
-    }
-
     private void validarTelefonoOCorreo(PersonaDTO personaDTO) {
         boolean telefonoInformado = estaInformado(personaDTO.getTelefono());
         boolean correoInformado = estaInformado(personaDTO.getCorreo());
@@ -122,24 +121,6 @@ public class PersonaService {
         if (!telefonoInformado && !correoInformado) {
             throw new BusinessException("Debe informar al menos telefono o correo");
         }
-    }
-
-    private String normalizarTexto(String valor) {
-        if (valor == null) {
-            return null;
-        }
-
-        String limpio = valor.trim();
-
-        if (limpio.isBlank()) {
-            return null;
-        }
-
-        if (limpio.equalsIgnoreCase("No informa")) {
-            return "No informa";
-        }
-
-        return limpio;
     }
 
     private PersonaDTO convertirADTO(Persona persona) {
@@ -205,7 +186,7 @@ public class PersonaService {
         persona.setId(dto.getId());
         persona.setTipoUsuario(normalizarTexto(dto.getTipoUsuario()));
         persona.setTipoDocumento(normalizarTexto(dto.getTipoDocumento()));
-        persona.setNumeroDocumento(normalizarTexto(dto.getNumeroDocumento()));
+        persona.setNumeroDocumento(normalizarNumeroDocumento(dto.getNumeroDocumento()));
         persona.setFechaExpedicion(dto.getFechaExpedicion());
         persona.setCiudadExpedicion(normalizarTexto(dto.getCiudadExpedicion()));
         persona.setNombres(normalizarTexto(dto.getNombres()));
@@ -216,7 +197,7 @@ public class PersonaService {
         persona.setGenero(normalizarTexto(dto.getGenero()));
         persona.setOrientacionSexual(normalizarTexto(dto.getOrientacionSexual()));
         persona.setFechaNacimiento(dto.getFechaNacimiento());
-        persona.setTelefono(normalizarTexto(dto.getTelefono()));
+        persona.setTelefono(normalizarTelefono(dto.getTelefono()));
         persona.setCorreo(normalizarTexto(dto.getCorreo()));
         persona.setNacionalidad(normalizarTexto(dto.getNacionalidad()));
         persona.setEstadoCivil(normalizarTexto(dto.getEstadoCivil()));
@@ -249,11 +230,11 @@ public class PersonaService {
         persona.setSalario(dto.getSalario());
         persona.setCargo(normalizarTexto(dto.getCargo()));
         persona.setDireccionEmpresa(normalizarTexto(dto.getDireccionEmpresa()));
-        persona.setTelefonoEmpresa(normalizarTexto(dto.getTelefonoEmpresa()));
+        persona.setTelefonoEmpresa(normalizarTelefono(dto.getTelefonoEmpresa()));
 
         persona.setNombreCompletoAcudiente(normalizarTexto(dto.getNombreCompletoAcudiente()));
         persona.setRelacionAcudiente(normalizarTexto(dto.getRelacionAcudiente()));
-        persona.setTelefonoAcudiente(normalizarTexto(dto.getTelefonoAcudiente()));
+        persona.setTelefonoAcudiente(normalizarTelefono(dto.getTelefonoAcudiente()));
         persona.setCorreoAcudiente(normalizarTexto(dto.getCorreoAcudiente()));
         persona.setDireccionAcudiente(normalizarTexto(dto.getDireccionAcudiente()));
 

@@ -5,6 +5,7 @@ import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Area;
 import co.edu.ufps.legal_cases.repository.AreaRepository;
 import org.springframework.stereotype.Service;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 import java.util.List;
 
@@ -33,7 +34,7 @@ public class AreaService {
     }
 
     public AreaDTO crear(AreaDTO areaDTO) {
-        String nombre = normalizarNombre(areaDTO.getNombre());
+        String nombre = normalizarTexto(areaDTO.getNombre());
 
         if (nombre == null || nombre.isBlank()) {
             throw new BusinessException("El nombre del área es obligatorio");
@@ -55,7 +56,7 @@ public class AreaService {
         Area area = areaRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + id));
 
-        String nuevoNombre = normalizarNombre(areaDTO.getNombre());
+        String nuevoNombre = normalizarTexto(areaDTO.getNombre());
 
         if (nuevoNombre == null || nuevoNombre.isBlank()) {
             throw new BusinessException("El nombre del área es obligatorio");
@@ -91,13 +92,5 @@ public class AreaService {
 
     private AreaDTO convertirADTO(Area area) {
         return new AreaDTO(area.getId(), area.getNombre());
-    }
-
-    private String normalizarNombre(String nombre) {
-        if (nombre == null) {
-            return null;
-        }
-        // eliminar espacios vacios a los extremos
-        return nombre.trim();
     }
 }
