@@ -19,16 +19,6 @@ public final class NormalizacionUtils {
         return limpio.replaceAll("\\s+", " ");
     }
 
-    public static String normalizarId(String id) {
-        String limpio = normalizarTexto(id);
-
-        if (limpio == null) {
-            return null;
-        }
-
-        return limpio.toUpperCase();
-    }
-
     public static boolean estaInformado(String valor) {
         return valor != null
                 && !valor.trim().isBlank()
@@ -53,5 +43,25 @@ public final class NormalizacionUtils {
         }
 
         return limpio.replaceAll("[^0-9]", "");
+    }
+
+    public static String normalizarEmail(String valor) {
+        String limpio = normalizarTexto(valor);
+
+        if (limpio == null) {
+            return null;
+        }
+
+        return limpio.toLowerCase();
+    }
+
+    public static String normalizarUsuario(String valor) {
+        String limpio = normalizarTexto(valor);
+
+        if (limpio == null) {
+            return null;
+        }
+
+        return limpio.toLowerCase();
     }
 }

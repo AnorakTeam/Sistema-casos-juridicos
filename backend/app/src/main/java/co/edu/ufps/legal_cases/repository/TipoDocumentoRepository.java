@@ -8,12 +8,12 @@ import org.springframework.stereotype.Repository;
 import co.edu.ufps.legal_cases.model.TipoDocumento;
 
 @Repository
-public interface TipoDocumentoRepository extends JpaRepository<TipoDocumento, String> {
+public interface TipoDocumentoRepository extends JpaRepository<TipoDocumento, Long> {
 
     boolean existsByDisplayNameIgnoreCase(String displayName);
 
     //¿Hay otro registro con este nombre distinto al que estoy editando?
-    boolean existsByDisplayNameIgnoreCaseAndIdNot(String displayName, String id);
+    boolean existsByDisplayNameIgnoreCaseAndIdNot(String displayName, Long id);
 
     List<TipoDocumento> findByActivoTrue();
 }

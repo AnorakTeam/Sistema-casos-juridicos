@@ -8,8 +8,6 @@ import co.edu.ufps.legal_cases.dto.SedeDTO;
 import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Sede;
 import co.edu.ufps.legal_cases.repository.SedeRepository;
-
-import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarId;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 @Service
@@ -28,20 +26,16 @@ public class SedeService {
                 .toList();
     }
 
-    public SedeDTO obtenerPorId(String id) {
-        Sede sede = sedeRepository.findById(normalizarId(id))
+    public SedeDTO obtenerPorId(Long id) {
+        Sede sede = sedeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + id));
 
         return convertirADTO(sede);
     }
 
     public SedeDTO crear(SedeDTO dto) {
-        String id = normalizarId(dto.getId());
+        Long id = dto.getId();
         String nombre = normalizarTexto(dto.getNombre());
-
-        if (id == null || id.isBlank()) {
-            throw new BusinessException("El id de la sede es obligatorio");
-        }
 
         if (nombre == null || nombre.isBlank()) {
             throw new BusinessException("El nombre de la sede es obligatorio");
@@ -62,8 +56,8 @@ public class SedeService {
         return convertirADTO(sedeRepository.save(sede));
     }
 
-    public SedeDTO actualizar(String id, SedeDTO dto) {
-        String idNormalizado = normalizarId(id);
+    public SedeDTO actualizar(Long id, SedeDTO dto) {
+        Long idNormalizado = id;
 
         Sede sedeExistente = sedeRepository.findById(idNormalizado)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + id));
@@ -75,7 +69,7 @@ public class SedeService {
         }
 
         // El id de un catálogo no debería cambiarse una vez creado
-        if (dto.getId() != null && !normalizarId(dto.getId()).equals(sedeExistente.getId())) {
+        if (dto.getId() != null && !dto.getId().equals(sedeExistente.getId())) {
             throw new BusinessException("No se permite cambiar el id de la sede");
         }
 
@@ -94,8 +88,8 @@ public class SedeService {
         return convertirADTO(sedeRepository.save(sedeExistente));
     }
 
-    public void eliminar(String id) {
-        Sede sede = sedeRepository.findById(normalizarId(id))
+    public void eliminar(Long id) {
+        Sede sede = sedeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + id));
 
         // Aquí hay que validar referencias antes de eliminar:

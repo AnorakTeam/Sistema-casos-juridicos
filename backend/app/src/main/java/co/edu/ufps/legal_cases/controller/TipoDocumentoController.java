@@ -32,7 +32,7 @@ public class TipoDocumentoController {
     }
 
     @GetMapping("/{id}")
-    public TipoDocumentoDTO obtenerPorId(@PathVariable String id) {
+    public TipoDocumentoDTO obtenerPorId(@PathVariable Long id) {
         return tipoDocumentoService.obtenerPorId(id);
     }
 
@@ -43,12 +43,12 @@ public class TipoDocumentoController {
     }
 
     @PutMapping("/{id}")
-    public TipoDocumentoDTO actualizar(@PathVariable String id, @Valid @RequestBody TipoDocumentoDTO dto) {
+    public TipoDocumentoDTO actualizar(@PathVariable Long id, @Valid @RequestBody TipoDocumentoDTO dto) {
         return tipoDocumentoService.actualizar(id, dto);
     }
 
     @PatchMapping("/{id}/activo")
-    public TipoDocumentoDTO cambiarEstado(@PathVariable String id, @RequestParam Boolean activo) {
+    public TipoDocumentoDTO cambiarEstado(@PathVariable Long id, @RequestParam Boolean activo) {
         return tipoDocumentoService.cambiarEstado(id, activo);
     }
 }

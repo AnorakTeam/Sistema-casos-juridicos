@@ -26,7 +26,7 @@ public class SedeController {
     }
 
     @GetMapping("/{id}")
-    public SedeDTO obtenerPorId(@PathVariable String id) {
+    public SedeDTO obtenerPorId(@PathVariable Long id) {
         return sedeService.obtenerPorId(id);
     }
 
@@ -37,13 +37,13 @@ public class SedeController {
     }
 
     @PutMapping("/{id}")
-    public SedeDTO actualizar(@PathVariable String id, @Valid @RequestBody SedeDTO dto) {
+    public SedeDTO actualizar(@PathVariable Long id, @Valid @RequestBody SedeDTO dto) {
         return sedeService.actualizar(id, dto);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void eliminar(@PathVariable String id) {
+    public void eliminar(@PathVariable Long id) {
         sedeService.eliminar(id);
     }
 }

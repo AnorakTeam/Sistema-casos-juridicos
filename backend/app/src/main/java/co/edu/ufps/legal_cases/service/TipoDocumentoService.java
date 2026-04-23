@@ -3,11 +3,12 @@ package co.edu.ufps.legal_cases.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
-
 import co.edu.ufps.legal_cases.dto.TipoDocumentoDTO;
 import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.TipoDocumento;
 import co.edu.ufps.legal_cases.repository.TipoDocumentoRepository;
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
+
 
 @Service
 public class TipoDocumentoService {
@@ -32,20 +33,16 @@ public class TipoDocumentoService {
                 .toList();
     }
 
-    public TipoDocumentoDTO obtenerPorId(String id) {
-        TipoDocumento tipoDocumento = tipoDocumentoRepository.findById(normalizarId(id))
+    public TipoDocumentoDTO obtenerPorId(Long id) {
+        TipoDocumento tipoDocumento = tipoDocumentoRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Tipo de documento no encontrado con id: " + id));
 
         return convertirADTO(tipoDocumento);
     }
 
     public TipoDocumentoDTO crear(TipoDocumentoDTO dto) {
-        String id = normalizarId(dto.getId());
+        Long id = dto.getId();
         String displayName = normalizarTexto(dto.getDisplayName());
-
-        if (id == null || id.isBlank()) {
-            throw new BusinessException("El id del tipo de documento es obligatorio");
-        }
 
         if (displayName == null || displayName.isBlank()) {
             throw new BusinessException("El nombre visible es obligatorio");
@@ -67,10 +64,8 @@ public class TipoDocumentoService {
         return convertirADTO(tipoDocumentoRepository.save(tipoDocumento));
     }
 
-    public TipoDocumentoDTO actualizar(String id, TipoDocumentoDTO dto) {
-        String idNormalizado = normalizarId(id);
-
-        TipoDocumento documentoExistente = tipoDocumentoRepository.findById(idNormalizado)
+    public TipoDocumentoDTO actualizar(Long id, TipoDocumentoDTO dto) {
+        TipoDocumento documentoExistente = tipoDocumentoRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Tipo de documento no encontrado con id: " + id));
 
         String displayNameNuevo = normalizarTexto(dto.getDisplayName());
@@ -99,8 +94,8 @@ public class TipoDocumentoService {
         return convertirADTO(tipoDocumentoRepository.save(documentoExistente));
     }
 
-    public TipoDocumentoDTO cambiarEstado(String id, Boolean activo) {
-        TipoDocumento documentoExistente = tipoDocumentoRepository.findById(normalizarId(id))
+    public TipoDocumentoDTO cambiarEstado(Long id, Boolean activo) {
+        TipoDocumento documentoExistente = tipoDocumentoRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Tipo de documento no encontrado con id: " + id));
 
         if (activo == null) {
@@ -121,26 +116,5 @@ public class TipoDocumentoService {
         dto.setDisplayName(tipoDocumento.getDisplayName());
         dto.setActivo(tipoDocumento.getActivo());
         return dto;
-    }
-
-    private String normalizarId(String id) {
-        if (id == null) {
-            return null;
-        }
-        return id.trim().toUpperCase();
-    }
-
-    private String normalizarTexto(String texto) {
-        if (texto == null) {
-            return null;
-        }
-
-        String limpio = texto.trim();
-
-        if (limpio.isBlank()) {
-            return null;
-        }
-        // Reemplaza múltiples espacios por uno solo
-        return limpio.replaceAll("\\s+", " ");
     }
 }
