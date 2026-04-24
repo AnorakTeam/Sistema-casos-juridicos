@@ -3,12 +3,13 @@ package co.edu.ufps.legal_cases.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
 import co.edu.ufps.legal_cases.dto.TipoDocumentoDTO;
 import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.TipoDocumento;
 import co.edu.ufps.legal_cases.repository.TipoDocumentoRepository;
-import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
+import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 @Service
 public class TipoDocumentoService {
@@ -41,15 +42,10 @@ public class TipoDocumentoService {
     }
 
     public TipoDocumentoDTO crear(TipoDocumentoDTO dto) {
-        Long id = dto.getId();
         String displayName = normalizarTexto(dto.getDisplayName());
 
         if (displayName == null || displayName.isBlank()) {
             throw new BusinessException("El nombre visible es obligatorio");
-        }
-
-        if (tipoDocumentoRepository.existsById(id)) {
-            throw new BusinessException("Ya existe un tipo de documento con ese id");
         }
 
         if (tipoDocumentoRepository.existsByDisplayNameIgnoreCase(displayName)) {
@@ -57,8 +53,8 @@ public class TipoDocumentoService {
         }
 
         TipoDocumento tipoDocumento = new TipoDocumento();
-        tipoDocumento.setId(id);
         tipoDocumento.setDisplayName(displayName);
+        //Guarda por defecto como activo
         tipoDocumento.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
         return convertirADTO(tipoDocumentoRepository.save(tipoDocumento));
@@ -72,6 +68,11 @@ public class TipoDocumentoService {
 
         if (displayNameNuevo == null || displayNameNuevo.isBlank()) {
             throw new BusinessException("El nombre visible es obligatorio");
+        }
+
+        // El id no debe cambiarse desde el DTO
+        if (dto.getId() != null && !dto.getId().equals(documentoExistente.getId())) {
+            throw new BusinessException("No se permite cambiar el id del tipo de documento");
         }
 
         boolean mismoNombre = documentoExistente.getDisplayName().equalsIgnoreCase(displayNameNuevo);

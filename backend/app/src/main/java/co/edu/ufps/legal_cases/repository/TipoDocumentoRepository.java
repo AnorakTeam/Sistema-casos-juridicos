@@ -12,7 +12,6 @@ public interface TipoDocumentoRepository extends JpaRepository<TipoDocumento, Lo
 
     boolean existsByDisplayNameIgnoreCase(String displayName);
 
-    //¿Hay otro registro con este nombre distinto al que estoy editando?
     boolean existsByDisplayNameIgnoreCaseAndIdNot(String displayName, Long id);
 
     List<TipoDocumento> findByActivoTrue();

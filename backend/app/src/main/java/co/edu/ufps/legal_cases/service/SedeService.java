@@ -8,6 +8,7 @@ import co.edu.ufps.legal_cases.dto.SedeDTO;
 import co.edu.ufps.legal_cases.exception.BusinessException;
 import co.edu.ufps.legal_cases.model.Sede;
 import co.edu.ufps.legal_cases.repository.SedeRepository;
+
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 
 @Service
@@ -34,15 +35,10 @@ public class SedeService {
     }
 
     public SedeDTO crear(SedeDTO dto) {
-        Long id = dto.getId();
         String nombre = normalizarTexto(dto.getNombre());
 
         if (nombre == null || nombre.isBlank()) {
             throw new BusinessException("El nombre de la sede es obligatorio");
-        }
-
-        if (sedeRepository.existsById(id)) {
-            throw new BusinessException("Ya existe una sede con ese id");
         }
 
         if (sedeRepository.existsByNombreIgnoreCase(nombre)) {
@@ -50,16 +46,13 @@ public class SedeService {
         }
 
         Sede sede = new Sede();
-        sede.setId(id);
         sede.setNombre(nombre);
 
         return convertirADTO(sedeRepository.save(sede));
     }
 
     public SedeDTO actualizar(Long id, SedeDTO dto) {
-        Long idNormalizado = id;
-
-        Sede sedeExistente = sedeRepository.findById(idNormalizado)
+        Sede sedeExistente = sedeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + id));
 
         String nombreNuevo = normalizarTexto(dto.getNombre());
@@ -68,7 +61,7 @@ public class SedeService {
             throw new BusinessException("El nombre de la sede es obligatorio");
         }
 
-        // El id de un catálogo no debería cambiarse una vez creado
+        // El id no debe cambiarse desde el DTO
         if (dto.getId() != null && !dto.getId().equals(sedeExistente.getId())) {
             throw new BusinessException("No se permite cambiar el id de la sede");
         }
@@ -92,7 +85,7 @@ public class SedeService {
         Sede sede = sedeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + id));
 
-        // Aquí hay que validar referencias antes de eliminar:
+        // A futuro aquí hay validar si la sede está siendo usada por:
         // asesor, estudiante, monitor, administrativo, consulta, conciliador, etc.
         sedeRepository.delete(sede);
     }

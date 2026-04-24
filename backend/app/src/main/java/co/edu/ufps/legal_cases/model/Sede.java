@@ -22,5 +22,6 @@ public class Sede {
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    //Aqui hay que añadir nuevas anotaciones para listar asociados por sede, como asesor, estudiante, monitor, administrativo, consulta, conciliador, etc.
+    // A futuro aquí se debe modelar relaciones inversas para conocer qué personas están asociadas a cada sede, por ejemplo:
+    // asesor, estudiante, monitor, administrativo, consulta, conciliador, etc.
 }
