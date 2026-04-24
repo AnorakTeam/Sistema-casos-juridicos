@@ -64,4 +64,14 @@ public final class NormalizacionUtils {
 
         return limpio.toLowerCase();
     }
+
+    public static String normalizarCodigo(String valor) {
+        String limpio = normalizarTexto(valor);
+
+        if (limpio == null) {
+            return null;
+        }
+
+        return limpio.toUpperCase();
+    }
 }
