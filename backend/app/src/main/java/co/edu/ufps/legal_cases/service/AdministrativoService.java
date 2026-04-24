@@ -1,6 +1,7 @@
 package co.edu.ufps.legal_cases.service;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
@@ -121,8 +122,7 @@ public class AdministrativoService {
             throw new BusinessException("No se permite cambiar el id del administrativo");
         }
 
-        boolean sinCambios =
-                existente.getNombre().equalsIgnoreCase(nombre)
+        boolean sinCambios = existente.getNombre().equalsIgnoreCase(nombre)
                 && equalsNullableId(existente.getTipoDocumento(), tipoDocumento)
                 && equalsNullableText(existente.getDocumento(), documento)
                 && existente.getEmail().equalsIgnoreCase(email)
@@ -159,7 +159,7 @@ public class AdministrativoService {
             throw new BusinessException("El estado activo es obligatorio");
         }
 
-        if (administrativo.getActivo().equals(activo)) {
+        if (Objects.equals(administrativo.getActivo(), activo)) {
             throw new BusinessException("El administrativo ya tiene ese estado");
         }
 
@@ -175,7 +175,7 @@ public class AdministrativoService {
             throw new BusinessException("El estado de directora es obligatorio");
         }
 
-        if (administrativo.getDirectora().equals(directora)) {
+        if (Objects.equals(administrativo.getDirectora(), directora)) {
             throw new BusinessException("El administrativo ya tiene ese estado de directora");
         }
 
@@ -299,23 +299,21 @@ public class AdministrativoService {
         dto.setId(administrativo.getId());
         dto.setNombre(administrativo.getNombre());
         dto.setTipoDocumentoId(
-                administrativo.getTipoDocumento() != null ? administrativo.getTipoDocumento().getId() : null
-        );
+                administrativo.getTipoDocumento() != null ? administrativo.getTipoDocumento().getId() : null);
         dto.setDocumento(administrativo.getDocumento());
         dto.setEmail(administrativo.getEmail());
         dto.setTelefono(administrativo.getTelefono());
         dto.setUsuario(administrativo.getUsuario());
         dto.setCodigo(administrativo.getCodigo());
         dto.setSedeId(
-                administrativo.getSede() != null ? administrativo.getSede().getId() : null
-        );
+                administrativo.getSede() != null ? administrativo.getSede().getId() : null);
         dto.setActivo(administrativo.getActivo());
         dto.setDirectora(administrativo.getDirectora());
         return dto;
     }
 
-    //Como ell numero de documento es opcional aparte de normalizar con la utilidad
-    //se agrega esta funcion para convertir "   " en null
+    // Como ell numero de documento es opcional aparte de normalizar con la utilidad
+    // se agrega esta funcion para convertir " " en null
     private String normalizarDocumentoOpcional(String valor) {
         String documento = normalizarNumeroDocumento(valor);
 
@@ -326,7 +324,7 @@ public class AdministrativoService {
         return documento;
     }
 
-    //Metodos para comparar objetos sin tener problemas por nullpointerexception
+    // Metodos para comparar objetos sin tener problemas por nullpointerexception
     private boolean equalsNullableId(TipoDocumento actual, TipoDocumento nuevo) {
         if (actual == null && nuevo == null) {
             return true;

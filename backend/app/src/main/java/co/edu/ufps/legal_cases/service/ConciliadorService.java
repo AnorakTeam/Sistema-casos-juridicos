@@ -1,6 +1,7 @@
 package co.edu.ufps.legal_cases.service;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
@@ -114,8 +115,7 @@ public class ConciliadorService {
             throw new BusinessException("No se permite cambiar el id del conciliador");
         }
 
-        boolean sinCambios =
-                existente.getNombre().equalsIgnoreCase(nombre)
+        boolean sinCambios = existente.getNombre().equalsIgnoreCase(nombre)
                 && equalsNullableId(existente.getTipoDocumento(), tipoDocumento)
                 && existente.getDocumento().equals(documento)
                 && existente.getEmail().equalsIgnoreCase(email)
@@ -152,7 +152,7 @@ public class ConciliadorService {
             throw new BusinessException("El estado activo es obligatorio");
         }
 
-        if (conciliador.getActivo().equals(activo)) {
+        if (Objects.equals(conciliador.getActivo(), activo)) {
             throw new BusinessException("El conciliador ya tiene ese estado");
         }
 
@@ -164,7 +164,8 @@ public class ConciliadorService {
         Conciliador conciliador = conciliadorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Conciliador no encontrado con id: " + id));
 
-        // A futuro conviene validar aquí si tiene conciliaciones asociadas antes de eliminar.
+        // A futuro conviene validar aquí si tiene conciliaciones asociadas antes de
+        // eliminar.
         conciliadorRepository.delete(conciliador);
     }
 
@@ -287,21 +288,20 @@ public class ConciliadorService {
         dto.setId(conciliador.getId());
         dto.setNombre(conciliador.getNombre());
         dto.setTipoDocumentoId(
-                conciliador.getTipoDocumento() != null ? conciliador.getTipoDocumento().getId() : null
-        );
+                conciliador.getTipoDocumento() != null ? conciliador.getTipoDocumento().getId() : null);
         dto.setDocumento(conciliador.getDocumento());
         dto.setEmail(conciliador.getEmail());
         dto.setTelefono(conciliador.getTelefono());
         dto.setUsuario(conciliador.getUsuario());
         dto.setSedeId(
-                conciliador.getSede() != null ? conciliador.getSede().getId() : null
-        );
+                conciliador.getSede() != null ? conciliador.getSede().getId() : null);
         dto.setCodigo(conciliador.getCodigo());
         dto.setTipoConciliador(conciliador.getTipoConciliador());
         dto.setActivo(conciliador.getActivo());
         return dto;
     }
 
+    // Para comparar objetos sin tener prublemas por nulos
     private boolean equalsNullableId(TipoDocumento actual, TipoDocumento nuevo) {
         if (actual == null && nuevo == null) {
             return true;
