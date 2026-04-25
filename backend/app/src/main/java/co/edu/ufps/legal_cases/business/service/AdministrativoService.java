@@ -13,6 +13,8 @@ import co.edu.ufps.legal_cases.business.repository.AdministrativoRepository;
 import co.edu.ufps.legal_cases.business.repository.SedeRepository;
 import co.edu.ufps.legal_cases.business.repository.TipoDocumentoRepository;
 import co.edu.ufps.legal_cases.exception.BusinessException;
+import co.edu.ufps.legal_cases.security.service.UsuarioSistemaRegistroService;
+import jakarta.transaction.Transactional;
 
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarCodigo;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarEmail;
@@ -29,14 +31,17 @@ public class AdministrativoService {
     private final AdministrativoRepository administrativoRepository;
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
+    private final UsuarioSistemaRegistroService usuarioSistemaRegistroService;
 
     public AdministrativoService(
             AdministrativoRepository administrativoRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
-            SedeRepository sedeRepository) {
+            SedeRepository sedeRepository,
+            UsuarioSistemaRegistroService usuarioSistemaRegistroService) {
         this.administrativoRepository = administrativoRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
+        this.usuarioSistemaRegistroService = usuarioSistemaRegistroService;
     }
 
     public List<AdministrativoDTO> listar() {
@@ -67,6 +72,7 @@ public class AdministrativoService {
         return convertirADTO(administrativo);
     }
 
+    @Transactional
     public AdministrativoDTO crear(AdministrativoDTO dto) {
         if (dto.getId() != null) {
             throw new BusinessException("El id no debe enviarse en la creación");
@@ -82,7 +88,7 @@ public class AdministrativoService {
         validarCamposObligatorios(nombre, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
-        //En estos metodos valido que efectivamente existan esas entidades relacionadas
+        // En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
 
@@ -98,7 +104,11 @@ public class AdministrativoService {
         administrativo.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
         administrativo.setDirectora(dto.getDirectora() != null ? dto.getDirectora() : false);
 
-        return convertirADTO(administrativoRepository.save(administrativo));
+        Administrativo administrativoGuardado = administrativoRepository.save(administrativo);
+
+        //Aqui estoy creando el usuario ante el sistema
+        usuarioSistemaRegistroService.crearParaAdministrativo(administrativoGuardado);
+        return convertirADTO(administrativoGuardado);
     }
 
     public AdministrativoDTO actualizar(Long id, AdministrativoDTO dto) {

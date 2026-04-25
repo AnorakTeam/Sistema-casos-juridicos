@@ -2,6 +2,7 @@ package co.edu.ufps.legal_cases.business.service;
 
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ import co.edu.ufps.legal_cases.business.repository.AsesorRepository;
 import co.edu.ufps.legal_cases.business.repository.SedeRepository;
 import co.edu.ufps.legal_cases.business.repository.TipoDocumentoRepository;
 import co.edu.ufps.legal_cases.exception.BusinessException;
+import co.edu.ufps.legal_cases.security.service.UsuarioSistemaRegistroService;
 
 import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
 import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
@@ -32,16 +34,19 @@ public class AsesorService {
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
     private final AreaRepository areaRepository;
+    private final UsuarioSistemaRegistroService usuarioSistemaRegistroService;
 
     public AsesorService(
             AsesorRepository asesorRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
             SedeRepository sedeRepository,
-            AreaRepository areaRepository) {
+            AreaRepository areaRepository,
+            UsuarioSistemaRegistroService usuarioSistemaRegistroService) {
         this.asesorRepository = asesorRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
         this.areaRepository = areaRepository;
+        this.usuarioSistemaRegistroService = usuarioSistemaRegistroService;
     }
 
     public List<AsesorDTO> listar() {
@@ -65,6 +70,7 @@ public class AsesorService {
         return convertirADTO(asesor);
     }
 
+    @Transactional
     public AsesorDTO crear(AsesorDTO dto) {
         if (dto.getId() != null) {
             throw new BusinessException("El id no debe enviarse en la creación");
@@ -80,7 +86,7 @@ public class AsesorService {
         validarCamposObligatorios(nombre, documento, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
-        //En estos metodos valido que efectivamente existan esas entidades relacionadas
+        // En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
         Area area = obtenerArea(dto.getAreaId());
@@ -97,7 +103,11 @@ public class AsesorService {
         asesor.setArea(area);
         asesor.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
-        return convertirADTO(asesorRepository.save(asesor));
+        Asesor asesorGuardado = asesorRepository.save(asesor);
+        
+        //Aqui estoy creando el usuario ante el sistema
+        usuarioSistemaRegistroService.crearParaAsesor(asesorGuardado);
+        return convertirADTO(asesorGuardado);
     }
 
     public AsesorDTO actualizar(Long id, AsesorDTO dto) {
@@ -114,7 +124,7 @@ public class AsesorService {
         validarCamposObligatorios(nombre, documento, email, telefono, usuario, codigo);
         validarDuplicadosActualizacion(id, documento, email, telefono, usuario, codigo);
 
-        //En estos metodos valido que efectivamente existan esas entidades relacionadas
+        // En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
         Area area = obtenerArea(dto.getAreaId());
@@ -125,8 +135,7 @@ public class AsesorService {
             throw new BusinessException("No se permite cambiar el id del asesor");
         }
 
-        boolean sinCambios =
-                equalsIgnoreCase(existente.getNombre(), nombre)
+        boolean sinCambios = equalsIgnoreCase(existente.getNombre(), nombre)
                 && mismoId(existente.getTipoDocumento(), tipoDocumento, TipoDocumento::getId)
                 && Objects.equals(existente.getDocumento(), documento)
                 && equalsIgnoreCase(existente.getEmail(), email)
@@ -175,7 +184,8 @@ public class AsesorService {
         Asesor asesor = asesorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Asesor no encontrado con id: " + id));
 
-        // A futuro conviene validar si el asesor está asociado a estudiantes o consultas antes de eliminar.
+        // A futuro conviene validar si el asesor está asociado a estudiantes o
+        // consultas antes de eliminar.
         asesorRepository.delete(asesor);
     }
 
@@ -302,19 +312,16 @@ public class AsesorService {
         dto.setId(asesor.getId());
         dto.setNombre(asesor.getNombre());
         dto.setTipoDocumentoId(
-                asesor.getTipoDocumento() != null ? asesor.getTipoDocumento().getId() : null
-        );
+                asesor.getTipoDocumento() != null ? asesor.getTipoDocumento().getId() : null);
         dto.setDocumento(asesor.getDocumento());
         dto.setEmail(asesor.getEmail());
         dto.setTelefono(asesor.getTelefono());
         dto.setUsuario(asesor.getUsuario());
         dto.setSedeId(
-                asesor.getSede() != null ? asesor.getSede().getId() : null
-        );
+                asesor.getSede() != null ? asesor.getSede().getId() : null);
         dto.setCodigo(asesor.getCodigo());
         dto.setAreaId(
-                asesor.getArea() != null ? asesor.getArea().getId() : null
-        );
+                asesor.getArea() != null ? asesor.getArea().getId() : null);
         dto.setActivo(asesor.getActivo());
         return dto;
     }

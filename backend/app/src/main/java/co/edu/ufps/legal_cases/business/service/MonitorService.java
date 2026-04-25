@@ -13,6 +13,8 @@ import co.edu.ufps.legal_cases.business.repository.MonitorRepository;
 import co.edu.ufps.legal_cases.business.repository.SedeRepository;
 import co.edu.ufps.legal_cases.business.repository.TipoDocumentoRepository;
 import co.edu.ufps.legal_cases.exception.BusinessException;
+import co.edu.ufps.legal_cases.security.service.UsuarioSistemaRegistroService;
+import jakarta.transaction.Transactional;
 
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarCodigo;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarEmail;
@@ -29,14 +31,17 @@ public class MonitorService {
     private final MonitorRepository monitorRepository;
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
+    private final UsuarioSistemaRegistroService usuarioSistemaRegistroService;
 
     public MonitorService(
             MonitorRepository monitorRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
-            SedeRepository sedeRepository) {
+            SedeRepository sedeRepository,
+            UsuarioSistemaRegistroService usuarioSistemaRegistroService) {
         this.monitorRepository = monitorRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
+        this.usuarioSistemaRegistroService = usuarioSistemaRegistroService;
     }
 
     public List<MonitorDTO> listar() {
@@ -60,6 +65,7 @@ public class MonitorService {
         return convertirADTO(monitor);
     }
 
+    @Transactional
     public MonitorDTO crear(MonitorDTO dto) {
         if (dto.getId() != null) {
             throw new BusinessException("El id no debe enviarse en la creación");
@@ -75,7 +81,7 @@ public class MonitorService {
         validarCamposObligatorios(nombre, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
-        //En estos metodos valido que efectivamente existan esas entidades relacionadas
+        // En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
 
@@ -90,7 +96,11 @@ public class MonitorService {
         monitor.setSede(sede);
         monitor.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
-        return convertirADTO(monitorRepository.save(monitor));
+        Monitor monitorGuardado = monitorRepository.save(monitor);
+        
+        //Aqui estoy creando el usuario ante el sistema
+        usuarioSistemaRegistroService.crearParaMonitor(monitorGuardado);
+        return convertirADTO(monitorGuardado);
     }
 
     public MonitorDTO actualizar(Long id, MonitorDTO dto) {

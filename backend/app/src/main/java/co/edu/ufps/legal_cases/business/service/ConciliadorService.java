@@ -14,6 +14,8 @@ import co.edu.ufps.legal_cases.business.repository.ConciliadorRepository;
 import co.edu.ufps.legal_cases.business.repository.SedeRepository;
 import co.edu.ufps.legal_cases.business.repository.TipoDocumentoRepository;
 import co.edu.ufps.legal_cases.exception.BusinessException;
+import co.edu.ufps.legal_cases.security.service.UsuarioSistemaRegistroService;
+import jakarta.transaction.Transactional;
 
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarCodigo;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarEmail;
@@ -30,14 +32,17 @@ public class ConciliadorService {
     private final ConciliadorRepository conciliadorRepository;
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
+    private final UsuarioSistemaRegistroService usuarioSistemaRegistroService;
 
     public ConciliadorService(
             ConciliadorRepository conciliadorRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
-            SedeRepository sedeRepository) {
+            SedeRepository sedeRepository,
+            UsuarioSistemaRegistroService usuarioSistemaRegistroService) {
         this.conciliadorRepository = conciliadorRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
+        this.usuarioSistemaRegistroService = usuarioSistemaRegistroService;
     }
 
     public List<ConciliadorDTO> listar() {
@@ -61,6 +66,7 @@ public class ConciliadorService {
         return convertirADTO(conciliador);
     }
 
+    @Transactional
     public ConciliadorDTO crear(ConciliadorDTO dto) {
         if (dto.getId() != null) {
             throw new BusinessException("El id no debe enviarse en la creación");
@@ -76,7 +82,7 @@ public class ConciliadorService {
         validarCamposObligatorios(dto.getTipoConciliador(), nombre, documento, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
-        //En estos metodos valido que efectivamente existan esas entidades relacionadas
+        // En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
 
@@ -92,7 +98,11 @@ public class ConciliadorService {
         conciliador.setTipoConciliador(dto.getTipoConciliador());
         conciliador.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
-        return convertirADTO(conciliadorRepository.save(conciliador));
+        Conciliador conciliadorGuardado = conciliadorRepository.save(conciliador);
+
+        //Aqui estoy creando el usuario ante el sistema
+        usuarioSistemaRegistroService.crearParaConciliador(conciliadorGuardado);
+        return convertirADTO(conciliadorGuardado);
     }
 
     public ConciliadorDTO actualizar(Long id, ConciliadorDTO dto) {
