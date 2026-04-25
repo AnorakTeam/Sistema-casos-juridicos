@@ -5,73 +5,57 @@ public final class NormalizacionUtils {
     private NormalizacionUtils() {
     }
 
-    public static String normalizarTexto(String texto) {
-        if (texto == null) {
+    public static String normalizarTexto(String valor) {
+        if (valor == null) {
             return null;
         }
 
-        String limpio = texto.trim();
+        String limpio = valor.trim().replaceAll("\\s+", " ");
 
-        if (limpio.isBlank()) {
-            return null;
-        }
-
-        return limpio.replaceAll("\\s+", " ");
+        return limpio.isBlank() ? null : limpio;
     }
 
     public static boolean estaInformado(String valor) {
-        return valor != null
-                && !valor.trim().isBlank()
-                && !valor.trim().equalsIgnoreCase("No informa");
+        String limpio = normalizarTexto(valor);
+
+        return limpio != null && !limpio.equalsIgnoreCase("No informa");
     }
 
     public static String normalizarNumeroDocumento(String valor) {
-        String limpio = normalizarTexto(valor);
-
-        if (limpio == null) {
-            return null;
-        }
-
-        return limpio.replaceAll("[\\.\\-\\s]", "");
+        return removerCaracteres(normalizarTexto(valor), "[\\.\\-\\s]");
     }
 
     public static String normalizarTelefono(String valor) {
-        String limpio = normalizarTexto(valor);
-
-        if (limpio == null) {
-            return null;
-        }
-
-        return limpio.replaceAll("[^0-9]", "");
+        return removerCaracteres(normalizarTexto(valor), "[^0-9]");
     }
 
     public static String normalizarEmail(String valor) {
-        String limpio = normalizarTexto(valor);
-
-        if (limpio == null) {
-            return null;
-        }
-
-        return limpio.toLowerCase();
+        return convertirMinuscula(normalizarTexto(valor));
     }
 
     public static String normalizarUsuario(String valor) {
-        String limpio = normalizarTexto(valor);
-
-        if (limpio == null) {
-            return null;
-        }
-
-        return limpio.toLowerCase();
+        return convertirMinuscula(normalizarTexto(valor));
     }
 
     public static String normalizarCodigo(String valor) {
-        String limpio = normalizarTexto(valor);
+        return convertirMayuscula(normalizarTexto(valor));
+    }
 
-        if (limpio == null) {
+    private static String removerCaracteres(String valor, String patron) {
+        if (valor == null) {
             return null;
         }
 
-        return limpio.toUpperCase();
+        String limpio = valor.replaceAll(patron, "");
+
+        return limpio.isBlank() ? null : limpio;
+    }
+
+    private static String convertirMinuscula(String valor) {
+        return valor != null ? valor.toLowerCase() : null;
+    }
+
+    private static String convertirMayuscula(String valor) {
+        return valor != null ? valor.toUpperCase() : null;
     }
 }
