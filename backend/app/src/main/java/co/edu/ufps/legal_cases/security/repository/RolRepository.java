@@ -25,4 +25,7 @@ public interface RolRepository extends JpaRepository<Rol, Long> {
     //Trae el rol con sus permisos asociados para evitar el problema de LazyInitializationException
     @EntityGraph(attributePaths = "permisos")
     Optional<Rol> findWithPermisosById(Long id);
+
+    Optional<Rol> findByIdAndActivoTrue(Long id);
+    
 }
