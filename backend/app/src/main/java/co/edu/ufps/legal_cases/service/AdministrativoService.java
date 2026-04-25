@@ -20,6 +20,8 @@ import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarNumeroDo
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTelefono;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarUsuario;
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
 
 @Service
 public class AdministrativoService {
@@ -122,16 +124,16 @@ public class AdministrativoService {
             throw new BusinessException("No se permite cambiar el id del administrativo");
         }
 
-        boolean sinCambios = existente.getNombre().equalsIgnoreCase(nombre)
-                && equalsNullableId(existente.getTipoDocumento(), tipoDocumento)
-                && equalsNullableText(existente.getDocumento(), documento)
-                && existente.getEmail().equalsIgnoreCase(email)
-                && existente.getTelefono().equals(telefono)
-                && existente.getUsuario().equalsIgnoreCase(usuario)
-                && existente.getCodigo().equalsIgnoreCase(codigo)
-                && equalsNullableId(existente.getSede(), sede)
-                && existente.getActivo().equals(nuevoActivo)
-                && existente.getDirectora().equals(nuevaDirectora);
+        boolean sinCambios = equalsIgnoreCase(existente.getNombre(), nombre)
+                && mismoId(existente.getTipoDocumento(), tipoDocumento, TipoDocumento::getId)
+                && equalsIgnoreCase(existente.getDocumento(), documento)
+                && equalsIgnoreCase(existente.getEmail(), email)
+                && Objects.equals(existente.getTelefono(), telefono)
+                && equalsIgnoreCase(existente.getUsuario(), usuario)
+                && equalsIgnoreCase(existente.getCodigo(), codigo)
+                && mismoId(existente.getSede(), sede, Sede::getId)
+                && Objects.equals(existente.getActivo(), nuevoActivo)
+                && Objects.equals(existente.getDirectora(), nuevaDirectora);
 
         if (sinCambios) {
             throw new BusinessException("No hay cambios para actualizar");
@@ -322,36 +324,5 @@ public class AdministrativoService {
         }
 
         return documento;
-    }
-
-    // Metodos para comparar objetos sin tener problemas por nullpointerexception
-    private boolean equalsNullableId(TipoDocumento actual, TipoDocumento nuevo) {
-        if (actual == null && nuevo == null) {
-            return true;
-        }
-        if (actual == null || nuevo == null) {
-            return false;
-        }
-        return actual.getId().equals(nuevo.getId());
-    }
-
-    private boolean equalsNullableId(Sede actual, Sede nueva) {
-        if (actual == null && nueva == null) {
-            return true;
-        }
-        if (actual == null || nueva == null) {
-            return false;
-        }
-        return actual.getId().equals(nueva.getId());
-    }
-
-    private boolean equalsNullableText(String actual, String nuevo) {
-        if (actual == null && nuevo == null) {
-            return true;
-        }
-        if (actual == null || nuevo == null) {
-            return false;
-        }
-        return actual.equalsIgnoreCase(nuevo);
     }
 }

@@ -21,6 +21,8 @@ import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarNumeroDo
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTelefono;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarUsuario;
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
 
 @Service
 public class ConciliadorService {
@@ -115,16 +117,16 @@ public class ConciliadorService {
             throw new BusinessException("No se permite cambiar el id del conciliador");
         }
 
-        boolean sinCambios = existente.getNombre().equalsIgnoreCase(nombre)
-                && equalsNullableId(existente.getTipoDocumento(), tipoDocumento)
-                && existente.getDocumento().equals(documento)
-                && existente.getEmail().equalsIgnoreCase(email)
-                && existente.getTelefono().equals(telefono)
-                && existente.getUsuario().equalsIgnoreCase(usuario)
-                && equalsNullableId(existente.getSede(), sede)
-                && existente.getCodigo().equalsIgnoreCase(codigo)
-                && existente.getTipoConciliador().equals(dto.getTipoConciliador())
-                && existente.getActivo().equals(nuevoActivo);
+        boolean sinCambios = equalsIgnoreCase(existente.getNombre(), nombre)
+                && mismoId(existente.getTipoDocumento(), tipoDocumento, TipoDocumento::getId)
+                && Objects.equals(existente.getDocumento(), documento)
+                && equalsIgnoreCase(existente.getEmail(), email)
+                && Objects.equals(existente.getTelefono(), telefono)
+                && equalsIgnoreCase(existente.getUsuario(), usuario)
+                && mismoId(existente.getSede(), sede, Sede::getId)
+                && equalsIgnoreCase(existente.getCodigo(), codigo)
+                && Objects.equals(existente.getTipoConciliador(), dto.getTipoConciliador())
+                && Objects.equals(existente.getActivo(), nuevoActivo);
 
         if (sinCambios) {
             throw new BusinessException("No hay cambios para actualizar");
@@ -299,26 +301,5 @@ public class ConciliadorService {
         dto.setTipoConciliador(conciliador.getTipoConciliador());
         dto.setActivo(conciliador.getActivo());
         return dto;
-    }
-
-    // Para comparar objetos sin tener prublemas por nulos
-    private boolean equalsNullableId(TipoDocumento actual, TipoDocumento nuevo) {
-        if (actual == null && nuevo == null) {
-            return true;
-        }
-        if (actual == null || nuevo == null) {
-            return false;
-        }
-        return actual.getId().equals(nuevo.getId());
-    }
-
-    private boolean equalsNullableId(Sede actual, Sede nueva) {
-        if (actual == null && nueva == null) {
-            return true;
-        }
-        if (actual == null || nueva == null) {
-            return false;
-        }
-        return actual.getId().equals(nueva.getId());
     }
 }
