@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/monitores")
+//Modificar despues
 @CrossOrigin(origins = "*")
 public class MonitorController {
 

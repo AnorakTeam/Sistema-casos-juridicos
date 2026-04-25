@@ -5,63 +5,67 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
-import co.edu.ufps.legal_cases.dto.ConciliadorDTO;
+import co.edu.ufps.legal_cases.dto.AsesorDTO;
 import co.edu.ufps.legal_cases.exception.BusinessException;
-import co.edu.ufps.legal_cases.model.Conciliador;
+import co.edu.ufps.legal_cases.model.Area;
+import co.edu.ufps.legal_cases.model.Asesor;
 import co.edu.ufps.legal_cases.model.Sede;
-import co.edu.ufps.legal_cases.model.TipoConciliador;
 import co.edu.ufps.legal_cases.model.TipoDocumento;
-import co.edu.ufps.legal_cases.repository.ConciliadorRepository;
+import co.edu.ufps.legal_cases.repository.AreaRepository;
+import co.edu.ufps.legal_cases.repository.AsesorRepository;
 import co.edu.ufps.legal_cases.repository.SedeRepository;
 import co.edu.ufps.legal_cases.repository.TipoDocumentoRepository;
 
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
+import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarCodigo;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarEmail;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarNumeroDocumento;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTelefono;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarTexto;
 import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarUsuario;
-import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
-import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
 
 @Service
-public class ConciliadorService {
+public class AsesorService {
 
-    private final ConciliadorRepository conciliadorRepository;
+    private final AsesorRepository asesorRepository;
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
+    private final AreaRepository areaRepository;
 
-    public ConciliadorService(
-            ConciliadorRepository conciliadorRepository,
+    public AsesorService(
+            AsesorRepository asesorRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
-            SedeRepository sedeRepository) {
-        this.conciliadorRepository = conciliadorRepository;
+            SedeRepository sedeRepository,
+            AreaRepository areaRepository) {
+        this.asesorRepository = asesorRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
+        this.areaRepository = areaRepository;
     }
 
-    public List<ConciliadorDTO> listar() {
-        return conciliadorRepository.findAll()
+    public List<AsesorDTO> listar() {
+        return asesorRepository.findAll()
                 .stream()
                 .map(this::convertirADTO)
                 .toList();
     }
 
-    public List<ConciliadorDTO> listarActivos() {
-        return conciliadorRepository.findByActivoTrue()
+    public List<AsesorDTO> listarActivos() {
+        return asesorRepository.findByActivoTrue()
                 .stream()
                 .map(this::convertirADTO)
                 .toList();
     }
 
-    public ConciliadorDTO obtenerPorId(Long id) {
-        Conciliador conciliador = conciliadorRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Conciliador no encontrado con id: " + id));
+    public AsesorDTO obtenerPorId(Long id) {
+        Asesor asesor = asesorRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Asesor no encontrado con id: " + id));
 
-        return convertirADTO(conciliador);
+        return convertirADTO(asesor);
     }
 
-    public ConciliadorDTO crear(ConciliadorDTO dto) {
+    public AsesorDTO crear(AsesorDTO dto) {
         if (dto.getId() != null) {
             throw new BusinessException("El id no debe enviarse en la creación");
         }
@@ -73,31 +77,32 @@ public class ConciliadorService {
         String usuario = normalizarUsuario(dto.getUsuario());
         String codigo = normalizarCodigo(dto.getCodigo());
 
-        validarCamposObligatorios(dto.getTipoConciliador(), nombre, documento, email, telefono, usuario, codigo);
+        validarCamposObligatorios(nombre, documento, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
         //En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
+        Area area = obtenerArea(dto.getAreaId());
 
-        Conciliador conciliador = new Conciliador();
-        conciliador.setNombre(nombre);
-        conciliador.setTipoDocumento(tipoDocumento);
-        conciliador.setDocumento(documento);
-        conciliador.setEmail(email);
-        conciliador.setTelefono(telefono);
-        conciliador.setUsuario(usuario);
-        conciliador.setSede(sede);
-        conciliador.setCodigo(codigo);
-        conciliador.setTipoConciliador(dto.getTipoConciliador());
-        conciliador.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
+        Asesor asesor = new Asesor();
+        asesor.setNombre(nombre);
+        asesor.setTipoDocumento(tipoDocumento);
+        asesor.setDocumento(documento);
+        asesor.setEmail(email);
+        asesor.setTelefono(telefono);
+        asesor.setUsuario(usuario);
+        asesor.setSede(sede);
+        asesor.setCodigo(codigo);
+        asesor.setArea(area);
+        asesor.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
-        return convertirADTO(conciliadorRepository.save(conciliador));
+        return convertirADTO(asesorRepository.save(asesor));
     }
 
-    public ConciliadorDTO actualizar(Long id, ConciliadorDTO dto) {
-        Conciliador existente = conciliadorRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Conciliador no encontrado con id: " + id));
+    public AsesorDTO actualizar(Long id, AsesorDTO dto) {
+        Asesor existente = asesorRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Asesor no encontrado con id: " + id));
 
         String nombre = normalizarTexto(dto.getNombre());
         String documento = normalizarNumeroDocumento(dto.getDocumento());
@@ -106,19 +111,22 @@ public class ConciliadorService {
         String usuario = normalizarUsuario(dto.getUsuario());
         String codigo = normalizarCodigo(dto.getCodigo());
 
-        validarCamposObligatorios(dto.getTipoConciliador(), nombre, documento, email, telefono, usuario, codigo);
+        validarCamposObligatorios(nombre, documento, email, telefono, usuario, codigo);
         validarDuplicadosActualizacion(id, documento, email, telefono, usuario, codigo);
 
+        //En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
+        Area area = obtenerArea(dto.getAreaId());
 
         Boolean nuevoActivo = dto.getActivo() != null ? dto.getActivo() : existente.getActivo();
 
         if (dto.getId() != null && !dto.getId().equals(existente.getId())) {
-            throw new BusinessException("No se permite cambiar el id del conciliador");
+            throw new BusinessException("No se permite cambiar el id del asesor");
         }
 
-        boolean sinCambios = equalsIgnoreCase(existente.getNombre(), nombre)
+        boolean sinCambios =
+                equalsIgnoreCase(existente.getNombre(), nombre)
                 && mismoId(existente.getTipoDocumento(), tipoDocumento, TipoDocumento::getId)
                 && Objects.equals(existente.getDocumento(), documento)
                 && equalsIgnoreCase(existente.getEmail(), email)
@@ -126,7 +134,7 @@ public class ConciliadorService {
                 && equalsIgnoreCase(existente.getUsuario(), usuario)
                 && mismoId(existente.getSede(), sede, Sede::getId)
                 && equalsIgnoreCase(existente.getCodigo(), codigo)
-                && Objects.equals(existente.getTipoConciliador(), dto.getTipoConciliador())
+                && mismoId(existente.getArea(), area, Area::getId)
                 && Objects.equals(existente.getActivo(), nuevoActivo);
 
         if (sinCambios) {
@@ -141,39 +149,37 @@ public class ConciliadorService {
         existente.setUsuario(usuario);
         existente.setSede(sede);
         existente.setCodigo(codigo);
-        existente.setTipoConciliador(dto.getTipoConciliador());
+        existente.setArea(area);
         existente.setActivo(nuevoActivo);
 
-        return convertirADTO(conciliadorRepository.save(existente));
+        return convertirADTO(asesorRepository.save(existente));
     }
 
-    public ConciliadorDTO cambiarEstado(Long id, Boolean activo) {
-        Conciliador conciliador = conciliadorRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Conciliador no encontrado con id: " + id));
+    public AsesorDTO cambiarEstado(Long id, Boolean activo) {
+        Asesor asesor = asesorRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Asesor no encontrado con id: " + id));
 
         if (activo == null) {
             throw new BusinessException("El estado activo es obligatorio");
         }
 
-        if (Objects.equals(conciliador.getActivo(), activo)) {
-            throw new BusinessException("El conciliador ya tiene ese estado");
+        if (Objects.equals(asesor.getActivo(), activo)) {
+            throw new BusinessException("El asesor ya tiene ese estado");
         }
 
-        conciliador.setActivo(activo);
-        return convertirADTO(conciliadorRepository.save(conciliador));
+        asesor.setActivo(activo);
+        return convertirADTO(asesorRepository.save(asesor));
     }
 
     public void eliminar(Long id) {
-        Conciliador conciliador = conciliadorRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Conciliador no encontrado con id: " + id));
+        Asesor asesor = asesorRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Asesor no encontrado con id: " + id));
 
-        // A futuro conviene validar aquí si tiene conciliaciones asociadas antes de
-        // eliminar.
-        conciliadorRepository.delete(conciliador);
+        // A futuro conviene validar si el asesor está asociado a estudiantes o consultas antes de eliminar.
+        asesorRepository.delete(asesor);
     }
 
     private void validarCamposObligatorios(
-            TipoConciliador tipoConciliador,
             String nombre,
             String documento,
             String email,
@@ -204,10 +210,6 @@ public class ConciliadorService {
         if (codigo == null || codigo.isBlank()) {
             throw new BusinessException("El código es obligatorio");
         }
-
-        if (tipoConciliador == null) {
-            throw new BusinessException("El tipo de conciliador es obligatorio");
-        }
     }
 
     private void validarDuplicadosCreacion(
@@ -217,24 +219,24 @@ public class ConciliadorService {
             String usuario,
             String codigo) {
 
-        if (conciliadorRepository.existsByDocumento(documento)) {
-            throw new BusinessException("Ya existe un conciliador con ese documento");
+        if (asesorRepository.existsByDocumento(documento)) {
+            throw new BusinessException("Ya existe un asesor con ese documento");
         }
 
-        if (conciliadorRepository.existsByEmailIgnoreCase(email)) {
-            throw new BusinessException("Ya existe un conciliador con ese email");
+        if (asesorRepository.existsByEmailIgnoreCase(email)) {
+            throw new BusinessException("Ya existe un asesor con ese email");
         }
 
-        if (conciliadorRepository.existsByTelefono(telefono)) {
-            throw new BusinessException("Ya existe un conciliador con ese teléfono");
+        if (asesorRepository.existsByTelefono(telefono)) {
+            throw new BusinessException("Ya existe un asesor con ese teléfono");
         }
 
-        if (conciliadorRepository.existsByUsuarioIgnoreCase(usuario)) {
-            throw new BusinessException("Ya existe un conciliador con ese usuario");
+        if (asesorRepository.existsByUsuarioIgnoreCase(usuario)) {
+            throw new BusinessException("Ya existe un asesor con ese usuario");
         }
 
-        if (conciliadorRepository.existsByCodigoIgnoreCase(codigo)) {
-            throw new BusinessException("Ya existe un conciliador con ese código");
+        if (asesorRepository.existsByCodigoIgnoreCase(codigo)) {
+            throw new BusinessException("Ya existe un asesor con ese código");
         }
     }
 
@@ -246,30 +248,30 @@ public class ConciliadorService {
             String usuario,
             String codigo) {
 
-        if (conciliadorRepository.existsByDocumentoAndIdNot(documento, id)) {
-            throw new BusinessException("Ya existe un conciliador con ese documento");
+        if (asesorRepository.existsByDocumentoAndIdNot(documento, id)) {
+            throw new BusinessException("Ya existe un asesor con ese documento");
         }
 
-        if (conciliadorRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
-            throw new BusinessException("Ya existe un conciliador con ese email");
+        if (asesorRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+            throw new BusinessException("Ya existe un asesor con ese email");
         }
 
-        if (conciliadorRepository.existsByTelefonoAndIdNot(telefono, id)) {
-            throw new BusinessException("Ya existe un conciliador con ese teléfono");
+        if (asesorRepository.existsByTelefonoAndIdNot(telefono, id)) {
+            throw new BusinessException("Ya existe un asesor con ese teléfono");
         }
 
-        if (conciliadorRepository.existsByUsuarioIgnoreCaseAndIdNot(usuario, id)) {
-            throw new BusinessException("Ya existe un conciliador con ese usuario");
+        if (asesorRepository.existsByUsuarioIgnoreCaseAndIdNot(usuario, id)) {
+            throw new BusinessException("Ya existe un asesor con ese usuario");
         }
 
-        if (conciliadorRepository.existsByCodigoIgnoreCaseAndIdNot(codigo, id)) {
-            throw new BusinessException("Ya existe un conciliador con ese código");
+        if (asesorRepository.existsByCodigoIgnoreCaseAndIdNot(codigo, id)) {
+            throw new BusinessException("Ya existe un asesor con ese código");
         }
     }
 
     private TipoDocumento obtenerTipoDocumento(Long tipoDocumentoId) {
         if (tipoDocumentoId == null) {
-            return null;
+            throw new BusinessException("El tipo de documento es obligatorio");
         }
 
         return tipoDocumentoRepository.findById(tipoDocumentoId)
@@ -279,28 +281,41 @@ public class ConciliadorService {
 
     private Sede obtenerSede(Long sedeId) {
         if (sedeId == null) {
-            return null;
+            throw new BusinessException("La sede es obligatoria");
         }
 
         return sedeRepository.findById(sedeId)
                 .orElseThrow(() -> new BusinessException("Sede no encontrada con id: " + sedeId));
     }
 
-    private ConciliadorDTO convertirADTO(Conciliador conciliador) {
-        ConciliadorDTO dto = new ConciliadorDTO();
-        dto.setId(conciliador.getId());
-        dto.setNombre(conciliador.getNombre());
+    private Area obtenerArea(Long areaId) {
+        if (areaId == null) {
+            throw new BusinessException("El área es obligatoria");
+        }
+
+        return areaRepository.findById(areaId)
+                .orElseThrow(() -> new BusinessException("Área no encontrada con id: " + areaId));
+    }
+
+    private AsesorDTO convertirADTO(Asesor asesor) {
+        AsesorDTO dto = new AsesorDTO();
+        dto.setId(asesor.getId());
+        dto.setNombre(asesor.getNombre());
         dto.setTipoDocumentoId(
-                conciliador.getTipoDocumento() != null ? conciliador.getTipoDocumento().getId() : null);
-        dto.setDocumento(conciliador.getDocumento());
-        dto.setEmail(conciliador.getEmail());
-        dto.setTelefono(conciliador.getTelefono());
-        dto.setUsuario(conciliador.getUsuario());
+                asesor.getTipoDocumento() != null ? asesor.getTipoDocumento().getId() : null
+        );
+        dto.setDocumento(asesor.getDocumento());
+        dto.setEmail(asesor.getEmail());
+        dto.setTelefono(asesor.getTelefono());
+        dto.setUsuario(asesor.getUsuario());
         dto.setSedeId(
-                conciliador.getSede() != null ? conciliador.getSede().getId() : null);
-        dto.setCodigo(conciliador.getCodigo());
-        dto.setTipoConciliador(conciliador.getTipoConciliador());
-        dto.setActivo(conciliador.getActivo());
+                asesor.getSede() != null ? asesor.getSede().getId() : null
+        );
+        dto.setCodigo(asesor.getCodigo());
+        dto.setAreaId(
+                asesor.getArea() != null ? asesor.getArea().getId() : null
+        );
+        dto.setActivo(asesor.getActivo());
         return dto;
     }
 }

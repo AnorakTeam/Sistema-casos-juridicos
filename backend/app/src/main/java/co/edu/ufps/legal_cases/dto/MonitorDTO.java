@@ -16,8 +16,10 @@ public class MonitorDTO {
     @Size(max = 150, message = "El nombre no puede superar los 150 caracteres")
     private String nombre;
 
+    @NotBlank(message = "El tipo de documento es obligatorio")
     private Long tipoDocumentoId;
 
+    @NotBlank(message = "El documento es obligatorio")
     @Size(max = 30, message = "El documento no puede superar los 30 caracteres")
     private String documento;
 
@@ -38,6 +40,7 @@ public class MonitorDTO {
     @Size(max = 30, message = "El código no puede superar los 30 caracteres")
     private String codigo;
 
+    @NotBlank(message = "La sede es obligatoria")
     private Long sedeId;
 
     private Boolean activo;

@@ -75,6 +75,7 @@ public class MonitorService {
         validarCamposObligatorios(nombre, email, telefono, usuario, codigo);
         validarDuplicadosCreacion(documento, email, telefono, usuario, codigo);
 
+        //En estos metodos valido que efectivamente existan esas entidades relacionadas
         TipoDocumento tipoDocumento = obtenerTipoDocumento(dto.getTipoDocumentoId());
         Sede sede = obtenerSede(dto.getSedeId());
 
