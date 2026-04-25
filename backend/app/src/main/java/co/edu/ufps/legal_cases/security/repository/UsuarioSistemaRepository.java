@@ -16,9 +16,16 @@ public interface UsuarioSistemaRepository extends JpaRepository<UsuarioSistema, 
 
     boolean existsByUsernameIgnoreCase(String username);
 
+    //Aqui sobreescribe para poder cargar el rol y los permisos con el usuario
+    @Override
+    @EntityGraph(attributePaths = {"rol", "rol.permisos"})
+    List<UsuarioSistema> findAll();
+
+    //Tambien sobreescribe para cargar el rol y permisos, pero solo los activos
+    @EntityGraph(attributePaths = {"rol", "rol.permisos"})
     List<UsuarioSistema> findByActivoTrue();
 
-    //Para validar que un perfil no tenga 2 usuarios asociados
+    // Para validar que un perfil no tenga 2 usuarios asociados.
     boolean existsByAsesor_Id(Long asesorId);
 
     boolean existsByEstudiante_Id(Long estudianteId);
@@ -29,7 +36,10 @@ public interface UsuarioSistemaRepository extends JpaRepository<UsuarioSistema, 
 
     boolean existsByConciliador_Id(Long conciliadorId);
 
-    // Permite cargar el usuario junto con su rol y permisos para evitar problemas de LazyInitializationException
+    @EntityGraph(attributePaths = {"rol", "rol.permisos"})
+    Optional<UsuarioSistema> findWithRolAndPermisosById(Long id);
+
+    //Tambien se puede usar para cargar el rol y permisos al buscar por username
     @EntityGraph(attributePaths = {"rol", "rol.permisos"})
     Optional<UsuarioSistema> findWithRolAndPermisosByUsernameIgnoreCase(String username);
 }

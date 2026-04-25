@@ -20,6 +20,7 @@ import static co.edu.ufps.legal_cases.util.NormalizacionUtils.normalizarNumeroDo
 
 // Service interno para crear usuarios del sistema a partir de perfiles reales del negocio.
 //Por esto no uso dto, sino directamente las entidades de negocio. 
+//Lo uso en los servicios de cada perfil (AsesorService, EstudianteService, etc) para crear el usuario del sistema justo después de crear el perfil real.
 @Service
 @Transactional
 public class UsuarioSistemaRegistroService {
