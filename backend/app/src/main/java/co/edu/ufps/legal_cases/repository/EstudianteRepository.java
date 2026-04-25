@@ -4,12 +4,11 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import java.util.Optional;
 
-import co.edu.ufps.legal_cases.model.Asesor;
+import co.edu.ufps.legal_cases.model.Estudiante;
 
 @Repository
-public interface AsesorRepository extends JpaRepository<Asesor, Long> {
+public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
 
     boolean existsByDocumento(String documento);
 
@@ -31,8 +30,9 @@ public interface AsesorRepository extends JpaRepository<Asesor, Long> {
 
     boolean existsByCodigoIgnoreCaseAndIdNot(String codigo, Long id);
 
-    List<Asesor> findByActivoTrue();
+    List<Estudiante> findByActivoTrue();
 
-    //Para en estudiante poder ver los asesores activos
-    Optional<Asesor> findByIdAndActivoTrue(Long id);
+    List<Estudiante> findByConciliacionTrue();
+
+    List<Estudiante> findByAsesorId(Long asesorId);
 }
