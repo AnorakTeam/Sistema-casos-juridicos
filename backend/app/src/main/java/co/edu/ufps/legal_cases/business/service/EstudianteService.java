@@ -15,6 +15,7 @@ import co.edu.ufps.legal_cases.business.repository.EstudianteRepository;
 import co.edu.ufps.legal_cases.business.repository.SedeRepository;
 import co.edu.ufps.legal_cases.business.repository.TipoDocumentoRepository;
 import co.edu.ufps.legal_cases.exception.BusinessException;
+import co.edu.ufps.legal_cases.security.service.UsuarioSistemaRegistroService;
 
 import static co.edu.ufps.legal_cases.util.ComparacionUtils.equalsIgnoreCase;
 import static co.edu.ufps.legal_cases.util.ComparacionUtils.mismoId;
@@ -32,16 +33,19 @@ public class EstudianteService {
     private final TipoDocumentoRepository tipoDocumentoRepository;
     private final SedeRepository sedeRepository;
     private final AsesorRepository asesorRepository;
+    private final UsuarioSistemaRegistroService usuarioSistemaRegistroService;
 
     public EstudianteService(
             EstudianteRepository estudianteRepository,
             TipoDocumentoRepository tipoDocumentoRepository,
             SedeRepository sedeRepository,
-            AsesorRepository asesorRepository) {
+            AsesorRepository asesorRepository,
+            UsuarioSistemaRegistroService usuarioSistemaRegistroService) {
         this.estudianteRepository = estudianteRepository;
         this.tipoDocumentoRepository = tipoDocumentoRepository;
         this.sedeRepository = sedeRepository;
         this.asesorRepository = asesorRepository;
+        this.usuarioSistemaRegistroService = usuarioSistemaRegistroService;
     }
 
     public List<EstudianteDTO> listar() {
@@ -114,7 +118,11 @@ public class EstudianteService {
         estudiante.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
         estudiante.setConciliacion(dto.getConciliacion() != null ? dto.getConciliacion() : false);
 
-        return convertirADTO(estudianteRepository.save(estudiante));
+        Estudiante estudianteGuardado = estudianteRepository.save(estudiante);
+        
+        //Aqui estoy creando el usuario ante el sistema
+        usuarioSistemaRegistroService.crearParaEstudiante(estudianteGuardado);
+        return convertirADTO(estudianteGuardado);
     }
 
     public EstudianteDTO actualizar(Long id, EstudianteDTO dto) {
