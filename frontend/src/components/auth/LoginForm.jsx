@@ -1,89 +1,91 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { useApiForm } from "@/hooks/useApiForm"
+import { FormInput } from "../forms/parts/FormInput"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 
 export function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
+  const [errorMessage, setErrorMessage] = useState("")
 
-  // autenticacion de usuario en la que se envían las credenciales al servidor para verificar
-  // si son correctas. Si la autenticación es exitosa, se almacena el token de autenticación 
-  // y el correo electrónico del usuario en el almacenamiento local del navegador, y se redirige 
-  // al usuario a la página de inicio. Si la autenticación falla, se muestra un mensaje de error.
-  
-  async function handleSubmit(event) {
-    event.preventDefault()
+  const { register, handleSubmit, formState: { errors } } = useForm()
+
+  const API_URL_BASE = "http://localhost:8080/api"
+
+  const { submit, isSubmitting } = useApiForm({
+    endpoint: `${API_URL_BASE}/auth/login`
+  })
+
+  const REQUIRED = "Campo obligatorio"
+
+  const handleSubmitForm = async (data) => {
     setErrorMessage("")
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ""
-    const response = await fetch(`${apiUrl}/api/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const response = await submit({
+        username: data.username,
+        password: data.password
+      })
 
-    if (response.ok) {
-      const result = await response.json()
-      localStorage.setItem("authToken", result.token)
-      localStorage.setItem("userEmail", result.email)
-      router.push("/inicio")
-      return
+      if (response) {
+        localStorage.setItem("usuarioId", response.usuarioId)
+        localStorage.setItem("username", response.username)
+        localStorage.setItem("rol", response.rolNombre)
+        localStorage.setItem("perfil", response.tipoPerfil)
+        localStorage.setItem("permisos", JSON.stringify(response.permisos))
+
+        router.push("/inicio")
+      }
+
+    } catch (error) {
+      //mensaje error
+      setErrorMessage(
+        error?.response?.data?.message ||
+        error?.message ||
+        "Credenciales inválidas"
+      )
     }
-
-    const errorData = await response.json().catch(() => null)
-    setErrorMessage(errorData?.message || "Credenciales inválidas")
   }
-      //formulario de login con campos para correo electrónico y contraseña, y un botón para enviar el formulario. 
-      //También incluye un enlace para recuperar la contraseña en caso de que el usuario la haya olvidado(no codificado) 
-      //Al enviar el formulario, se guarda el correo electrónico en el almacenamiento local y se redirige al usuario 
-      //a la página de inicio.
+
   return (
     <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-sm shadow-muted/40">
+      
       <div className="mb-6 space-y-2">
         <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="grid gap-2 text-sm font-medium">
-          Correo electrónico
-          <Input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="usuario@correo.com"
-            required
-          />
-        </label>
+      <form onSubmit={handleSubmit(handleSubmitForm)} className="space-y-4">
 
-        <label className="grid gap-2 text-sm font-medium">
-          <div className="flex items-center justify-between">
-            <span>Contraseña</span>
-            <a href="#" className="text-sm text-primary hover:underline">
-              ¿Olvidaste tu contraseña?
-            </a>
+        <FormInput
+          name="username"
+          label="Correo electrónico"
+          register={register}
+          errors={errors}
+          rules={{ required: REQUIRED }}
+        />
+
+        <FormInput
+          name="password"
+          label="Contraseña"
+          type="password"
+          register={register}
+          errors={errors}
+          rules={{ required: REQUIRED }}
+        />
+
+        {errorMessage && (
+          <div className="text-sm text-destructive">
+            {errorMessage}
           </div>
-          <Input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
-            required
-          />
-        </label>
+        )}
 
-        <Button type="submit" className="w-full">
-          Acceder
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Ingresando..." : "Acceder"}
         </Button>
-        {errorMessage ? (
-          <p className="text-sm text-destructive">{errorMessage}</p>
-        ) : null}
+
       </form>
     </div>
   )
