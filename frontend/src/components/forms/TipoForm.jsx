@@ -1,0 +1,88 @@
+import React, { useState, useEffect } from "react";
+import { useApiForm } from "@/hooks/useApiForm";
+import { useForm } from "react-hook-form";
+import { FormInput } from "./parts/FormInput";
+import { FormSelect } from "./parts/FormSelect";
+import { Button } from "@/components/ui/button";
+
+export function TipoForm() {
+  const API_URL_BASE = "http://localhost:8080/api";
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      nombre: "",
+      temaId: "",
+    },
+  });
+
+  const [temas, setTemas] = useState([]);
+
+  const { submit, isSubmitting } = useApiForm({endpoint: `${API_URL_BASE}/tipos`});
+
+  useEffect(() => {
+    const fetchTemas = async () => {
+      try {
+        const response = await fetch(`${API_URL_BASE}/temas`);
+        if (response.ok) {
+          const temasData = await response.json();
+
+          const temaOptions = temasData.map((tema) => ({
+            value: tema.id,
+            label: tema.nombre,
+          }));
+
+          setTemas(temaOptions);
+        } else {
+          console.error("Error al cargar temas");
+        }
+      } catch (error) {
+        console.error("Error de red al cargar temas:", error);
+      }
+    };
+
+    fetchTemas();
+  }, [API_URL_BASE]);
+
+  const onSubmit = async (data) => {
+    await submit({
+      ...data,
+      temaId: Number(data.temaId),
+    });
+  };
+
+  return (
+    <div className="space-y-6 p-6 bg-card rounded-xl border">
+      <div>
+        <h2 className="text-2xl font-bold">Registro de Tipo</h2>
+        <p className="text-muted-foreground">
+          Complete la siguiente información
+        </p>
+      </div>
+
+      <FormInput
+        name="nombre"
+        label="Nombre del tipo"
+        register={register}
+        errors={errors}
+        rules={{ required: "El nombre es obligatorio" }}
+      />
+
+      <FormSelect
+        name="temaId"
+        label="Tema"
+        options={temas}
+        register={register}
+        errors={errors}
+      />
+
+      <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+        {isSubmitting ? "Guardando..." : "Guardar tipo"}
+      </Button>
+    </div>
+  );
+}
