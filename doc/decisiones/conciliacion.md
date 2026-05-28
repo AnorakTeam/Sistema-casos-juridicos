@@ -302,3 +302,128 @@ Si cambia el catálogo de estados, revisar también:
 - datos iniciales;
 - frontend que renderiza estados;
 - validaciones del backend.
+
+
+---
+
+# Decisiones de la HU Reuniones de conciliación
+
+## Reunión como entidad separada
+
+Se decidió modelar la reunión en una entidad propia:
+
+```text
+ReunionConciliacion
+```
+
+Justificación:
+
+- evita sobrecargar la entidad `Conciliacion`;
+- permite agregar sede, observaciones, historial y notificaciones propias;
+- mantiene una fuente clara de verdad para la fecha;
+- facilita futuras extensiones sin alterar el núcleo de conciliación.
+
+## Una sola reunión vigente
+
+La tabla usa `conciliacion_id` como PK y FK.
+
+Justificación:
+
+- el PO definió que la conciliación tiene una reunión inherente;
+- reprogramar actualiza la misma reunión;
+- no se implementa historial como múltiples filas vigentes;
+- el historial se guarda en tabla separada.
+
+## No duplicar fecha
+
+La fecha vigente de reunión es:
+
+```text
+reunion_conciliacion.fecha_reunion
+```
+
+No se copia como fuente paralela en `conciliacion.fecha_conciliacion`.
+
+Justificación:
+
+- evita inconsistencias;
+- una sola fuente de verdad;
+- sede y observaciones quedan junto a la fecha;
+- reprogramar modifica un único registro vigente.
+
+## Historial propio
+
+Se creó historial de programación y reprogramación.
+
+Justificación:
+
+- permite trazabilidad de cambios;
+- conserva fecha, sede y observaciones anteriores;
+- identifica al usuario que ejecutó la acción;
+- evita perder información al actualizar la reunión vigente.
+
+## Notificaciones propias
+
+Se creó historial de notificaciones para reuniones, independiente de `seguimiento_notificacion`.
+
+Justificación:
+
+- las notificaciones de seguimiento pertenecen a otra entidad;
+- reunión requiere tipos de destinatario y motivos propios;
+- permite notificación inmediata, recordatorio y alerta administrativa;
+- conserva errores e intentos de envío.
+
+## Recordatorio un día antes
+
+Se decidió programar recordatorio un día antes de `fecha_reunion`.
+
+Justificación:
+
+- cumple la necesidad de recordar la reunión sin agregar configuración adicional;
+- reduce alcance de la HU;
+- mantiene comportamiento similar al patrón de seguimiento;
+- permite scheduler de reintento.
+
+## Fallo de correo no bloquea
+
+La programación o reprogramación no se revierte si falla el correo.
+
+Justificación:
+
+- el objetivo principal es registrar la reunión;
+- el correo es un efecto posterior;
+- el error queda persistido;
+- se puede reintentar;
+- los administrativos pueden ser alertados.
+
+## Administrativos ante errores
+
+Si fallan envíos a consultante, partes o contrapartes, se crean notificaciones para administrativos.
+
+Justificación:
+
+- evita que el error quede invisible;
+- permite gestión manual;
+- mantiene trazabilidad;
+- no depende únicamente de que el correo original funcione.
+
+## Acta fuera de alcance
+
+Aunque existe una decisión funcional futura sobre acta por estudiante, no se incluyó en esta HU.
+
+Justificación:
+
+- programar reunión y subir acta son flujos diferentes;
+- mezclar ambos aumentaría alcance;
+- la HU actual cierra programación/reprogramación con notificaciones;
+- el acta puede tratarse como HU posterior.
+
+## Cancelación fuera de alcance
+
+No se implementa cancelación de reunión.
+
+Justificación:
+
+- no fue requerida en la HU;
+- cancelación implica reglas adicionales de estado y notificación;
+- puede implementarse como flujo independiente si el PO lo solicita.

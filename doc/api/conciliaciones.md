@@ -48,7 +48,7 @@ COMPLETO_NO_CONCILIADO
 |---|---|
 | `EN_ESPERA` | Estado automático cuando falta estudiante o conciliador asignado. |
 | `ESPERANDO_REUNION` | Estado operativo cuando existe estudiante y conciliador asignados. |
-| `REUNION_PROGRAMADA` | Estado operativo cuando la conciliación tiene responsables y fecha programada. |
+| `REUNION_PROGRAMADA` | Estado operativo cuando la conciliación tiene responsables y reunión registrada. |
 | `COMPLETO_CONCILIADO` | Estado final con resultado conciliado. |
 | `COMPLETO_NO_CONCILIADO` | Estado final con resultado no conciliado. |
 
@@ -131,7 +131,7 @@ Los valores son ilustrativos y no representan datos reales.
 | `estadoId` | Long | Identificador del estado. |
 | `estadoCodigo` | String | Código técnico del estado. |
 | `estadoNombre` | String | Nombre visible del estado. |
-| `fechaConciliacion` | DateTime | Fecha programada de conciliación cuando aplica. |
+| `fechaConciliacion` | DateTime | Campo heredado. La fecha vigente de reunión se expone en `reunion.fechaReunion`. |
 | `documentoSolicitudPath` | String | Ruta relativa de la solicitud PDF. |
 | `actaPath` | String | Ruta relativa del acta PDF. |
 | `solicitadoPorId` | Long | Usuario que solicitó la conciliación. |
@@ -499,7 +499,7 @@ El estado `EN_ESPERA` se calcula automáticamente según asignaciones.
 - no se permite cambiar manualmente a `EN_ESPERA`;
 - no se permite usar estados finales;
 - `ESPERANDO_REUNION` exige estudiante y conciliador asignados;
-- `REUNION_PROGRAMADA` exige estudiante, conciliador y fecha de conciliación registrada.
+- `REUNION_PROGRAMADA` exige estudiante, conciliador y reunión registrada en `reunion_conciliacion`.
 
 ## Alcance de operación
 
@@ -734,3 +734,201 @@ Al crear conciliación:
 - Manejar `204` en eliminación lógica sin intentar leer JSON.
 - Usar rutas retornadas en `documentoSolicitudPath` y `actaPath`.
 - Usar `credentials: "include"` en todas las peticiones protegidas.
+
+
+---
+
+# Reuniones de conciliación
+
+La reunión de conciliación se programa y reprograma desde el módulo de conciliaciones.
+
+No existe endpoint `GET` independiente para reunión. La información de reunión se expone dentro del detalle:
+
+```text
+GET /api/conciliaciones/{id}
+```
+
+## DTO `ReunionConciliacionRequestDTO`
+
+```json
+{
+  "fechaReunion": "2026-06-10T14:30:00",
+  "sedeId": 1,
+  "observaciones": "Observaciones opcionales"
+}
+```
+
+| Campo | Tipo | Obligatorio | Regla |
+|---|---|---|---|
+| `fechaReunion` | DateTime | Sí | Debe ser futura. |
+| `sedeId` | Long | Sí | Debe corresponder a una sede activa. |
+| `observaciones` | String | No | Máximo 300 caracteres. |
+
+## DTO `ReunionConciliacionResponseDTO`
+
+```json
+{
+  "conciliacionId": 2,
+  "fechaReunion": "2026-06-10T14:30:00",
+  "sedeId": 1,
+  "sedeNombre": "Sede principal",
+  "observaciones": "Observaciones opcionales",
+  "fechaCreacion": "2026-05-27T22:30:00",
+  "fechaActualizacion": null
+}
+```
+
+## POST `/api/conciliaciones/{id}/reunion`
+
+Programa la reunión de una conciliación.
+
+### Permiso
+
+```text
+Programar reuniones de conciliación
+```
+
+### Reglas
+
+- administrador puede programar;
+- conciliador asignado puede programar;
+- estudiante no programa;
+- la conciliación debe estar activa;
+- la conciliación no puede estar finalizada;
+- la consulta asociada no puede estar cerrada ni archivada;
+- la conciliación debe tener estudiante y conciliador asignados;
+- no puede existir reunión previa;
+- la fecha debe ser futura;
+- la sede debe estar activa;
+- se registra historial `PROGRAMACION`;
+- la conciliación pasa a `REUNION_PROGRAMADA`;
+- se crean notificaciones inmediatas y recordatorios.
+
+### Request
+
+```json
+{
+  "fechaReunion": "2026-06-10T14:30:00",
+  "sedeId": 1,
+  "observaciones": "Primera programación de reunión de conciliación."
+}
+```
+
+### Response `200 OK`
+
+Retorna `ReunionConciliacionResponseDTO`.
+
+## PUT `/api/conciliaciones/{id}/reunion`
+
+Reprograma la reunión vigente de una conciliación.
+
+### Permiso
+
+```text
+Reprogramar reuniones de conciliación
+```
+
+### Reglas
+
+- administrador puede reprogramar;
+- conciliador asignado puede reprogramar;
+- estudiante no reprograma;
+- debe existir reunión previa;
+- la conciliación debe estar activa;
+- la conciliación no puede estar finalizada;
+- la consulta asociada no puede estar cerrada ni archivada;
+- la fecha nueva debe ser futura;
+- la sede debe estar activa;
+- debe existir cambio real;
+- se actualiza la misma reunión;
+- se registra historial `REPROGRAMACION`;
+- se cancelan recordatorios pendientes anteriores;
+- se crean nuevas notificaciones inmediatas y nuevos recordatorios.
+
+### Request
+
+```json
+{
+  "fechaReunion": "2026-06-12T09:00:00",
+  "sedeId": 1,
+  "observaciones": "Reprogramación por disponibilidad de las partes."
+}
+```
+
+### Response `200 OK`
+
+Retorna `ReunionConciliacionResponseDTO`.
+
+## Actualización de detalle
+
+`GET /api/conciliaciones/{id}` agrega el campo `reunion`.
+
+Ejemplo:
+
+```json
+{
+  "id": 2,
+  "consultaId": 21,
+  "estadoCodigo": "REUNION_PROGRAMADA",
+  "estadoNombre": "Reunión programada",
+  "reunion": {
+    "conciliacionId": 2,
+    "fechaReunion": "2026-06-10T14:30:00",
+    "sedeId": 1,
+    "sedeNombre": "Sede principal",
+    "observaciones": "Primera programación de reunión de conciliación.",
+    "fechaCreacion": "2026-05-27T22:30:00",
+    "fechaActualizacion": null
+  }
+}
+```
+
+Si no hay reunión, el campo se retorna como `null`.
+
+## Notificaciones de reunión
+
+Al programar o reprogramar se generan:
+
+| Momento | Uso |
+|---|---|
+| `INMEDIATA` | Correo al momento de programar o reprogramar. |
+| `RECORDATORIO` | Correo un día antes de la reunión. |
+
+Destinatarios:
+
+- consultante;
+- partes;
+- contrapartes.
+
+Si falla un envío:
+
+- la reunión no se revierte;
+- el error queda registrado en `reunion_conciliacion_notificacion`;
+- se generan notificaciones para administrativos con motivo `ERROR_ENVIO`.
+
+## Errores esperados
+
+| Estado | Causa |
+|---|---|
+| `400 Bad Request` | La conciliación ya tiene reunión programada. |
+| `400 Bad Request` | La conciliación no tiene reunión para reprogramar. |
+| `400 Bad Request` | Fecha de reunión ausente o no futura. |
+| `400 Bad Request` | Sede ausente, inexistente o inactiva. |
+| `400 Bad Request` | Observaciones mayores a 300 caracteres. |
+| `400 Bad Request` | Conciliación finalizada. |
+| `400 Bad Request` | Consulta cerrada o archivada. |
+| `400 Bad Request` | Falta estudiante o conciliador asignado. |
+| `400 Bad Request` | Reprogramación sin cambio real. |
+| `401 Unauthorized` | Sesión no válida. |
+| `403 Forbidden` | Usuario sin permiso o sin alcance. |
+
+## Notas para frontend
+
+- no crear pantalla independiente de reunión si la reunión vive en el detalle de conciliación;
+- usar `POST /reunion` para programar;
+- usar `PUT /reunion` para reprogramar;
+- no enviar multipart; estos endpoints usan JSON;
+- usar `reunion.fechaReunion` como fuente vigente de fecha;
+- no usar `fechaConciliacion` como fuente principal;
+- mostrar acciones según permisos de programar/reprogramar;
+- manejar errores de correo como historial operativo, no como falla de programación.

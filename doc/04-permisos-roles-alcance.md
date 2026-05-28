@@ -165,3 +165,51 @@ El frontend puede ocultar acciones, pero el backend siempre valida:
 ```text
 permiso funcional + alcance real + regla de negocio
 ```
+
+
+---
+
+# Reuniones de conciliación
+
+La programación y reprogramación de reuniones de conciliación usa permisos funcionales específicos.
+
+## Permisos
+
+| Permiso | Propósito |
+|---|---|
+| `Acceder conciliaciones` | Navegación hacia conciliaciones. |
+| `Ver conciliaciones` | Consulta de conciliaciones según alcance. |
+| `Programar reuniones de conciliación` | Acción de programar reunión. |
+| `Reprogramar reuniones de conciliación` | Acción de reprogramar reunión. |
+
+No se requiere permiso de navegación independiente para reuniones, porque la reunión se consulta dentro del detalle de conciliación.
+
+## Alcance por perfil
+
+### Administrador
+
+Puede programar y reprogramar reuniones de conciliación de forma global según permisos.
+
+### Conciliador
+
+Puede programar y reprogramar reuniones solo cuando está asignado a la conciliación.
+
+### Estudiante
+
+Puede consultar conciliaciones relacionadas según permisos y alcance, pero no programa ni reprograma reuniones.
+
+### Asesor y monitor
+
+Pueden consultar conciliaciones relacionadas según permisos y alcance, pero no programan ni reprograman reuniones en esta HU.
+
+## Regla de frontend
+
+El frontend debe separar:
+
+```text
+navegación -> Acceder conciliaciones
+lectura -> Ver conciliaciones
+acción -> Programar/Reprogramar reuniones de conciliación
+```
+
+Mostrar un botón por permiso no reemplaza la validación de alcance del backend.

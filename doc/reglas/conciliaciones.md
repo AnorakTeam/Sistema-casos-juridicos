@@ -21,7 +21,7 @@ La conciliación se crea desde una consulta, registra solicitud PDF, asigna estu
 |---|---|
 | `EN_ESPERA` | Estado automático cuando falta estudiante o conciliador. |
 | `ESPERANDO_REUNION` | Estado operativo con estudiante y conciliador asignados. |
-| `REUNION_PROGRAMADA` | Estado operativo con responsables y fecha programada. |
+| `REUNION_PROGRAMADA` | Estado operativo con responsables y reunión registrada. |
 | `COMPLETO_CONCILIADO` | Estado final conciliado. |
 | `COMPLETO_NO_CONCILIADO` | Estado final no conciliado. |
 
@@ -133,7 +133,7 @@ Reglas:
 - no se permite cambiar manualmente a `EN_ESPERA`;
 - no se permite usar estados finales por endpoint de cambio de estado;
 - `ESPERANDO_REUNION` exige estudiante y conciliador;
-- `REUNION_PROGRAMADA` exige estudiante, conciliador y fecha de conciliación.
+- `REUNION_PROGRAMADA` exige estudiante, conciliador y reunión registrada.
 
 Alcance:
 
@@ -232,3 +232,136 @@ REUNION_PROGRAMADA
 - enviar solicitud y acta como `multipart/form-data`;
 - manejar `403` como falta de permiso o alcance;
 - usar `credentials: "include"`.
+
+
+---
+
+# Reglas de reunión de conciliación
+
+## Principios
+
+- La reunión de conciliación es una entidad separada.
+- Una conciliación tiene una sola reunión vigente.
+- Reprogramar actualiza la misma reunión vigente.
+- La fuente de verdad de la fecha es `reunion_conciliacion.fecha_reunion`.
+- `conciliacion.fecha_conciliacion` no es fuente vigente para esta HU.
+- La programación y reprogramación quedan en historial.
+- Las notificaciones tienen historial propio.
+- El fallo de correo no bloquea la programación ni la reprogramación.
+
+## Actores
+
+| Perfil | Regla |
+|---|---|
+| Administrador | Puede programar y reprogramar. |
+| Conciliador asignado | Puede programar y reprogramar su conciliación. |
+| Estudiante | No programa ni reprograma. |
+| Asesor | No programa ni reprograma en esta HU. |
+| Monitor | No programa ni reprograma en esta HU. |
+
+## Programación
+
+Reglas:
+
+- requiere permiso `Programar reuniones de conciliación`;
+- la conciliación debe estar activa;
+- la conciliación no puede estar finalizada;
+- la consulta asociada no puede estar cerrada ni archivada;
+- debe existir estudiante asignado;
+- debe existir conciliador asignado;
+- no puede existir reunión previa;
+- la fecha de reunión debe ser futura;
+- la sede es obligatoria y debe estar activa;
+- las observaciones son opcionales y máximo 300 caracteres;
+- se registra historial `PROGRAMACION`;
+- el estado pasa a `REUNION_PROGRAMADA`;
+- se crean notificaciones inmediatas y recordatorios.
+
+## Reprogramación
+
+Reglas:
+
+- requiere permiso `Reprogramar reuniones de conciliación`;
+- debe existir reunión previa;
+- la nueva fecha debe ser futura;
+- la sede debe estar activa;
+- debe existir cambio real;
+- se actualiza la misma reunión;
+- se registra historial `REPROGRAMACION`;
+- se mantiene estado `REUNION_PROGRAMADA`;
+- se cancelan recordatorios pendientes anteriores;
+- se crean nuevas notificaciones inmediatas y nuevos recordatorios.
+
+## Estado `REUNION_PROGRAMADA`
+
+`REUNION_PROGRAMADA` depende de que exista reunión en:
+
+```text
+reunion_conciliacion
+```
+
+No depende de `conciliacion.fecha_conciliacion`.
+
+## Historial de reunión
+
+El historial registra:
+
+- tipo de evento;
+- fecha anterior;
+- fecha nueva;
+- sede anterior;
+- sede nueva;
+- observaciones anteriores;
+- observaciones nuevas;
+- usuario que ejecutó el cambio;
+- fecha del evento.
+
+Tipos:
+
+```text
+PROGRAMACION
+REPROGRAMACION
+```
+
+## Notificaciones
+
+Al programar o reprogramar se notifica a:
+
+- consultante/persona principal;
+- partes;
+- contrapartes.
+
+Se deduplican correos para evitar envíos repetidos a la misma dirección.
+
+## Recordatorio
+
+El sistema crea un recordatorio un día antes de la reunión.
+
+Regla:
+
+```text
+fecha_programada_recordatorio = fecha_reunion - 1 día
+```
+
+Si esa fecha ya está en el pasado, no se crea recordatorio.
+
+## Fallos de correo
+
+Reglas:
+
+- el fallo de correo no revierte la programación;
+- el fallo de correo no revierte la reprogramación;
+- se registra el error por destinatario;
+- se incrementan intentos;
+- se conserva historial;
+- si fallan envíos a consultante, partes o contrapartes, se generan notificaciones para administrativos con motivo `ERROR_ENVIO`.
+
+## Fuera de alcance de esta HU
+
+No se implementa:
+
+- cancelación de reunión;
+- múltiples reuniones por conciliación;
+- WhatsApp o bot de mensajes;
+- subida de acta por estudiante;
+- endpoint GET separado de reunión.

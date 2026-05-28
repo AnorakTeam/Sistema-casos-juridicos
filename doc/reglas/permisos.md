@@ -177,3 +177,59 @@ autenticación + permiso funcional + alcance real + regla de negocio
 ```
 
 Una acción solo es válida cuando los cuatro elementos se cumplen según corresponda.
+
+
+---
+
+# Permisos para reuniones de conciliación
+
+La HU de reuniones de conciliación usa permisos funcionales existentes del módulo de conciliación.
+
+## Permisos involucrados
+
+| Permiso | Uso |
+|---|---|
+| `Acceder conciliaciones` | Permite navegación hacia la sección de conciliaciones. |
+| `Ver conciliaciones` | Permite listar y consultar conciliaciones según alcance. |
+| `Programar reuniones de conciliación` | Permite programar la reunión de una conciliación según alcance. |
+| `Reprogramar reuniones de conciliación` | Permite reprogramar la reunión vigente según alcance. |
+
+No se crea permiso de navegación `Acceder reuniones de conciliación`, porque la reunión vive dentro del detalle de conciliación y no en una pantalla independiente.
+
+## Matriz de roles
+
+| Rol | Acceder conciliaciones | Ver conciliaciones | Programar reunión | Reprogramar reunión |
+|---|---:|---:|---:|---:|
+| Administrador | Sí | Sí | Sí | Sí |
+| Conciliador | Sí | Sí | Sí, solo asignadas | Sí, solo asignadas |
+| Estudiante | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
+| Asesor | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
+| Monitor | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
+
+## Regla de alcance
+
+Tener el permiso funcional no es suficiente.
+
+El backend valida:
+
+```text
+permiso funcional + alcance real + regla de negocio
+```
+
+Para reuniones:
+
+- administrador tiene alcance global;
+- conciliador debe estar asignado a la conciliación;
+- estudiante no puede programar ni reprogramar, aunque vea la conciliación;
+- asesor y monitor no programan/reprograman en esta HU.
+
+## Frontend
+
+Reglas para botones:
+
+- mostrar menú de conciliaciones con `Acceder conciliaciones`;
+- mostrar detalle/listado con `Ver conciliaciones`;
+- mostrar botón de programar con `Programar reuniones de conciliación`;
+- mostrar botón de reprogramar con `Reprogramar reuniones de conciliación`.
+
+El backend sigue siendo la autoridad final.

@@ -849,7 +849,7 @@ Campos principales:
 | `estudiante_id` | Estudiante asignado. |
 | `conciliador_id` | Conciliador asignado. |
 | `estado_id` | Estado funcional en catálogo. |
-| `fecha_conciliacion` | Fecha principal programada. |
+| `fecha_conciliacion` | Campo heredado. La fecha vigente de reunión se almacena en `reunion_conciliacion.fecha_reunion`. |
 | `documento_solicitud_path` | Ruta de solicitud PDF. |
 | `acta_path` | Ruta de acta PDF. |
 | `solicitado_por_id` | Usuario solicitante. |
@@ -971,3 +971,130 @@ La integridad se protege mediante:
 - relaciones activas;
 - restricciones únicas;
 - permisos y alcance.
+
+
+---
+
+## 8.1 Reuniones de conciliación
+
+### `reunion_conciliacion`
+
+Entidad:
+
+```text
+ReunionConciliacion
+```
+
+Propósito:
+
+Representa la reunión vigente asociada a una conciliación.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `conciliacion_id` | PK y FK hacia `conciliacion.id`. |
+| `fecha_reunion` | Fecha y hora vigente de la reunión. |
+| `sede_id` | Sede donde se realizará la reunión. |
+| `observaciones` | Observaciones opcionales, máximo 300 caracteres. |
+| `fecha_creacion` | Fecha de creación. |
+| `fecha_actualizacion` | Fecha de última actualización. |
+
+Relaciones:
+
+```text
+reunion_conciliacion -> conciliacion
+reunion_conciliacion -> sede
+```
+
+Regla estructural:
+
+```text
+Una conciliación tiene máximo una reunión vigente.
+```
+
+### `reunion_conciliacion_historial`
+
+Entidad:
+
+```text
+ReunionConciliacionHistorial
+```
+
+Propósito:
+
+Registra cada programación y reprogramación de reunión.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `id` | Identificador del historial. |
+| `conciliacion_id` | Conciliación afectada. |
+| `tipo_evento` | `PROGRAMACION` o `REPROGRAMACION`. |
+| `fecha_reunion_anterior` | Fecha anterior, si aplica. |
+| `fecha_reunion_nueva` | Nueva fecha de reunión. |
+| `sede_anterior_id` | Sede anterior, si aplica. |
+| `sede_nueva_id` | Nueva sede. |
+| `observaciones_anteriores` | Observaciones anteriores. |
+| `observaciones_nuevas` | Nuevas observaciones. |
+| `realizado_por_id` | Usuario que ejecutó el cambio. |
+| `fecha_evento` | Fecha del evento. |
+
+Relaciones:
+
+```text
+reunion_conciliacion_historial -> conciliacion
+reunion_conciliacion_historial -> sede anterior
+reunion_conciliacion_historial -> sede nueva
+reunion_conciliacion_historial -> usuario_sistema
+```
+
+### `reunion_conciliacion_notificacion`
+
+Entidad:
+
+```text
+ReunionConciliacionNotificacion
+```
+
+Propósito:
+
+Registra historial de notificaciones inmediatas, recordatorios y alertas administrativas asociadas a reuniones de conciliación.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `id` | Identificador. |
+| `conciliacion_id` | Conciliación relacionada. |
+| `tipo_destinatario` | `CONSULTANTE`, `PARTE`, `CONTRAPARTE` o `ADMINISTRATIVO`. |
+| `motivo` | `PROGRAMACION`, `REPROGRAMACION` o `ERROR_ENVIO`. |
+| `momento_notificacion` | `INMEDIATA` o `RECORDATORIO`. |
+| `destinatario_email` | Correo destino. |
+| `destinatario_nombre` | Nombre del destinatario. |
+| `fecha_programada` | Fecha programada de envío. |
+| `fecha_envio` | Fecha real de envío, si aplica. |
+| `enviada` | Indica si el correo fue enviado. |
+| `intentos` | Número de intentos. |
+| `error` | Error registrado, si aplica. |
+| `fecha_creacion` | Fecha de creación. |
+| `fecha_actualizacion` | Fecha de última actualización. |
+| `activa` | Indica si sigue pendiente o vigente. |
+| `fecha_cancelacion` | Fecha de cancelación, si aplica. |
+
+Relación:
+
+```text
+reunion_conciliacion_notificacion -> conciliacion
+```
+
+## 8.2 Fuente de verdad de fecha de reunión
+
+La fecha vigente de reunión se almacena en:
+
+```text
+reunion_conciliacion.fecha_reunion
+```
+
+El campo `conciliacion.fecha_conciliacion` permanece como campo heredado, pero no es la fuente principal para la HU de reuniones.

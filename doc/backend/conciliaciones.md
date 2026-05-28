@@ -64,7 +64,7 @@ Campos principales:
 | `estudiante` | Estudiante encargado de la conciliación. Puede ser nulo si no hay estudiante habilitado asignado. |
 | `conciliador` | Conciliador encargado. Puede ser nulo si aún no hay conciliador asignado o disponible. |
 | `estado` | Estado funcional de la conciliación. |
-| `fechaConciliacion` | Fecha principal programada para la conciliación. |
+| `fechaConciliacion` | Campo heredado de conciliación. Para reuniones, la fuente vigente es `reunion_conciliacion.fecha_reunion`. |
 | `documentoSolicitudPath` | Ruta de la solicitud PDF. |
 | `actaPath` | Ruta del acta PDF. |
 | `solicitadoPor` | Usuario del sistema que generó la conciliación. |
@@ -157,7 +157,7 @@ Campos:
 | `estadoId` | Identificador del estado. |
 | `estadoCodigo` | Código técnico del estado. |
 | `estadoNombre` | Nombre visible del estado. |
-| `fechaConciliacion` | Fecha programada de conciliación. |
+| `fechaConciliacion` | Campo heredado. La fecha vigente de reunión se consulta desde `reunion.fechaReunion`. |
 | `documentoSolicitudPath` | Ruta de solicitud PDF. |
 | `actaPath` | Ruta de acta PDF. |
 | `solicitadoPorId` | Usuario solicitante. |
@@ -424,7 +424,7 @@ Reglas:
 - no se permite usar este endpoint para estados finales;
 - no se permite cambiar manualmente a `EN_ESPERA`;
 - `ESPERANDO_REUNION` exige estudiante y conciliador asignados;
-- `REUNION_PROGRAMADA` exige estudiante, conciliador y fecha de conciliación.
+- `REUNION_PROGRAMADA` exige estudiante, conciliador y reunión registrada en `reunion_conciliacion`.
 
 Alcance:
 
@@ -653,3 +653,204 @@ El detalle usa la consulta asociada como fuente de:
 - Manejar `403` como falta de permiso o alcance.
 - Manejar errores de negocio para consulta cerrada, archivada, conciliación finalizada o documentos inválidos.
 - Usar `credentials: "include"` en peticiones protegidas.
+
+
+---
+
+# Reuniones de conciliación
+
+La HU de reuniones de conciliación agrega un submódulo propio dentro de conciliación para programar y reprogramar la reunión asociada a una conciliación.
+
+## Decisión de modelo
+
+La reunión se modela como entidad separada y no como campos adicionales de `Conciliacion`.
+
+Entidad principal:
+
+```text
+ReunionConciliacion
+```
+
+Tabla:
+
+```text
+reunion_conciliacion
+```
+
+Relación:
+
+```text
+reunion_conciliacion.conciliacion_id -> conciliacion.id
+```
+
+`conciliacion_id` funciona como llave primaria y llave foránea. Esto garantiza que una conciliación tenga una sola reunión vigente.
+
+## Fuente de verdad de la fecha
+
+La fecha vigente de reunión es:
+
+```text
+reunion_conciliacion.fecha_reunion
+```
+
+El campo heredado `conciliacion.fecha_conciliacion` no debe usarse como fuente de verdad para la HU de reuniones.
+
+## Entidades agregadas
+
+| Entidad | Tabla | Uso |
+|---|---|---|
+| `ReunionConciliacion` | `reunion_conciliacion` | Reunión vigente de una conciliación. |
+| `ReunionConciliacionHistorial` | `reunion_conciliacion_historial` | Historial de programación y reprogramación. |
+| `ReunionConciliacionNotificacion` | `reunion_conciliacion_notificacion` | Historial de notificaciones inmediatas, recordatorios y alertas. |
+
+## Enums agregados
+
+| Enum | Valores |
+|---|---|
+| `TipoEventoReunionConciliacion` | `PROGRAMACION`, `REPROGRAMACION` |
+| `TipoDestinatarioReunionConciliacion` | `CONSULTANTE`, `PARTE`, `CONTRAPARTE`, `ADMINISTRATIVO` |
+| `MotivoNotificacionReunionConciliacion` | `PROGRAMACION`, `REPROGRAMACION`, `ERROR_ENVIO` |
+| `MomentoNotificacionReunionConciliacion` | `INMEDIATA`, `RECORDATORIO` |
+
+## DTOs de reunión
+
+### `ReunionConciliacionRequestDTO`
+
+Campos:
+
+| Campo | Uso |
+|---|---|
+| `fechaReunion` | Fecha y hora futura de la reunión. |
+| `sedeId` | Sede activa donde se realizará la reunión. |
+| `observaciones` | Observaciones opcionales, máximo 300 caracteres. |
+
+### `ReunionConciliacionResponseDTO`
+
+Campos:
+
+| Campo | Uso |
+|---|---|
+| `conciliacionId` | Identificador de la conciliación. |
+| `fechaReunion` | Fecha y hora vigente de la reunión. |
+| `sedeId` | Identificador de sede. |
+| `sedeNombre` | Nombre visible de la sede. |
+| `observaciones` | Observaciones registradas. |
+| `fechaCreacion` | Fecha de creación de la reunión. |
+| `fechaActualizacion` | Fecha de última actualización. |
+
+## Services agregados
+
+| Service | Responsabilidad |
+|---|---|
+| `ReunionConciliacionService` | Fachada del submódulo de reuniones. |
+| `ReunionConciliacionCommandService` | Orquesta programación y reprogramación. |
+| `ReunionConciliacionValidator` | Valida reglas de reunión. |
+| `ReunionConciliacionMapper` | Convierte reunión a DTO. |
+| `ReunionConciliacionRelacionService` | Resuelve conciliación, sede, estado y usuario actual. |
+| `ReunionConciliacionHistorialService` | Registra programación y reprogramación. |
+| `ReunionConciliacionNotificacionService` | Coordina creación y envío de notificaciones. |
+| `ReunionConciliacionDestinatarioService` | Calcula consultante, partes, contrapartes y administrativos. |
+| `ReunionConciliacionNotificacionEstadoService` | Crea, cancela y actualiza estados de notificación. |
+| `ReunionConciliacionEnvioNotificacionService` | Procesa envío y registra éxito/error. |
+| `ReunionConciliacionCorreoService` | Construye y envía correos HTML. |
+| `ReunionConciliacionRecordatorioService` | Programa recordatorio un día antes. |
+
+## Scheduler
+
+El scheduler de reunión procesa notificaciones pendientes y activas.
+
+Uso:
+
+```text
+ReunionConciliacionNotificacionScheduler
+```
+
+Responsabilidades:
+
+- enviar recordatorios programados;
+- reintentar notificaciones pendientes;
+- no bloquear la programación o reprogramación de la reunión.
+
+## Programar reunión
+
+Reglas:
+
+- requiere permiso `Programar reuniones de conciliación`;
+- administrador puede programar;
+- conciliador asignado puede programar;
+- estudiante no programa;
+- la conciliación debe estar activa;
+- la conciliación no puede estar finalizada;
+- la consulta asociada no puede estar cerrada ni archivada;
+- debe existir estudiante y conciliador asignados;
+- no puede existir reunión previa;
+- `fechaReunion` debe ser futura;
+- `sedeId` debe corresponder a sede activa;
+- `observaciones` es opcional y no puede superar 300 caracteres;
+- se registra historial `PROGRAMACION`;
+- la conciliación queda en estado `REUNION_PROGRAMADA`;
+- se crean notificaciones inmediatas y recordatorios.
+
+## Reprogramar reunión
+
+Reglas:
+
+- requiere permiso `Reprogramar reuniones de conciliación`;
+- administrador puede reprogramar;
+- conciliador asignado puede reprogramar;
+- estudiante no reprograma;
+- debe existir reunión previa;
+- la nueva fecha debe ser futura;
+- la sede debe estar activa;
+- debe existir cambio real;
+- se conserva una sola reunión vigente;
+- se registra historial `REPROGRAMACION`;
+- se cancelan recordatorios pendientes anteriores;
+- se crean nuevas notificaciones inmediatas y nuevos recordatorios.
+
+## Notificaciones
+
+Al programar o reprogramar se crean notificaciones para:
+
+- consultante/persona principal;
+- partes;
+- contrapartes.
+
+Se deduplican destinatarios por correo.
+
+Tipos:
+
+```text
+INMEDIATA
+RECORDATORIO
+```
+
+El recordatorio se programa un día antes de `fechaReunion`.
+
+Si `fechaReunion - 1 día` ya está en el pasado, no se crea recordatorio.
+
+## Manejo de errores de correo
+
+El fallo de correo no revierte la programación ni la reprogramación.
+
+Reglas:
+
+- si un envío falla, se registra `error`, `intentos` y `enviada=false`;
+- si hay fallos al notificar consultante, partes o contrapartes, se crean notificaciones para administrativos con motivo `ERROR_ENVIO`;
+- si también falla el correo a administrativos, el error queda persistido para revisión o reintento.
+
+## Detalle de conciliación
+
+`GET /api/conciliaciones/{id}` incluye ahora el objeto `reunion`.
+
+Si la conciliación no tiene reunión, `reunion` se devuelve como `null`.
+
+## Consideraciones para frontend
+
+- no existe endpoint `GET` separado de reunión;
+- la reunión se obtiene desde el detalle de conciliación;
+- el botón de programar requiere `Programar reuniones de conciliación`;
+- el botón de reprogramar requiere `Reprogramar reuniones de conciliación`;
+- `Acceder conciliaciones` sigue siendo el permiso de navegación;
+- `Ver conciliaciones` sigue siendo el permiso de lectura;
+- el frontend debe tratar errores de correo como información operativa, no como fallo de programación.

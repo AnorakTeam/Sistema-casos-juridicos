@@ -337,3 +337,74 @@ Ejemplos:
 | Nuevo estado de proceso | `estados-y-catalogos.md`, `reglas/procesos.md`, `api/procesos.md`. |
 | Cambio en estado de conciliación | `estados-y-catalogos.md`, `reglas/conciliaciones.md`, `api/conciliaciones.md`, `backend/conciliaciones.md`. |
 | Nuevo catálogo | `estados-y-catalogos.md`, `backend/catalogos.md`, `api/catalogos.md`. |
+
+
+---
+
+## 18. Enums de reuniones de conciliación
+
+La HU de reuniones de conciliación agrega enumeraciones para historial y notificaciones.
+
+### `TipoEventoReunionConciliacion`
+
+| Valor | Uso |
+|---|---|
+| `PROGRAMACION` | Registro inicial de reunión. |
+| `REPROGRAMACION` | Cambio de fecha, sede u observaciones de una reunión existente. |
+
+### `TipoDestinatarioReunionConciliacion`
+
+| Valor | Uso |
+|---|---|
+| `CONSULTANTE` | Persona principal o convocante de la consulta. |
+| `PARTE` | Parte asociada a la consulta. |
+| `CONTRAPARTE` | Contraparte asociada a la consulta. |
+| `ADMINISTRATIVO` | Administrativo notificado por fallos de envío. |
+
+### `MotivoNotificacionReunionConciliacion`
+
+| Valor | Uso |
+|---|---|
+| `PROGRAMACION` | Notificación por programación inicial. |
+| `REPROGRAMACION` | Notificación por reprogramación. |
+| `ERROR_ENVIO` | Alerta por error al enviar notificaciones. |
+
+### `MomentoNotificacionReunionConciliacion`
+
+| Valor | Uso |
+|---|---|
+| `INMEDIATA` | Envío al momento de programar o reprogramar. |
+| `RECORDATORIO` | Envío programado un día antes de la reunión. |
+
+## 19. Relación entre `REUNION_PROGRAMADA` y reunión
+
+El estado de conciliación:
+
+```text
+REUNION_PROGRAMADA
+```
+
+requiere que exista una reunión asociada en:
+
+```text
+reunion_conciliacion
+```
+
+La fuente de verdad de fecha y sede de reunión es:
+
+```text
+reunion_conciliacion.fecha_reunion
+reunion_conciliacion.sede_id
+```
+
+No se debe depender de `conciliacion.fecha_conciliacion` como fuente principal de reunión.
+
+## 20. Recordatorio de reunión
+
+El recordatorio se programa un día antes:
+
+```text
+fecha_programada = fecha_reunion - 1 día
+```
+
+Si la fecha calculada ya está en el pasado, no se crea recordatorio.

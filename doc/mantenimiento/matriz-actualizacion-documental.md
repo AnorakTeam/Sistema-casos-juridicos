@@ -123,3 +123,21 @@ Cuando se implementen mejoras lógicas priorizadas, revisar según módulo:
 | Asesor activo al crear consulta como estudiante | `doc/backend/consultas.md`, `doc/backend/perfiles.md`, `doc/api/consultas.md`, `doc/reglas/consultas.md`. |
 | Validar perfil activo con usuario de sistema | `doc/backend/perfiles.md`, `doc/api/usuarios-roles-permisos.md`, `doc/reglas/permisos.md`, `doc/03-autenticacion-autorizacion.md`. |
 | Bloquear desactivación de responsables con consultas vivas | `doc/backend/perfiles.md`, `doc/api/perfiles.md`, `doc/reglas/permisos.md`, `doc/reglas/consultas.md`. |
+
+
+---
+
+## Cambios en reuniones de conciliación
+
+| Cambio | Documentos a revisar |
+|---|---|
+| Nuevo endpoint de programación o reprogramación | `doc/api/conciliaciones.md`, `doc/backend/conciliaciones.md`, `doc/reglas/conciliaciones.md`. |
+| Cambio en DTO de reunión | `doc/api/conciliaciones.md`, `doc/backend/conciliaciones.md`. |
+| Cambio en reglas de fecha, sede u observaciones | `doc/reglas/conciliaciones.md`, `doc/api/conciliaciones.md`, `doc/backend/conciliaciones.md`. |
+| Cambio en permisos de reunión | `doc/reglas/permisos.md`, `doc/04-permisos-roles-alcance.md`, `doc/decisiones/permisos-y-alcance.md`. |
+| Cambio en alcance de admin/conciliador/estudiante | `doc/reglas/permisos.md`, `doc/reglas/conciliaciones.md`, `doc/04-permisos-roles-alcance.md`. |
+| Cambio en tablas de reunión | `doc/base-datos/entidades-principales.md`, `doc/base-datos/estados-y-catalogos.md`. |
+| Cambio en historial de reunión | `doc/backend/conciliaciones.md`, `doc/reglas/conciliaciones.md`, `doc/base-datos/entidades-principales.md`. |
+| Cambio en notificaciones de reunión | `doc/backend/conciliaciones.md`, `doc/reglas/conciliaciones.md`, `doc/api/conciliaciones.md`, `doc/base-datos/entidades-principales.md`. |
+| Cambio en recordatorio | `doc/reglas/conciliaciones.md`, `doc/backend/conciliaciones.md`, `doc/base-datos/estados-y-catalogos.md`. |
+| Cambio en decisión de no duplicar fecha | `doc/decisiones/conciliacion.md`, `doc/base-datos/entidades-principales.md`, `doc/reglas/conciliaciones.md`. |
