@@ -185,7 +185,7 @@ REUNION_PROGRAMADA
 Reglas implementadas:
 
 - una consulta solo se archiva si está `CERRADO`;
-- el archivado requiere permiso `ARCHIVAR_CONSULTAS`;
+- el archivado requiere permiso `ARCHIVAR_CONSULTAS` y política interna de administrador;
 - la política de acceso exige rol administrador;
 - el sistema vuelve a validar pendientes operativos antes de archivar;
 - el endpoint `DELETE /api/consultas/{id}` funciona como archivado lógico;

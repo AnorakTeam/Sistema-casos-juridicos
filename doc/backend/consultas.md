@@ -192,6 +192,8 @@ La búsqueda y la consulta por id se filtran desde backend. El frontend no defin
 
 Las consultas en estado `ARCHIVADO` se excluyen del buscador general y se consultan mediante endpoint especializado.
 
+El detalle por id valida permisos y alcance sobre la consulta solicitada. El listado operativo excluye archivadas, mientras que el listado de archivadas se gestiona con endpoint especializado y política de archivo.
+
 ## Creación de consulta
 
 El flujo de creación se implementa en `ConsultaCommandService.crear`.
@@ -225,6 +227,7 @@ Reglas aplicadas:
 - el estado no se cambia desde edición general;
 - si cambian responsables, se exige permiso `ASIGNAR_RESPONSABLES_CONSULTA`;
 - si la consulta tiene actividad asociada, se protegen los datos estructurales;
+- la actualización usa el DTO completo de consulta, no un parche parcial de campos;
 - después de aplicar datos se valida la coherencia completa de dominio.
 
 ## Protección de datos estructurales
@@ -251,6 +254,8 @@ Cuando la consulta ya tiene actividad asociada, se protegen los siguientes datos
 - monitor.
 
 Esta protección permite conservar la consistencia entre la consulta y las actuaciones posteriores registradas en el sistema.
+
+Los cambios de asesor, estudiante o monitor se evalúan como parte de la protección estructural cuando el usuario tiene permiso de asignación de responsables. Si el usuario no posee ese permiso, el backend no aplica esos campos desde el DTO.
 
 ## Coherencia de dominio
 
@@ -349,9 +354,13 @@ La búsqueda principal compara el término con:
 
 Para consulta por id, `ConsultaRepository` carga partes y contrapartes en consultas separadas mediante `findByIdConPartes` y `findByIdConContrapartes`. Esta separación evita problemas de carga simultánea de múltiples colecciones en Hibernate.
 
+## Uso como fuente de destinatarios de notificación
+
+El repositorio de consultas también expone consultas de apoyo para obtener destinatarios asociados a una consulta. Estas consultas permiten al módulo de seguimientos construir destinatarios de correo a partir de la persona principal, partes, contrapartes y estudiante activo asignado, sin exponer endpoints adicionales desde el módulo de consultas.
+
 ## Relación con estadísticas
 
-La entidad `Consulta` contiene el campo `lastUpdatedAt`, actualizado automáticamente en persistencia y actualización. El repositorio de consultas incluye consultas nativas usadas por el módulo de estadísticas para agrupar consultas por semestre, rango de fechas, estado, área, tipo de violencia y datos de personas atendidas.
+La entidad `Consulta` contiene el campo `lastUpdatedAt`, actualizado automáticamente en persistencia y actualización. Este campo no hace parte de los datos de entrada de `ConsultaDTO`; se gestiona desde la entidad con callbacks de persistencia y sirve como referencia temporal para reportes. El repositorio de consultas incluye consultas nativas usadas por el módulo de estadísticas para agrupar consultas por semestre, rango de fechas, estado, área, tipo de violencia y datos de personas atendidas.
 
 La documentación detallada del módulo de estadísticas se desarrolla en su bloque específico.
 

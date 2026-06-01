@@ -30,6 +30,8 @@ Todos los endpoints requieren una sesión válida. El frontend consume la API en
 
 La asignación o modificación de responsables internos se valida adicionalmente con `ASIGNAR_RESPONSABLES_CONSULTA` cuando el DTO contiene cambios en asesor, estudiante o monitor.
 
+> Precisión de seguridad: aunque el endpoint de cambio de estado acepta `ARCHIVAR_CONSULTAS` en la anotación del controller, la validación interna distingue el caso de archivo. Para estados distintos de `ARCHIVADO`, el backend valida permiso de cambio de estado o gestión de consultas; cuando el estado destino es `ARCHIVADO`, aplica la política específica de archivo.
+
 ## Estados permitidos
 
 ```text
@@ -229,7 +231,7 @@ Crea una consulta jurídica.
 
 ## Request body
 
-Usa `ConsultaDTO`.
+Usa `ConsultaDTO`. La operación se implementa como `PUT`, por lo que el backend espera el DTO completo de consulta y no una actualización parcial de campos.
 
 ## Reglas aplicadas
 
@@ -261,7 +263,7 @@ Actualiza datos generales de una consulta.
 
 ## Request body
 
-Usa `ConsultaDTO`.
+Usa `ConsultaDTO`. La operación se implementa como `PUT`, por lo que el backend espera el DTO completo de consulta y no una actualización parcial de campos.
 
 ## Reglas aplicadas
 
@@ -271,6 +273,7 @@ Usa `ConsultaDTO`.
 - el estado no se modifica desde este endpoint;
 - si se modifican responsables, se exige permiso `ASIGNAR_RESPONSABLES_CONSULTA`;
 - si la consulta tiene procesos, seguimientos o conciliaciones activas asociadas, se protegen sus datos estructurales;
+- los campos de responsables solo se evalúan y aplican cuando el usuario tiene permiso de asignación de responsables;
 - se valida coherencia de dominio después de aplicar los datos.
 
 ## Datos estructurales protegidos con actividad asociada
@@ -331,6 +334,8 @@ Para cambiar a `CERRADO`, el backend valida:
 - ausencia de respuestas activas de seguimiento `PENDIENTE`;
 - ausencia de notificaciones activas de seguimiento sin enviar;
 - ausencia de conciliaciones activas no finalizadas.
+
+Los estados de conciliación que bloquean el cierre de la consulta son `EN_ESPERA`, `ESPERANDO_REUNION` y `REUNION_PROGRAMADA`.
 
 ## Response `200 OK`
 
