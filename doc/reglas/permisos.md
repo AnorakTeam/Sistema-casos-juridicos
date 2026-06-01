@@ -119,3 +119,32 @@ El sistema aplica el patrón Strategy en perfiles mediante:
 - `PerfilUsuarioActivoResolver` para resolver perfil vigente.
 
 Cada estrategia corresponde a un tipo de perfil y se registra en su respectivo registry.
+
+
+---
+
+## 11. Reglas precisas por flujo de perfiles y seguridad
+
+### 11.1 Administrativos
+
+La gestión de administrativos requiere rol administrador y perfil administrativo activo con `directora=true`. El permiso del controller habilita la entrada al endpoint, pero la regla de directora se valida dentro de `AdministrativoAccessService`.
+
+### 11.2 Estudiantes
+
+El sistema diferencia permiso de consulta y alcance funcional. Un administrador ve el conjunto permitido por el endpoint. Un asesor ve únicamente estudiantes asociados a su perfil. Otros perfiles no reciben resultados cuando no tienen alcance funcional.
+
+El endpoint de estudiantes habilitados para conciliación retorna estudiantes activos con `conciliacion=true` y se usa como catálogo de apoyo para conciliaciones, aplicando la visibilidad definida por el servicio de acceso.
+
+### 11.3 Estado de perfil y cuenta de acceso
+
+Cuando se cambia el estado desde el perfil operativo, el backend sincroniza el estado del `UsuarioSistema` asociado. Cuando se cambia directamente el estado de `UsuarioSistema`, el backend modifica la cuenta de acceso y no reactiva o desactiva automáticamente el perfil real.
+
+### 11.4 Cambio de perfil
+
+El cambio de perfil exige usuario activo, perfil anterior activo, rol destino activo y coherente con el tipo de perfil destino, motivo obligatorio y datos requeridos por el handler concreto.
+
+El correo del perfil destino proviene del `username` de `UsuarioSistema`. El perfil anterior se desactiva sin desactivar la cuenta. El perfil destino se crea o se reutiliza si ya pertenece al mismo usuario.
+
+### 11.5 Roles y permisos
+
+Un rol nuevo debe recibir permisos activos. En actualización, enviar `permisoIds` reemplaza la asignación completa de permisos; omitirlo conserva los permisos existentes. Los permisos se administran por estado lógico y no por eliminación física expuesta en API.

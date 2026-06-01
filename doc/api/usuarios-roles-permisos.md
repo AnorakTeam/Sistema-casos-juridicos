@@ -74,13 +74,12 @@ El flujo implementado es:
 Los DTOs de cambio de perfil extienden `CambiarPerfilBaseDTO` y comparten datos básicos como:
 
 - nombre;
-- tipo de documento;
-- documento;
-- correo;
+- tipo de documento, cuando el handler destino lo exige o lo admite;
+- documento, obligatorio u opcional según el perfil destino;
 - teléfono;
 - usuario;
 - código;
-- sede;
+- sede, obligatoria u opcional según el perfil destino;
 - rol destino;
 - motivo del cambio.
 
@@ -168,3 +167,58 @@ Ruta base:
 - El perfil anterior se desactiva usando Strategy.
 - El perfil activo se resuelve usando Strategy.
 - La cuenta de usuario conserva su identidad de acceso y actualiza el perfil operativo vigente.
+
+
+---
+
+## 7. Precisiones del cambio de perfil
+
+El cambio de perfil usa DTOs especializados y estrategias por perfil destino. Estos DTOs no son equivalentes a los DTOs de creación directa de perfiles.
+
+### 7.1 Correo del perfil destino
+
+En el cambio de perfil no se recibe un campo `email` dentro del DTO. El correo del perfil destino se toma del `username` del `UsuarioSistema`, porque la cuenta de acceso continúa siendo la misma.
+
+### 7.2 Obligatoriedad por perfil destino
+
+La obligatoriedad de algunos campos comunes se valida en el handler concreto de Strategy:
+
+| Perfil destino | Campos específicos y obligatoriedad efectiva |
+|---|---|
+| Administrativo | `directora` opcional; `documento`, `tipoDocumentoId` y `sedeId` pueden ser opcionales en este flujo. |
+| Asesor | `documento`, `tipoDocumentoId`, `sedeId` y `areaId` obligatorios. |
+| Estudiante | `documento`, `tipoDocumentoId`, `sedeId` y `asesorId` obligatorios; `conciliacion` opcional. |
+| Monitor | `documento`, `tipoDocumentoId` y `sedeId` pueden ser opcionales en este flujo. |
+| Conciliador | `documento` y `tipoConciliador` obligatorios; `tipoDocumentoId` y `sedeId` opcionales. |
+
+Los campos comunes obligatorios para el cambio de perfil son `rolId`, `motivo`, `nombre`, `telefono`, `usuario` y `codigo`, de acuerdo con `CambiarPerfilBaseDTO`.
+
+### 7.3 Perfil destino reutilizado
+
+Si el usuario ya tuvo previamente el perfil destino, el handler lo reutiliza y lo reactiva. Esta reutilización solo aplica sobre un perfil asociado al mismo `UsuarioSistema`; no se reutilizan perfiles de otros usuarios.
+
+### 7.4 Perfil anterior y UsuarioSistema
+
+Durante el cambio de perfil, el sistema desactiva el perfil anterior mediante `PerfilEstadoHandler`, pero no desactiva el `UsuarioSistema`. La cuenta continúa activa con el perfil destino y el nuevo rol asociado.
+
+---
+
+## 8. Precisiones de roles y permisos
+
+### 8.1 Creación y actualización de roles
+
+En la creación de rol, el backend espera `permisoIds` no nulo ni vacío. Los permisos indicados deben existir y estar activos.
+
+En la actualización de rol, si `permisoIds` se envía, el backend reemplaza la lista completa de permisos por la lista recibida. Si `permisoIds` no se envía, conserva los permisos existentes del rol.
+
+La asignación individual mediante `PATCH /api/roles/{rolId}/permisos/{permisoId}` también exige que el permiso exista y esté activo. La remoción individual usa `DELETE /api/roles/{rolId}/permisos/{permisoId}`.
+
+### 8.2 Permisos sin eliminación física
+
+La API de permisos no expone `DELETE /api/permisos/{id}`. El estado de un permiso se administra mediante `PATCH /api/permisos/{id}/activo`.
+
+### 8.3 UsuarioSistema y creación de cuentas
+
+La API de usuarios del sistema no expone creación directa con `POST /api/usuarios-sistema`. La cuenta se crea como efecto de la creación de un perfil operativo desde su respectivo endpoint.
+
+`PATCH /api/usuarios-sistema/{id}/activo` cambia el estado de la cuenta de acceso. Ese endpoint no cambia automáticamente el estado del perfil operativo real asociado.

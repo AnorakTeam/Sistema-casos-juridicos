@@ -1,7 +1,6 @@
 # API - Auditoría
 
-> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
-
+> Documento ajustado contra el código fuente actual. Describe únicamente el endpoint expuesto por `AuditLogController`.
 
 ## 1. Ruta base
 
@@ -9,7 +8,7 @@
 /api/audit
 ```
 
-La API de auditoría permite consultar registros auditables generados por acciones del sistema.
+La API de auditoría permite consultar registros generados por métodos del backend marcados con `@Auditable`.
 
 ---
 
@@ -17,19 +16,21 @@ La API de auditoría permite consultar registros auditables generados por accion
 
 | Método | Endpoint | Descripción | Permiso |
 |---|---|---|---|
-| GET | `/api/audit` | Consulta paginada de auditoría | `ACCEDER_ADMINISTRACION` |
+| `GET` | `/api/audit` | Consulta paginada de registros de auditoría | `ACCEDER_ADMINISTRACION` |
+
+No existen endpoints de creación, edición, eliminación o consulta por id en el controller de auditoría.
 
 ---
 
-## 3. Parámetros
+## 3. Parámetros de consulta
 
-| Parámetro | Tipo | Requerido | Descripción |
-|---|---|---|---|
-| `page` | entero | no | Página solicitada, por defecto `0` |
-| `size` | entero | no | Tamaño de página, por defecto `20` |
-| `username` | texto | no | Filtro por usuario |
-| `sortBy` | texto | no | Campo de ordenamiento, por defecto `timestamp` |
-| `sortDir` | texto | no | Dirección de ordenamiento, por defecto `desc` |
+| Parámetro | Tipo | Requerido | Valor por defecto | Descripción |
+|---|---|---|---|---|
+| `page` | entero | no | `0` | Página solicitada, con índice base cero. |
+| `size` | entero | no | `20` | Tamaño de página. |
+| `username` | texto | no | no aplica | Filtro opcional por usuario. |
+| `sortBy` | texto | no | `timestamp` | Campo de ordenamiento. |
+| `sortDir` | texto | no | `desc` | Dirección de ordenamiento. |
 
 Ejemplo:
 
@@ -53,12 +54,12 @@ Ejemplo de elemento:
   "entityName": "Consulta",
   "entityId": "10",
   "timestamp": "2026-05-31T10:00:00",
-  "details": "..."
+  "details": "Método ejecutado: crear. Argumentos: [...]"
 }
 ```
 
 ---
 
-## 5. Acciones auditables
+## 5. Alcance de consulta
 
-Las acciones se generan desde métodos anotados con `@Auditable` en servicios de escritura. El controller de auditoría no crea registros manualmente; solo expone la consulta.
+El endpoint permite filtrar por `username` y ordenar/paginar resultados. Aunque el repositorio contiene métodos auxiliares para otros criterios, el controller expone únicamente la consulta paginada general y el filtro por usuario.

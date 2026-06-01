@@ -68,23 +68,27 @@ Ejemplos:
 
 ## Respuestas y errores
 
-Las respuestas de error se encuentran normalizadas por el backend mediante el manejador global de excepciones. Las reglas generales se describen en:
+Los errores procesados por los manejadores globales y de seguridad utilizan `ErrorResponseDTO`. Algunos endpoints construyen cuerpos específicos de su operación, entre ellos las cargas y consultas de `/api/files` y la importación de estudiantes en `POST /api/estudiantes/importar`.
+
+Las reglas generales y los contratos de respuesta específicos se describen en:
 
 ```text
 ../05-estandar-api-errores.md
 ```
 
-Estados HTTP usados de forma habitual:
+Estados HTTP documentados en los contratos implementados:
 
 | Estado | Uso |
 |---|---|
-| `200 OK` | Consulta o actualización exitosa. |
+| `200 OK` | Consulta o acción exitosa con cuerpo; también resultado compuesto de carga múltiple o importación. |
 | `201 Created` | Creación exitosa cuando el controller lo define. |
-| `204 No Content` | Operación sin cuerpo de respuesta. |
-| `400 Bad Request` | Validación de negocio o datos inválidos. |
-| `401 Unauthorized` | Sesión ausente o inválida. |
+| `204 No Content` | Operación exitosa sin cuerpo de respuesta. |
+| `400 Bad Request` | Validación de negocio o datos inválidos; texto procesado en importación cuando corresponde. |
+| `401 Unauthorized` | Sesión ausente o autenticación no establecida para una ruta protegida. |
 | `403 Forbidden` | Usuario autenticado sin permiso o alcance suficiente. |
-| `404 Not Found` | Recurso no encontrado o no disponible operacionalmente. |
+| `404 Not Found` | Archivo o directorio no localizado en operaciones documentadas de `/api/files`. |
+| `405 Method Not Allowed` | Método HTTP no soportado procesado por el manejador global. |
+| `500 Internal Server Error` | Error procesado por el manejador global o por un endpoint con contrato específico. |
 
 ## Relación con frontend
 

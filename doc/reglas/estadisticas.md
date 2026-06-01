@@ -1,74 +1,85 @@
 # Reglas de negocio - Estadísticas y reportes
 
-> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
-
+> Documento ajustado contra el código fuente actual. Describe las reglas implementadas en los servicios de estadísticas.
 
 ## 1. Regla general
 
-Las estadísticas se calculan a partir de información operativa persistida en el sistema. No se ingresan manualmente; se derivan de consultas, personas, procesos, seguimientos, conciliaciones y estudiantes.
+Las estadísticas se calculan a partir de información operativa persistida. No se capturan manualmente como registros independientes; se derivan de consultas, personas, procesos, seguimientos, conciliaciones y estudiantes.
 
 ---
 
-## 2. Periodos
+## 2. Periodos permitidos
 
-El sistema maneja estadísticas por:
+El sistema maneja:
 
-- semestre académico;
-- rango libre de fechas;
-- perfil operativo dentro de un semestre.
+- reportes por semestre;
+- reportes por rango libre de fechas;
+- reportes resumidos por perfil dentro de un semestre.
 
-Los semestres disponibles se exponen mediante DTOs con año, semestre, etiqueta y fechas del periodo.
-
----
-
-## 3. Indicadores de consultas
-
-El reporte incluye:
-
-- consultas finalizadas;
-- consultas pendientes;
-- total de consultas;
-- consultas por estado;
-- consultas por área;
-- consultas por tipo de violencia.
+Los semestres disponibles se construyen desde 2024 hasta el año actual, excluyendo semestres que aún no han iniciado.
 
 ---
 
-## 4. Indicadores de personas
+## 3. Validación de semestre
 
-El reporte incluye conteos de personas por:
+Para reportes por semestre:
 
-- género;
-- estrato;
-- zona;
-- grupo étnico;
-- municipio;
-- condición.
+- el semestre debe ser `1` o `2`;
+- el año debe ser mayor o igual a `2024`;
+- el semestre no puede tener fecha de inicio futura.
 
 ---
 
-## 5. Indicadores jurídicos y académicos
+## 4. Validación de rango
 
-El reporte incluye:
+Para reportes por rango:
 
-- procesos por estado;
-- total de conciliaciones;
-- conciliaciones por estado;
-- total de seguimientos;
-- seguimientos por estado;
-- estudiantes activos;
-- estudiantes habilitados para conciliación.
+- fecha de inicio y fecha fin son obligatorias;
+- la fecha de inicio no puede ser posterior a la fecha fin;
+- la fecha de inicio no puede ser futura;
+- el año de la fecha de inicio debe ser mayor o igual a 2024.
 
 ---
 
-## 6. Reglas de acceso
+## 5. Indicadores institucionales
 
-- Los reportes institucionales requieren `VER_REPORTES`.
-- La consulta de semestres puede realizarse con `VER_REPORTES` o `VER_CONSULTAS`.
+El reporte institucional incluye indicadores de:
+
+- consultas finalizadas, pendientes y totales;
+- consultas por estado, área y tipo de violencia;
+- personas atendidas y distribuciones por atributos sociodemográficos;
+- conciliaciones por periodo y estado;
+- seguimientos por periodo y estado;
+- estudiantes activos y estudiantes habilitados para conciliación.
+
+Los campos de estudiantes activos representan el estado actual al momento de generar el reporte.
+
+---
+
+## 6. Procesos por estado
+
+El indicador `procesosPorEstado` se calcula desde las agregaciones disponibles en `ProcesoRepository`.
+
+En reportes globales, funciona como distribución complementaria vigente de procesos por estado. En reportes por perfil se filtra por estudiante, asesor o monitor, pero no por semestre. Esta regla debe conservarse al interpretar el reporte.
+
+---
+
+## 7. Reportes por perfil
+
+Los reportes por estudiante, asesor y monitor reutilizan el DTO de estadísticas semestrales, pero entregan una vista resumida para el panel de inicio. No calculan todos los agregados del reporte institucional.
+
+No existe reporte estadístico por conciliador en el código actual.
+
+---
+
+## 8. Reglas de acceso
+
+- Los reportes institucionales y PDFs requieren `VER_REPORTES`.
+- Los semestres disponibles pueden consultarse con `VER_REPORTES` o `VER_CONSULTAS`.
 - Las estadísticas por estudiante, asesor y monitor requieren `VER_CONSULTAS`.
 
 ---
 
-## 7. Reportes PDF
+## 9. PDF
 
-El sistema genera documentos PDF con las estadísticas consultadas. Los PDFs se generan en backend mediante `EstadisticasPdfService` y se retornan como bytes en la respuesta HTTP.
+Los PDF se generan en backend mediante `EstadisticasPdfService`. Los reportes por semestre y por rango usan la misma plantilla. Cuando el reporte es por rango libre, el PDF se identifica como reporte personalizado.

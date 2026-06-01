@@ -164,3 +164,26 @@ Al agregar un nuevo tipo de perfil:
 5. registrar repositorio y reglas de acceso;
 6. agregar pruebas unitarias;
 7. actualizar documentación de backend, API, reglas y decisiones.
+
+
+---
+
+## Precisiones operativas del diseño Strategy
+
+### Datos del perfil destino
+
+Los handlers de cambio de perfil encapsulan diferencias de obligatoriedad entre perfiles. La clase base `CambiarPerfilBaseDTO` contiene datos comunes, pero no todos los campos comunes son obligatorios para todos los destinos. Por ejemplo, asesor y estudiante exigen documento, tipo de documento y sede; administrativo y monitor los admiten como opcionales dentro del cambio de perfil; conciliador exige documento y tipo de conciliador, pero admite tipo de documento y sede como opcionales.
+
+El correo del perfil destino no se recibe en los DTO de cambio. Se deriva del `username` de `UsuarioSistema`, porque el cambio conserva la misma cuenta de acceso.
+
+### Reutilización controlada
+
+Cada handler busca perfiles previos por `UsuarioSistema.id`. Si existe un perfil destino asociado al mismo usuario, lo reactiva y actualiza. Si no existe, crea uno nuevo. Esta decisión evita duplicar perfiles del mismo tipo para una misma cuenta y no reutiliza perfiles pertenecientes a otros usuarios.
+
+### Perfil anterior y cuenta
+
+`PerfilEstadoHandler` desactiva el perfil anterior, pero no desactiva `UsuarioSistema`. Esa cuenta continúa vigente con el tipo de perfil y rol destino actualizados. Esta separación es necesaria para que el cambio de perfil sea una transición operativa y no una suspensión de acceso.
+
+### Integridad operativa
+
+Los handlers de estado de asesor, estudiante y monitor invocan la validación de consultas operativas antes de desactivar el perfil anterior. De esta manera, el cambio de perfil respeta las mismas reglas que una desactivación directa desde el módulo de perfiles.

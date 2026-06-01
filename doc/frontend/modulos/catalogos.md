@@ -4,7 +4,7 @@
 
 El módulo de catálogos permite administrar parámetros base usados por las consultas jurídicas y otros formularios del sistema. En el frontend actual, la administración visible de catálogos se concentra en la ruta `/admin`, mediante pestañas para área, tema y tipo.
 
-Los catálogos documentados en esta vista son:
+Los catálogos documentados en esta vista son los que tienen formularios CRUD visibles en la ruta `/admin`:
 
 ```text
 Área
@@ -172,3 +172,10 @@ Los mensajes se muestran mediante `toast` y estados locales.
 ## 12. Alcance de la documentación
 
 Este documento describe la administración frontend de área, tema y tipo. Otros catálogos consumidos por el sistema, como sedes, tipos de documento, órganos de control y especialidades, pueden estar disponibles como endpoints backend o selectores en otros módulos, pero esta pantalla de administración documentada corresponde a los formularios existentes en `/admin`.
+
+
+## Alcance del frontend actual
+
+La documentación frontend de catálogos se limita a los formularios visibles de administración implementados en `/admin`: áreas, temas y tipos. Otros catálogos existen en backend y se consumen como datos auxiliares en formularios, pero no tienen una vista CRUD dedicada en el frontend actual.
+
+Aunque el backend dispone de `DELETE` para desactivación lógica de varios catálogos, los formularios frontend actuales de área, tema y tipo usan `PATCH /activo?activo=false` para cambiar el estado.

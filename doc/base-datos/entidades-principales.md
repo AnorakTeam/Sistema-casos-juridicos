@@ -28,7 +28,7 @@ Campos principales:
 |---|---|
 | `id` | Identificador del usuario del sistema. |
 | `username` | Usuario de acceso, con longitud máxima de 120 caracteres y valor único. |
-| `password_hash` | Contraseña cifrada. |
+| `password_hash` | Hash BCrypt de la contraseña usado para verificación de credenciales. |
 | `activo` | Estado lógico del usuario. |
 | `tipo_perfil_actual` | Tipo de perfil operativo vigente del usuario. |
 | `rol_id` | Rol funcional asignado. |

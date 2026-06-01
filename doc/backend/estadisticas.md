@@ -1,166 +1,138 @@
 # Backend - Estadísticas y reportes
 
-> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
-
+> Documento ajustado contra el código fuente actual. Describe la implementación real del módulo de estadísticas en backend.
 
 ## 1. Propósito del módulo
 
-El módulo de estadísticas consolida información operativa del consultorio jurídico para generar reportes por semestre, rangos de fechas y perfiles específicos. Su implementación se basa en consultas agregadas sobre entidades reales del sistema.
+El módulo de estadísticas consolida información operativa del consultorio jurídico para generar reportes institucionales por semestre, reportes por rango libre de fechas y vistas resumidas por perfil operativo.
 
-El backend expone estadísticas mediante `EstadisticasController` y delega el procesamiento a servicios especializados.
+La entrada REST se encuentra en `EstadisticasController` y la lógica se distribuye en servicios especializados de consulta, mapeo y generación PDF.
 
 ---
 
-## 2. Estructura del módulo
-
-Clases principales:
+## 2. Componentes principales
 
 | Clase | Responsabilidad |
 |---|---|
-| `EstadisticasController` | Expone endpoints REST bajo `/api/estadisticas` |
-| `EstadisticasService` | Fachada del módulo |
-| `EstadisticasQueryService` | Estadísticas por semestre |
-| `EstadisticasRangoQueryService` | Estadísticas por rango de fechas |
-| `EstadisticasPerfilQueryService` | Estadísticas por estudiante, asesor o monitor |
-| `EstadisticasMapperService` | Conversión de agregaciones a DTOs |
-| `EstadisticasPdfService` | Generación de reporte PDF |
-| `EstadisticasSemestreDTO` | DTO principal de respuesta |
-| `SemestreDTO` | DTO de semestres disponibles |
-| `ConteoDTO` | DTO de agregación nombre-cantidad |
+| `EstadisticasController` | Expone endpoints bajo `/api/estadisticas`. |
+| `EstadisticasService` | Fachada del módulo usada por el controller. |
+| `EstadisticasQueryService` | Construye reportes institucionales por semestre. |
+| `EstadisticasRangoQueryService` | Construye reportes institucionales por rango libre de fechas. |
+| `EstadisticasPerfilQueryService` | Construye vistas resumidas por estudiante, asesor o monitor. |
+| `EstadisticasMapperService` | Convierte resultados agregados de repositorios a `ConteoDTO`. |
+| `EstadisticasPdfService` | Genera reportes PDF a partir de `EstadisticasSemestreDTO`. |
+| `EstadisticasSemestreDTO` | DTO principal de salida. |
+| `SemestreDTO` | DTO usado para el selector de semestres. |
+| `ConteoDTO` | DTO genérico para pares nombre-cantidad. |
 
 ---
 
-## 3. DTO principal
+## 3. Semestres disponibles
 
-`EstadisticasSemestreDTO` contiene:
+`EstadisticasQueryService.listarSemestresDisponibles()` construye los semestres desde el año mínimo `2024` hasta el año actual. Incluye únicamente semestres cuya fecha de inicio no sea futura.
 
-| Campo | Descripción |
-|---|---|
-| `año` | Año del periodo |
-| `semestre` | Semestre consultado |
-| `periodoInicio` | Fecha inicial del periodo |
-| `periodoFin` | Fecha final del periodo |
-| `consultasFinalizadas` | Total de consultas finalizadas |
-| `consultasPendientes` | Total de consultas pendientes |
-| `totalConsultas` | Total de consultas del periodo |
-| `consultasPorEstado` | Conteos agrupados por estado |
-| `consultasPorArea` | Conteos agrupados por área |
-| `consultasPorTipoViolencia` | Conteos por tipo de violencia |
-| `totalPersonasAtendidas` | Total de personas atendidas |
-| `personasPorGenero` | Distribución por género |
-| `personasPorEstrato` | Distribución por estrato |
-| `personasPorZona` | Distribución por zona |
-| `personasPorGrupoEtnico` | Distribución por grupo étnico |
-| `personasPorMunicipio` | Distribución por municipio |
-| `personasPorCondicion` | Distribución por condición |
-| `procesosPorEstado` | Procesos agrupados por estado |
-| `totalConciliaciones` | Total de conciliaciones |
-| `conciliacionesPorEstado` | Conciliaciones agrupadas por estado |
-| `totalSeguimientos` | Total de seguimientos |
-| `seguimientosPorEstado` | Seguimientos agrupados por estado |
-| `totalEstudiantesActivos` | Total de estudiantes activos |
-| `totalEstudiantesHabilitadosConciliacion` | Estudiantes habilitados para conciliación |
+La lista funciona como selector de periodos para frontend. No se construye consultando si existen registros operativos en cada semestre.
 
 ---
 
-## 4. Semestres disponibles
+## 4. Reglas de validación temporal
 
-El sistema lista semestres disponibles a partir de información operativa registrada. El DTO `SemestreDTO` expone:
+### 4.1 Reportes por semestre
 
-- año;
-- semestre;
-- etiqueta;
-- periodo de inicio;
-- periodo de fin.
+Para obtener estadísticas por semestre, el backend valida:
 
----
+- semestre `1` o `2`;
+- año mayor o igual a `2024`;
+- fecha de inicio del semestre no futura.
 
-## 5. Estadísticas por semestre
+### 4.2 Reportes por rango
 
-La consulta por semestre recibe año y semestre. El backend calcula el rango del periodo y retorna indicadores consolidados.
+Para obtener estadísticas por rango, el backend valida:
 
-Ejemplo de endpoint:
-
-```http
-GET /api/estadisticas/2026/semestre/1
-```
-
-Este endpoint requiere `VER_REPORTES`.
+- `fechaInicio` obligatoria;
+- `fechaFin` obligatoria;
+- `fechaInicio` menor o igual a `fechaFin`;
+- año de `fechaInicio` mayor o igual a `2024`;
+- `fechaInicio` no futura.
 
 ---
 
-## 6. Estadísticas por rango de fechas
+## 5. Reporte institucional por semestre
 
-El backend permite generar reportes entre `fechaInicio` y `fechaFin`.
+El reporte por semestre usa agregaciones de repositorios para obtener indicadores de consultas, personas, conciliaciones, seguimientos y estudiantes.
 
-Ejemplo:
+Los datos del periodo se obtienen principalmente desde:
 
-```http
-GET /api/estadisticas/reporte?fechaInicio=2026-01-01&fechaFin=2026-06-30
-```
+- `ConsultaRepository`;
+- `ConciliacionRepository`;
+- `SeguimientoRepository`;
+- `ProcesoRepository`;
+- `EstudianteRepository`.
 
-Las fechas se reciben con formato ISO `yyyy-MM-dd`.
+`totalEstudiantesActivos` y `totalEstudiantesHabilitadosConciliacion` representan el estado actual de estudiantes activos al momento de generar el reporte.
 
 ---
 
-## 7. Estadísticas por perfil
+## 6. Reporte institucional por rango
 
-El sistema implementa estadísticas filtradas por:
+El reporte por rango usa una estructura equivalente a la del semestre, pero con `fechaInicio` y `fechaFin` recibidas por parámetro.
+
+En el DTO de salida, `año` y `semestre` se envían como `null`, porque el periodo no corresponde a un semestre predefinido. La plantilla PDF interpreta este caso como reporte personalizado.
+
+---
+
+## 7. Indicador `procesosPorEstado`
+
+`procesosPorEstado` se obtiene desde `ProcesoRepository`.
+
+En reportes globales por semestre y por rango, el método usado por el código no recibe filtro temporal; por eso este indicador se presenta como distribución complementaria de procesos por estado. En reportes por perfil se filtra por estudiante, asesor o monitor, pero tampoco por semestre.
+
+La documentación del reporte debe distinguir este indicador de otros agregados que sí se calculan con periodo, como consultas, personas, conciliaciones y seguimientos.
+
+---
+
+## 8. Reportes por perfil
+
+`EstadisticasPerfilQueryService` implementa reportes para:
 
 - estudiante;
 - asesor;
 - monitor.
 
-Endpoints:
+Estos endpoints están orientados al panel de inicio. Reutilizan `EstadisticasSemestreDTO`, pero no llenan todos los campos del reporte institucional. La vista por perfil calcula principalmente:
 
-```http
-GET /api/estadisticas/{año}/semestre/{semestre}/estudiante/{id}
-GET /api/estadisticas/{año}/semestre/{semestre}/asesor/{id}
-GET /api/estadisticas/{año}/semestre/{semestre}/monitor/{id}
-```
+- periodo;
+- consultas finalizadas;
+- consultas pendientes;
+- total de consultas;
+- total de personas atendidas;
+- procesos por estado;
+- `consultasPorArea` como lista vacía.
 
-Estos endpoints requieren `VER_CONSULTAS`.
-
----
-
-## 8. Reportes PDF
-
-El módulo permite descargar PDF para:
-
-- estadísticas por semestre;
-- estadísticas por rango de fechas.
-
-La respuesta se construye como `ResponseEntity<byte[]>` con encabezados para descarga de archivo PDF.
-
-Endpoints:
-
-```http
-GET /api/estadisticas/{año}/semestre/{semestre}/pdf
-GET /api/estadisticas/reporte/pdf?fechaInicio=2026-01-01&fechaFin=2026-06-30
-```
+No existe servicio de estadísticas por conciliador en el código actual.
 
 ---
 
-## 9. Relación con entidades operativas
+## 9. Seguridad
 
-Las estadísticas se derivan de los módulos:
+El controller diferencia dos permisos:
 
-- consultas;
-- personas;
-- procesos;
-- conciliaciones;
-- seguimientos;
-- estudiantes.
+- `VER_REPORTES`: reportes institucionales globales y PDFs;
+- `VER_CONSULTAS`: listado de semestres y reportes resumidos por perfil.
 
-La actualización de fechas operativas de consultas, especialmente `lastUpdatedAt`, permite que los reportes reflejen actividad consolidada por periodos.
+Los endpoints por perfil reciben el id del perfil como parámetro de ruta. En el frontend, el panel de inicio usa el `perfilId` del usuario autenticado al construir la URL.
 
 ---
 
-## 10. Seguridad
+## 10. Generación PDF
 
-El controller usa permisos:
+`EstadisticasPdfService` genera el documento PDF con iText. La plantilla incluye:
 
-- `VER_REPORTES` para estadísticas globales y PDFs;
-- `VER_CONSULTAS` para semestres disponibles y reportes por perfil.
+- encabezado institucional;
+- periodo reportado;
+- identificación de semestre o reporte personalizado;
+- resumen general;
+- secciones de conteos solo cuando existen datos para mostrarlas;
+- fecha de generación.
 
-Esto diferencia reportes institucionales de consultas asociadas a perfiles operativos.
+Los endpoints PDF retornan `ResponseEntity<byte[]>` con `Content-Type: application/pdf`.

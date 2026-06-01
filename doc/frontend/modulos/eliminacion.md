@@ -169,3 +169,18 @@ La pantalla presenta y solicita reactivaciones, pero las reglas definitivas perm
 ## 12. Alcance de la documentación
 
 Este documento describe la pantalla frontend de eliminación/reactivación. No documenta eliminación física, porque el flujo visible trabaja con estados, archivo y reactivación lógica.
+
+
+---
+
+## 11. Precisión sobre UsuarioSistema y perfiles reales
+
+La pantalla permite reactivar distintos tipos de registros mediante endpoints de estado. Cuando se reactiva un perfil operativo desde su endpoint propio, el backend sincroniza el estado del `UsuarioSistema` asociado.
+
+Cuando se reactiva directamente un `UsuarioSistema` mediante:
+
+```text
+PATCH /api/usuarios-sistema/{id}/activo?activo=true
+```
+
+se modifica la cuenta de acceso. Esa operación no reactiva automáticamente el perfil real asociado. Por esa razón, la pantalla diferencia entre reactivación de cuentas y reactivación de perfiles o registros operativos.

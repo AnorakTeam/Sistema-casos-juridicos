@@ -2,10 +2,10 @@
 
 ## 1. Propósito del módulo
 
-El módulo de consultas jurídicas permite registrar, consultar, editar, gestionar responsables dentro de los permisos disponibles, cambiar estado, archivar y visualizar consultas jurídicas desde la interfaz web del sistema. En el frontend actual se implementa mediante dos formularios principales:
+El módulo de consultas jurídicas permite registrar, consultar, editar, asignar responsables, cambiar estado, archivar y visualizar consultas jurídicas desde la interfaz web del sistema. En el frontend actual se implementa mediante dos formularios principales:
 
 - `NuevaConsultaForm.jsx`, usado para crear una consulta nueva.
-- `ConsultasJuridicasForm.jsx`, usado para listar, buscar por texto, abrir, editar, cambiar estado, archivar y consultar archivos de una consulta.
+- `ConsultasJuridicasForm.jsx`, usado para listar, filtrar, abrir, editar, cambiar estado, archivar y consultar archivos de una consulta.
 
 Las rutas del dashboard asociadas son:
 
@@ -192,7 +192,7 @@ GET /api/consultas?search={texto}
 
 El componente normaliza las respuestas para soportar diferentes envoltorios de datos, como `content`, `data`, `items`, `rows`, `consultas`, `resultado`, `result` o `payload`. Después ordena las consultas por `id` ascendente y aplica paginación en frontend mediante `Pagination` y utilidades de `list-utils.js`.
 
-La vista permite buscar consultas por texto y paginar los resultados en frontend. Los estados se muestran visualmente en la tabla para facilitar la lectura del flujo de la consulta; el código actual no implementa filtros visuales independientes por estado o área en el listado.
+La vista permite buscar por texto y filtrar visualmente por estado y área.
 
 ### 4.3 Estados disponibles
 
@@ -263,7 +263,7 @@ El archivo de una consulta se ejecuta mediante:
 PATCH /api/consultas/{id}/archivar
 ```
 
-La acción se presenta mediante confirmación antes de enviarse. Después de archivar, el listado se refresca. El backend valida definitivamente que la consulta esté cerrada y que el usuario tenga autorización de archivo; la interfaz debe acompañar esa regla mostrando la acción únicamente cuando corresponda al estado y permisos del registro.
+La acción se presenta mediante confirmación antes de enviarse. Después de archivar, el listado se refresca.
 
 ### 4.8 Consulta de archivos
 
@@ -328,11 +328,16 @@ La interfaz usa `toast.error`, `toast.success` y `toast.warning` para comunicar:
 |---|---|
 | `NuevaConsultaForm` | Registro inicial de consulta. |
 | `ConsultasJuridicasForm` | Listado, edición, archivo y cambio de estado. |
-| `ArchivoForm` | Selección de archivos. |
 | `ArchivosConsultaForm` | Gestión visual de soportes asociados. |
 | `PersonaMultiSelect` | Selección múltiple de personas. |
 | `ConfirmActionDialog` | Confirmación de acciones sensibles. |
 | `Pagination` | Paginación de listados. |
+
+## 8.1 Archivos asociados a consulta
+
+El flujo activo de archivos de consulta usa componentes y servicios de soporte para cargar, listar y descargar documentos asociados al registro de consulta. La carga se realiza contra `POST /api/files/upload-multiple` y la consulta/listado descarga archivos desde rutas relativas administradas por el módulo de almacenamiento.
+
+Los componentes documentados como operativos en este flujo son `FormFileUpload` y `ArchivosConsultaForm`. `ArchivoForm.jsx` no se presenta como flujo funcional independiente porque no está conectado a una ruta principal del sistema.
 
 ## 9. Consideraciones de mantenimiento
 

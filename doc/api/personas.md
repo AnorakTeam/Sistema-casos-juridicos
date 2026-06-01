@@ -143,6 +143,11 @@ Los valores anteriores son ilustrativos y no representan datos reales.
 | `caracterizacionPcd` | String | Obligatoria. Máximo 150 caracteres. |
 | `necesitaAjustePcd` | Boolean | Obligatorio. |
 
+
+### Regla de contacto
+
+El backend exige al menos un medio de contacto principal: `telefono` o `correo`. El campo `correo` debe enviarse vacío/nulo o con formato válido. No debe usarse un texto como `No informa` en `correo`, porque la validación `@Email` exige un correo válido cuando el campo viene informado.
+
 ### Vivienda
 
 | Campo | Tipo | Regla |
@@ -152,27 +157,27 @@ Los valores anteriores son ilustrativos y no representan datos reales.
 | `barrioId` | Long | Obligatorio. Debe pertenecer al municipio. |
 | `direccion` | String | Obligatoria. Máximo 150 caracteres. |
 | `comuna` | String | Obligatoria. Máximo 100 caracteres. |
-| `localidad` | String | Obligatoria. |
-| `estrato` | Integer | Según validación del DTO. |
-| `tipoVivienda` | String | Según validación del DTO. |
-| `zona` | String | Según validación del DTO. |
-| `tenencia` | String | Según validación del DTO. |
-| `numeroPersonasACargo` | Integer | Según validación del DTO. |
-| `ingresosAdicionales` | Boolean | Según validación del DTO. |
-| `energiaElectrica` | Boolean | Según validación del DTO. |
-| `acueducto` | Boolean | Según validación del DTO. |
-| `alcantarillado` | Boolean | Según validación del DTO. |
+| `localidad` | String | Obligatoria. Máximo 100 caracteres. |
+| `estrato` | Integer | Obligatorio. No puede ser negativo. |
+| `tipoVivienda` | String | Obligatorio. Máximo 100 caracteres. |
+| `zona` | String | Obligatoria. Máximo 50 caracteres. |
+| `tenencia` | String | Obligatoria. Máximo 100 caracteres. |
+| `numeroPersonasACargo` | Integer | Obligatorio. No puede ser negativo. |
+| `ingresosAdicionales` | Boolean | Obligatorio. |
+| `energiaElectrica` | Boolean | Obligatorio. |
+| `acueducto` | Boolean | Obligatorio. |
+| `alcantarillado` | Boolean | Obligatorio. |
 
 ### Aspectos económicos
 
 | Campo | Tipo | Regla |
 |---|---|---|
-| `ocupacionId` | Long | Catálogo de ocupación. |
-| `empresaId` | Long | Catálogo de empresa. |
-| `salario` | Integer | Según validación del DTO. |
-| `cargo` | String | Según validación del DTO. |
-| `direccionEmpresa` | String | Según validación del DTO. |
-| `telefonoEmpresa` | String | Según validación del DTO. |
+| `ocupacionId` | Long | Obligatorio. Catálogo de ocupación activo. |
+| `empresaId` | Long | Obligatorio. Catálogo de empresa activo. |
+| `salario` | Integer | Obligatorio. No puede ser negativo. |
+| `cargo` | String | Obligatorio. Máximo 100 caracteres. |
+| `direccionEmpresa` | String | Obligatoria. Máximo 150 caracteres. |
+| `telefonoEmpresa` | String | Obligatorio. Máximo 30 caracteres. |
 
 ### Acudiente
 
@@ -180,21 +185,21 @@ Los valores anteriores son ilustrativos y no representan datos reales.
 |---|---|---|
 | `nombreCompletoAcudiente` | String | Requerido si la persona es menor de edad. |
 | `relacionAcudiente` | String | Requerido si la persona es menor de edad. |
-| `telefonoAcudiente` | String | Requerido con correo de acudiente como medio de contacto para menor. |
-| `correoAcudiente` | String | Debe tener formato de correo si se informa. |
-| `direccionAcudiente` | String | Según validación del DTO. |
+| `telefonoAcudiente` | String | Para menores, se exige teléfono o correo del acudiente. Máximo 30 caracteres. |
+| `correoAcudiente` | String | Para menores, puede servir como medio de contacto del acudiente. Debe tener formato de correo si se informa. Máximo 120 caracteres. |
+| `direccionAcudiente` | String | Opcional. Máximo 150 caracteres. |
 
 ### Servicio
 
 | Campo | Tipo | Regla |
 |---|---|---|
-| `comoSeEntero` | String | Según validación del DTO. |
-| `relacionConUniversidad` | String | Según validación del DTO. |
+| `comoSeEntero` | String | Obligatorio. Máximo 150 caracteres. |
+| `relacionConUniversidad` | String | Obligatoria. Máximo 150 caracteres. |
 | `activo` | Boolean | Estado lógico. Se controla por endpoints específicos. |
 
 ## GET `/api/personas`
 
-Lista personas.
+Lista el conjunto general de personas registradas. Este endpoint no filtra por `activo`; para obtener solo personas activas debe usarse `GET /api/personas/activos`.
 
 ### Response `200 OK`
 
@@ -321,7 +326,7 @@ Body:
 - la persona debe tener al menos teléfono o correo;
 - las relaciones de catálogo deben existir y estar activas;
 - `barrioId` debe pertenecer al `municipioId`;
-- si la persona es menor de edad, debe informarse acudiente según regla del backend.
+- si la persona es menor de edad, debe informarse nombre del acudiente, relación del acudiente y al menos un medio de contacto del acudiente: teléfono o correo.
 
 ### Response `201 Created`
 
@@ -370,12 +375,13 @@ Desactiva una persona.
 ### Reglas
 
 - la persona debe existir;
-- la persona debe estar activa;
+- el endpoint asigna `activo=false`;
+- no valida que el estado previo sea activo;
 - se aplica desactivación lógica.
 
-### Response `200 OK`
+### Response `204 No Content`
 
-Retorna `PersonaDTO`.
+La operación no retorna cuerpo de respuesta.
 
 ## PATCH `/api/personas/{id}/reactivar`
 
@@ -390,12 +396,13 @@ Reactiva una persona.
 ### Reglas
 
 - la persona debe existir;
-- la persona debe estar inactiva;
+- el endpoint asigna `activo=true`;
+- no valida que el estado previo sea inactivo;
 - se reactiva el registro.
 
-### Response `200 OK`
+### Response `204 No Content`
 
-Retorna `PersonaDTO`.
+La operación no retorna cuerpo de respuesta.
 
 ## Errores comunes
 
@@ -425,3 +432,11 @@ Retorna `PersonaDTO`.
 - No cambiar estado activo desde `PUT`.
 - Usar `credentials: "include"` en peticiones protegidas.
 - Manejar errores de validación por campo desde `detalles`.
+
+
+## Precisiones de coherencia con el código actual
+
+- `PATCH /api/personas/{id}/desactivar` y `PATCH /api/personas/{id}/reactivar` responden `204 No Content`; no retornan `PersonaDTO`.
+- Las operaciones de desactivar y reactivar asignan directamente el valor lógico del campo `activo`; no validan el estado anterior del registro.
+- `departamentoId` es un campo de apoyo para el frontend y para la respuesta. La entidad `Persona` persiste la relación con municipio y el departamento se infiere desde esa relación.
+- No existe validación de bloqueo por uso de la persona en consultas, partes o contrapartes dentro de estos endpoints.

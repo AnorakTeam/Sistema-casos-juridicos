@@ -126,13 +126,13 @@ En cambio de estado:
 
 ### Eliminación
 
-En los catálogos con endpoint `DELETE`, la eliminación se implementa como desactivación lógica mediante `activo=false`.
+En los catálogos con endpoint `DELETE`, la eliminación se implementa como desactivación lógica mediante `activo=false` y responde `204 No Content`. No retorna DTO.
 
 Esto conserva referencias históricas de otros módulos.
 
 ### Tipo de documento
 
-`TipoDocumentoController` usa cambio de estado mediante `PATCH /{id}/activo`.
+`TipoDocumentoController` usa cambio de estado mediante `PATCH /{id}/activo`. A diferencia de otros catálogos, no expone endpoint `/todos` ni endpoint `DELETE`; `GET /api/tipos-documento` lista todos los registros y `GET /api/tipos-documento/activos` lista solo activos. `TipoDocumentoService.obtenerPorId` consulta por id sin exigir que el registro esté activo.
 
 Este catálogo conserva los registros para no afectar información asociada a casos, personas o usuarios.
 
@@ -166,7 +166,7 @@ Reglas principales:
 - para crear o actualizar tema se requiere área activa;
 - para crear o actualizar tipo se requiere tema activo;
 - los endpoints de consulta por padre activo validan que el padre esté activo;
-- los endpoints administrativos `/todos` permiten consultar registros asociados al padre para administración.
+- los endpoints administrativos `/todos` validan que el padre exista, pero permiten consultar registros asociados aunque el padre se encuentre inactivo, porque están orientados a administración.
 
 ## Endpoints por catálogo
 
@@ -409,3 +409,11 @@ No validan permisos ni consultan repositorios.
 - En catálogos jerárquicos, cargar hijos según el padre seleccionado.
 - Manejar errores de validación y negocio devueltos por backend.
 - Usar `credentials: "include"` en peticiones protegidas.
+
+
+## Precisiones validadas sobre catálogos
+
+- La mayoría de endpoints `GET /{id}` de catálogos usan búsquedas activas (`findByIdAndActivoTrue`).
+- `TipoDocumento` es la excepción: su consulta por id no filtra por activo.
+- Los catálogos jerárquicos distinguen entre consulta operativa de hijos activos por padre activo y consulta administrativa `/todos` por padre existente.
+- En frontend, la administración visible de catálogos está concentrada en áreas, temas y tipos; los demás catálogos existen en backend y se consumen como datos auxiliares.

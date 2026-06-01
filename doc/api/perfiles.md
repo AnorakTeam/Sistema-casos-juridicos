@@ -123,16 +123,73 @@ Ruta base:
 | PATCH | `/api/estudiantes/{id}/activo?activo=true|false` | Cambia estado activo | `CAMBIAR_ESTADO_ESTUDIANTES`, `GESTIONAR_USUARIOS` |
 | PATCH | `/api/estudiantes/{id}/conciliacion?conciliacion=true|false` | Habilita o deshabilita conciliación | `EDITAR_USUARIOS`, `GESTIONAR_USUARIOS` |
 | DELETE | `/api/estudiantes/{id}` | Desactiva lógicamente | `GESTIONAR_USUARIOS` |
-| POST | `/api/estudiantes/importar` | Importa estudiantes desde archivo | permisos de gestión indicados por controller |
+| POST | `/api/estudiantes/importar` | Importa estudiantes desde archivo | `GESTIONAR_USUARIOS` |
 
 ### Importación
 
-La importación recibe un `MultipartFile` en el parámetro `archivo` y retorna un resultado con:
+```http
+POST /api/estudiantes/importar
+```
 
-- `totalFilas`;
-- `exitosos`;
-- `fallidos`;
-- `errores`.
+Permiso requerido:
+
+```text
+GESTIONAR_USUARIOS
+```
+
+Tipo de contenido:
+
+```http
+multipart/form-data
+```
+
+Parámetro:
+
+| Nombre | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `archivo` | archivo | Sí | Archivo procesado mediante `XSSFWorkbook`. |
+
+#### Estructura esperada
+
+La primera fila contiene los encabezados en el orden definido por el servicio. La comparación del texto se realiza sin distinguir mayúsculas y minúsculas:
+
+```text
+Nombre
+TipoDocumentoId
+Documento
+Email
+Telefono
+Usuario
+SedeId
+Codigo
+AsesorId
+Activo
+Conciliacion
+```
+
+Las filas siguientes se transforman en datos de estudiante y se procesan individualmente. Una fila con error incrementa el contador de fallidos y agrega su mensaje a `errores`, conservando el procesamiento de las demás filas.
+
+#### Respuesta `200 OK`
+
+El endpoint retorna `ImportacionEstudiantesDTO`, incluyendo resultados exitosos y fallidos de las filas procesadas:
+
+```json
+{
+  "totalFilas": 3,
+  "exitosos": 2,
+  "fallidos": 1,
+  "errores": [
+    "Fila 3: <mensaje>"
+  ]
+}
+```
+
+#### Respuestas construidas por la operación
+
+| Estado | Cuerpo | Condición procesada |
+|---|---|---|
+| `400 Bad Request` | Texto | El servicio genera `IllegalArgumentException`, por ejemplo cuando el archivo no contiene encabezados. |
+| `500 Internal Server Error` | Texto iniciado por `Error interno: ` | El servicio genera `RuntimeException`, incluyendo errores de formato de columnas o lectura del archivo. |
 
 ---
 
@@ -164,7 +221,7 @@ Ruta base:
 - `PATCH /activo` cambia estado lógico.
 - `DELETE` realiza desactivación lógica.
 - La desactivación de asesores, estudiantes y monitores valida consultas operativas asociadas.
-- La activación/desactivación de un perfil sincroniza el estado del `UsuarioSistema` asociado.
+- La activación/desactivación realizada desde un endpoint de perfil sincroniza el estado del `UsuarioSistema` asociado.
 - Las respuestas devuelven DTOs del perfil correspondiente.
 
 ---
@@ -172,3 +229,60 @@ Ruta base:
 ## 8. Relación con UsuarioSistema
 
 Cada perfil operativo se vincula con un usuario del sistema. Esa relación permite que autenticación, rol, permisos y alcance se resuelvan desde una cuenta de acceso única, conservando la identidad funcional en el módulo correspondiente.
+
+
+---
+
+## 9. Precisiones de alcance y validaciones efectivas
+
+La anotación de seguridad de los controllers expresa los permisos de entrada al endpoint. Además de esa validación, los servicios de acceso aplican reglas internas de alcance por perfil autenticado. Estas reglas hacen parte del comportamiento efectivo de la API.
+
+### 9.1 Administrativos y marca de directora
+
+La gestión de administrativos tiene una regla especial. Para crear, actualizar, cambiar estado, cambiar marca de directora o desactivar administrativos, el backend valida que el usuario autenticado:
+
+- opere como administrador;
+- tenga un perfil administrativo activo;
+- y que ese perfil administrativo tenga `directora=true`.
+
+La consulta de administrativos también exige operar como administrador. Esta regla se implementa en `AdministrativoAccessService`.
+
+### 9.2 Alcance de estudiantes
+
+El listado de estudiantes aplica alcance funcional:
+
+- el administrador puede consultar todos los estudiantes según el endpoint usado;
+- el asesor consulta únicamente estudiantes asociados a su perfil de asesor;
+- otros perfiles no reciben estudiantes desde el query service cuando no tienen alcance funcional.
+
+El endpoint `GET /api/estudiantes/activos/asesor/{asesorId}` valida adicionalmente el asesor solicitado. El administrador puede consultar estudiantes activos de cualquier asesor; un asesor autenticado solo puede consultar estudiantes de su propio perfil.
+
+### 9.3 Estudiantes habilitados para conciliación
+
+`GET /api/estudiantes/conciliacion` devuelve estudiantes activos con `conciliacion=true`. Este endpoint se usa como catálogo operativo para conciliación. Los resultados también pasan por la regla de visibilidad del servicio de estudiantes.
+
+### 9.4 Importación masiva de estudiantes
+
+`POST /api/estudiantes/importar` recibe un archivo Excel en el parámetro multipart `archivo`. El backend procesa la primera hoja del libro y espera estos encabezados exactos:
+
+| Columna | Uso |
+|---|---|
+| `Nombre` | Nombre completo del estudiante. |
+| `TipoDocumentoId` | Identificador del tipo de documento. |
+| `Documento` | Número de documento. |
+| `Email` | Correo del estudiante y base para su usuario del sistema. |
+| `Telefono` | Teléfono. |
+| `Usuario` | Nombre de usuario funcional del perfil. |
+| `SedeId` | Sede asociada. |
+| `Codigo` | Código del estudiante. |
+| `AsesorId` | Asesor activo asociado. |
+| `Activo` | Estado lógico inicial. |
+| `Conciliacion` | Habilitación para apoyar conciliación. |
+
+El procesamiento inicia desde la segunda fila. Cada fila se transforma en un `EstudianteDTO` y se procesa mediante el mismo servicio de creación individual de estudiante. El resultado puede ser mixto: filas creadas correctamente y filas rechazadas por validaciones. La respuesta `ImportacionEstudiantesDTO` resume total de filas, exitosos, fallidos y errores por fila.
+
+### 9.5 Estado del perfil y UsuarioSistema
+
+Cuando el cambio de estado se realiza desde el endpoint propio del perfil (`PATCH /activo` o `DELETE` lógico de administrativos, asesores, estudiantes, monitores o conciliadores), el backend sincroniza el estado del `UsuarioSistema` asociado.
+
+El cambio directo de estado de `UsuarioSistema` mediante `/api/usuarios-sistema/{id}/activo` modifica la cuenta de acceso. Ese endpoint no reactiva ni desactiva automáticamente el perfil real asociado.

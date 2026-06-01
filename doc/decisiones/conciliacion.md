@@ -2,70 +2,52 @@
 
 ## Contexto
 
-El módulo de conciliación permite generar conciliaciones desde consultas jurídicas, asignar responsables, programar reuniones, notificar destinatarios y finalizar el trámite con soporte documental.
+El módulo de conciliación administra un flujo que nace desde una consulta jurídica y permite gestionar responsables, reuniones, documentos PDF, notificaciones y cierre funcional de conciliación.
 
-El módulo se integra con consulta, perfiles, permisos, archivos, reuniones, notificaciones y cierre de casos.
+La decisión principal es mantener la conciliación como módulo propio, pero dependiente del contexto jurídico de la consulta. Esto evita duplicar información de personas, conserva trazabilidad y permite validar cierre de consulta cuando existe actividad conciliatoria pendiente.
+
+---
 
 ## Decisiones principales
 
 1. La conciliación nace desde una consulta.
-2. La consulta es fuente de persona principal, partes y contrapartes.
-3. El estado de conciliación se administra en tabla.
-4. El backend valida estados por código técnico.
-5. La solicitud PDF se guarda al crear conciliación.
-6. La finalización exige acta PDF.
-7. El estudiante puede consultar recursos relacionados, pero no gestiona conciliaciones.
-8. El conciliador opera conciliaciones asignadas.
-9. El cierre de consulta se bloquea si hay conciliación pendiente.
-10. `activo` no reemplaza el estado funcional.
-11. La reunión vigente se administra en entidad propia.
-12. Programación y reprogramación generan historial.
-13. Finalizar o desactivar conciliación cancela notificaciones pendientes.
+2. La consulta es fuente de consultante, partes y contrapartes.
+3. Los estados de conciliación se administran en tabla y se validan por código técnico.
+4. La solicitud PDF es obligatoria al crear conciliación.
+5. El acta PDF es obligatoria para finalizar.
+6. La asignación automática usa disponibilidad y carga no finalizada.
+7. La reunión vigente se administra en entidad propia uno a uno.
+8. La programación y reprogramación generan historial.
+9. La reprogramación reemplaza notificaciones pendientes anteriores.
+10. Finalizar o desactivar cancela notificaciones pendientes.
+11. `activo` no reemplaza estado funcional.
+12. La desactivación lógica no equivale a finalización.
 
-## Conciliación nace desde consulta
+---
+
+## Conciliación desde consulta
 
 La conciliación se crea desde:
 
 ```text
-/api/conciliaciones/consulta/{consultaId}
+POST /api/conciliaciones/consulta/{consultaId}
 ```
 
-Justificación:
+Esta decisión permite:
 
-- hereda contexto jurídico;
-- evita duplicar datos de partes y contrapartes;
-- conserva trazabilidad con la consulta origen;
-- permite validar alcance y estado de la consulta.
+- conservar contexto jurídico;
+- usar consultante, partes y contrapartes desde la consulta;
+- validar alcance del usuario desde la consulta;
+- impedir conciliaciones sobre consultas cerradas o archivadas;
+- bloquear más de una conciliación activa no finalizada por consulta.
 
-## Consulta como fuente de partes y contrapartes
+---
 
-La conciliación no almacena partes propias. El detalle toma la información desde la consulta.
+## Estado de conciliación en tabla
 
-Esto permite mantener consistencia entre consulta y conciliación.
+La entidad `EstadoConciliacion` permite separar código técnico y nombre visible.
 
-## Tabla `estado_conciliacion`
-
-Se usa tabla para estados de conciliación:
-
-```text
-estado_conciliacion
-```
-
-Campos:
-
-- `codigo`;
-- `nombre`;
-- `activo`;
-- `orden`.
-
-Justificación:
-
-- el frontend puede mostrar nombres visibles;
-- el backend valida códigos técnicos;
-- el orden puede controlarse desde datos;
-- se conserva independencia entre texto visible y regla de negocio.
-
-## Códigos técnicos
+Códigos técnicos:
 
 ```text
 EN_ESPERA
@@ -75,115 +57,144 @@ COMPLETO_CONCILIADO
 COMPLETO_NO_CONCILIADO
 ```
 
-El backend normaliza los códigos recibidos para evitar diferencias por mayúsculas, espacios o guiones.
+El backend normaliza los códigos recibidos y valida reglas por código, no por nombre visible.
 
-## Separación entre cambio de estado y finalización
+---
 
-El cambio de estado operativo usa endpoint de estado. La finalización con resultado final usa endpoint específico con acta.
+## Separación entre estado y activo
 
-Criterio:
+`estado` representa la etapa funcional de la conciliación.
 
-- estados finales no se aplican como simple cambio de estado;
-- la finalización exige acta;
-- el acta se guarda antes de dejar la conciliación finalizada;
-- la fecha de finalización se registra en la entidad.
+`activo` representa si el registro participa en la operación actual.
 
-## Reunión vigente
+Una conciliación finalizada conserva `activo=true` y estado final. Una conciliación desactivada queda `activo=false` sin representar finalización conciliatoria.
 
-La reunión vigente se representa en:
+---
 
-```text
-ReunionConciliacion
-```
+## Creación y asignación automática
 
-Campos principales:
+Al crear conciliación, el sistema selecciona estudiante y conciliador cuando hay disponibilidad.
 
-- conciliación;
-- fecha de reunión;
-- sede;
-- observaciones;
-- fecha de creación;
-- fecha de actualización.
+La selección de estudiante usa este orden:
 
-La reunión vigente permite que el flujo de conciliación tenga una fecha operativa clara sin depender del campo heredado `fecha_conciliacion`.
+1. estudiante de la consulta, si está activo y habilitado para conciliación;
+2. estudiante activo habilitado con menor carga de conciliaciones no finalizadas.
+
+La selección de conciliador usa conciliadores activos ordenados por menor carga de conciliaciones no finalizadas.
+
+Esta decisión permite iniciar el trámite aunque algún responsable no esté disponible. En ese caso, el estado queda `EN_ESPERA`.
+
+---
+
+## Estados calculados por responsables
+
+Después de asignaciones, el estado se recalcula:
+
+- si falta estudiante o conciliador: `EN_ESPERA`;
+- si existen ambos y no hay reunión: `ESPERANDO_REUNION`;
+- si ya existe reunión: `REUNION_PROGRAMADA`.
+
+Por eso `EN_ESPERA` no se asigna manualmente por endpoint de cambio de estado.
+
+---
+
+## Reunión uno a uno
+
+`ReunionConciliacion` usa el id de la conciliación como id propio mediante relación uno a uno.
+
+Esta decisión significa que:
+
+- una conciliación tiene una única reunión vigente;
+- programar crea la reunión;
+- reprogramar actualiza esa reunión;
+- los cambios se conservan en historial.
+
+---
 
 ## Historial de reunión
 
-La programación y reprogramación se registran en:
+El historial permite registrar eventos sin crear múltiples reuniones vigentes.
+
+Eventos soportados:
+
+- `PROGRAMACION`;
+- `REPROGRAMACION`.
+
+Cada registro conserva valores anteriores y nuevos cuando aplica, sede, observaciones y usuario que realizó la acción.
+
+---
+
+## Documentos PDF
+
+La solicitud y el acta son documentos de soporte.
+
+| Documento | Momento | Ruta lógica |
+|---|---|---|
+| Solicitud | Creación o reemplazo | `conciliacion/{id}/solicitud.pdf` |
+| Acta | Finalización | `conciliacion/{id}/acta.pdf` |
+
+El backend valida extensión `.pdf` y tipo de contenido `application/pdf` cuando el cliente lo informa.
+
+---
+
+## Finalización con acta
+
+La finalización usa:
 
 ```text
-ReunionConciliacionHistorial
+POST /api/conciliaciones/{id}/finalizar
 ```
 
-Esto permite conservar:
+La decisión de usar un endpoint específico evita que estados finales se asignen sin soporte documental.
 
-- evento realizado;
-- fecha anterior y nueva;
-- sede anterior y nueva;
-- observaciones anteriores y nuevas;
-- usuario que realizó el cambio;
-- fecha del evento.
+Al finalizar:
+
+- se guarda el acta;
+- se asigna estado final;
+- se registra `fechaFinalizacion`;
+- se cancelan notificaciones pendientes.
+
+---
+
+## Desactivación lógica
+
+La desactivación usa:
+
+```text
+DELETE /api/conciliaciones/{id}
+```
+
+Se mantiene como salida administrativa para conciliaciones activas no finalizadas. No equivale a finalización, no genera acta y no registra fecha de finalización.
+
+---
 
 ## Notificaciones de reunión
 
-Las notificaciones se representan en:
+La programación y reprogramación generan notificaciones para destinatarios derivados de la consulta:
 
-```text
-ReunionConciliacionNotificacion
-```
+- consultante;
+- partes;
+- contrapartes.
 
-El flujo contempla:
+Los correos se normalizan y se deduplican. Cuando no hay destinatarios con correo, se genera alerta administrativa.
 
-- notificaciones inmediatas por programación;
-- notificaciones inmediatas por reprogramación;
-- recordatorios;
-- alertas administrativas cuando no se encuentran destinatarios con correo o cuando ocurre error.
+Se generan dos momentos:
 
-## Cancelación de notificaciones pendientes
+- inmediata;
+- recordatorio un día antes de la reunión cuando la fecha queda en futuro.
 
-Al finalizar o desactivar conciliación, el backend cancela notificaciones pendientes para evitar recordatorios de trámites que ya no deben continuar operativamente.
+El scheduler procesa notificaciones pendientes con cron configurable. El valor por defecto corre cada hora en el minuto cero.
 
-La cancelación se aplica a notificaciones no enviadas y activas, conservando historial de las enviadas.
+---
 
 ## Relación con cierre de consulta
 
-El cierre de consulta se bloquea si existen conciliaciones activas pendientes.
+La consulta no puede cerrarse si existen conciliaciones activas no finalizadas.
 
-Estados pendientes:
+Estados que bloquean cierre:
 
-```text
-EN_ESPERA
-ESPERANDO_REUNION
-REUNION_PROGRAMADA
-```
+- `EN_ESPERA`;
+- `ESPERANDO_REUNION`;
+- `REUNION_PROGRAMADA`.
 
-Estados finales:
-
-```text
-COMPLETO_CONCILIADO
-COMPLETO_NO_CONCILIADO
-```
-
-## Impacto en frontend
-
-El frontend debe:
-
-- enviar solicitud PDF al crear;
-- usar el endpoint de finalización con acta;
-- programar o reprogramar reunión desde el flujo correspondiente;
-- mostrar estado visible y código técnico;
-- manejar errores del backend como validaciones de negocio.
-
-## Criterios de mantenimiento
-
-Si cambia conciliación, revisar:
-
-- controllers de conciliación;
-- services de conciliación;
-- validators;
-- estado_conciliacion;
-- reuniones;
-- notificaciones;
-- documentación API;
-- reglas de negocio;
-- frontend de conciliaciones y reuniones.
+Estados finales no bloquean el cierre de consulta.

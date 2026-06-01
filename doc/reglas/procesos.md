@@ -1,75 +1,169 @@
 # Reglas de negocio - Procesos
 
-## Principio general
+## Propósito
 
-Un proceso representa una actuación formal vinculada a una consulta jurídica. Su ciclo funcional se administra con `EstadoProceso` y su permanencia histórica se administra con la marca `activo`.
+Este documento resume las reglas de negocio implementadas en código para el módulo de procesos. Las reglas se derivan de `ProcesoCommandService`, `ProcesoQueryService`, `ProcesoValidator`, `ProcesoAccessService`, `ProcesoRepository`, `ProcesoDTO`, `Proceso` y `EstadoProceso`.
 
-## Regla 1. El proceso nace pendiente
+## Regla 1: el proceso pertenece a una consulta
 
-Todo proceso creado por el backend inicia en estado `PENDIENTE`. El cliente no controla el estado inicial.
+Todo proceso debe estar asociado a una consulta existente.
 
-## Regla 2. Radicado opcional en estado pendiente
+La consulta asociada cumple tres funciones:
 
-Mientras el proceso está en `PENDIENTE`, `numeroRadicado` puede ser nulo. Esta regla permite registrar gestión preliminar antes de contar con radicado formal.
+1. define el alcance del usuario sobre el proceso;
+2. permite validar si se pueden hacer operaciones operativas;
+3. conecta el proceso con el cierre de la consulta.
 
-## Regla 3. Radicado obligatorio en estados finales
+No se permite cambiar la consulta asociada durante la edición del proceso.
 
-Los estados finales son:
+## Regla 2: creación en estado pendiente
 
-- `SENTENCIA_FAVORABLE`
-- `SENTENCIA_DESFAVORABLE`
-- `DESISTIMIENTO`
-- `RECHAZO`
-- `PRESCRIPCION`
+Todo proceso creado desde la API inicia en:
 
-Para cualquiera de estos estados, el backend exige número de radicado.
+```text
+PENDIENTE
+```
 
-## Regla 4. Longitud del radicado
+El backend fuerza ese estado en `ProcesoCommandService.crear`, sin depender de un valor enviado por el cliente.
 
-Cuando se informa radicado, debe tener exactamente 23 caracteres.
+## Regla 3: creación activa
 
-## Regla 5. Unicidad del radicado
+Todo proceso creado inicia con:
 
-Si se informa radicado, debe ser único frente a otros procesos. En actualización se excluye el proceso actual para permitir conservar el mismo radicado.
+```text
+activo = true
+```
 
-## Regla 6. La consulta no cambia en edición
+La marca `activo` es una marca de eliminación lógica y no reemplaza al estado funcional.
 
-La consulta asociada define el alcance del proceso. Por eso, al actualizar un proceso existente no se permite modificar `consultaId`.
+## Regla 4: radicado condicional
 
-## Regla 7. La consulta debe permitir operación
+El número de radicado tiene una regla condicional:
 
-No se realizan operaciones de creación, edición o cambio de estado sobre procesos cuya consulta asociada no permita operación operativa.
+| Estado evaluado | Radicado |
+|---|---|
+| `PENDIENTE` | Puede ser nulo. |
+| Estado final | Es obligatorio. |
 
-## Regla 8. Especialidad coherente con órgano de control
+Si el radicado se informa, debe tener exactamente 23 caracteres.
 
-Si se informa especialidad, debe pertenecer al órgano de control seleccionado. Si se informa especialidad sin órgano de control, la operación se rechaza.
+## Regla 5: estados finales
 
-## Regla 9. Estado funcional y activo son conceptos separados
+Son estados finales todos los estados distintos de `PENDIENTE`:
 
-`estado` representa el resultado funcional del proceso.
+```text
+SENTENCIA_FAVORABLE
+SENTENCIA_DESFAVORABLE
+DESISTIMIENTO
+RECHAZO
+PRESCRIPCION
+```
 
-`activo` representa la disponibilidad lógica del registro.
+Para pasar a cualquiera de esos estados, el proceso debe tener radicado válido previamente guardado.
 
-La eliminación por endpoint no borra físicamente el proceso; lo desactiva.
+## Regla 6: unicidad del radicado
 
-## Regla 10. Procesos pendientes bloquean cierre de consulta
+Si se informa número de radicado:
 
-Una consulta no puede cerrarse si tiene procesos activos en estado `PENDIENTE`. Esta regla se valida desde el servicio de estado de consulta.
+- en creación, no puede existir otro proceso con el mismo radicado;
+- en actualización, no puede existir otro proceso con el mismo radicado y diferente id.
 
-## Regla 11. Gestión restringida por permisos
+## Regla 7: actualización general no cambia estado
 
-Las operaciones de escritura requieren `GESTIONAR_PROCESOS`. La lectura requiere `VER_PROCESOS` o `GESTIONAR_PROCESOS`.
+`PUT /api/procesos/{id}` actualiza datos generales, pero no cambia:
 
-## Regla 12. El alcance se hereda desde la consulta
+- `estado`;
+- `activo`.
 
-El proceso no define por sí solo el alcance del usuario. El acceso se determina con base en la consulta asociada.
+El estado funcional se modifica con `PATCH /api/procesos/{id}/estado`. La marca activa se modifica con `PATCH /api/procesos/{id}/activo` o con `DELETE`.
 
-## Reglas respaldadas por pruebas
+## Regla 8: actualización general no cambia consulta
 
-`ProcesoValidatorTest` valida:
+El proceso no puede moverse de una consulta a otra desde `PUT`. La consulta define el contexto y alcance del proceso.
 
-- radicado nulo permitido en pendiente;
-- texto vacío interpretado como radicado nulo en pendiente;
-- rechazo de estado final sin radicado;
-- rechazo de radicado con longitud inválida;
-- aceptación de radicado válido.
+## Regla 9: especialidad depende de órgano de control
+
+La especialidad es opcional, pero si se informa:
+
+1. debe existir activa;
+2. debe seleccionarse órgano de control;
+3. debe pertenecer al órgano de control seleccionado.
+
+## Regla 10: operación solo sobre consulta operativa
+
+Crear, actualizar, cambiar estado, cambiar activo o eliminar lógicamente un proceso requiere que la consulta asociada permita operación operativa.
+
+Esto evita operar procesos de consultas cerradas o archivadas.
+
+## Regla 11: listado operativo
+
+El listado operativo de procesos:
+
+- incluye solo procesos activos;
+- excluye procesos asociados a consultas archivadas;
+- aplica alcance registro por registro.
+
+## Regla 12: detalle operativo
+
+La consulta por id retorna procesos activos y no expone procesos asociados a consultas archivadas por el flujo operativo.
+
+## Regla 13: permisos efectivos
+
+| Acción | Permiso efectivo |
+|---|---|
+| Listar | `VER_PROCESOS` |
+| Obtener detalle | `VER_PROCESOS` |
+| Crear | `GESTIONAR_PROCESOS` |
+| Actualizar | `GESTIONAR_PROCESOS` |
+| Cambiar estado funcional | `GESTIONAR_PROCESOS` |
+| Cambiar activo | `GESTIONAR_PROCESOS` |
+| Eliminar lógicamente | `GESTIONAR_PROCESOS` |
+
+La lectura efectiva exige `VER_PROCESOS` porque así lo valida `ProcesoAccessService`.
+
+## Regla 14: alcance por perfil
+
+| Perfil | Regla |
+|---|---|
+| Administrativo autorizado | Opera según permisos y alcance general. |
+| Asesor | Accede si la consulta está dentro de su alcance. |
+| Monitor | Accede si la consulta está asignada al monitor. |
+| Estudiante | Puede consultar procesos de sus consultas si tiene permiso, pero no gestionarlos. |
+| Conciliador | No tiene alcance operativo sobre procesos en esta fase. |
+
+## Regla 15: eliminación lógica
+
+`DELETE /api/procesos/{id}` no borra registros. Marca el proceso como inactivo.
+
+Los procesos inactivos dejan de aparecer en listados operativos, pero permanecen disponibles como historial en base de datos.
+
+## Regla 16: cambio de marca activa
+
+`PATCH /api/procesos/{id}/activo?activo=` permite cambiar la marca activa del proceso. El nuevo valor debe ser diferente al actual y la consulta asociada debe permitir operación.
+
+## Regla 17: incidencia sobre cierre de consulta
+
+Una consulta no puede cerrarse si tiene procesos activos en estado `PENDIENTE`.
+
+Cuando el proceso pasa a un estado final, deja de bloquear el cierre de consulta por la causal de proceso pendiente, sin afectar otras validaciones del cierre.
+
+## Regla 18: estadísticas de proceso
+
+Las agregaciones implementadas en `ProcesoRepository` se basan en:
+
+- conteo por estado;
+- conteo por estado filtrado por asesor;
+- conteo por estado filtrado por estudiante;
+- conteo por estado filtrado por monitor.
+
+No se documenta agregación por área en este módulo porque no existe en el repository actual de procesos.
+
+## Regla 19: frontend y API
+
+La interfaz de procesos acompaña las reglas del backend:
+
+- permite crear proceso sin radicado;
+- valida radicado de 23 caracteres si se informa;
+- bloquea visualmente el cambio a estado final sin radicado;
+- usa `DELETE` para desactivación lógica;
+- no expone reactivación mediante `PATCH /activo` desde la pantalla actual.

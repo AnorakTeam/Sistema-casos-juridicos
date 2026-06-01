@@ -2,205 +2,266 @@
 
 ## Propósito del módulo
 
-El módulo de procesos administra la información procesal asociada a una consulta jurídica. Su función es registrar el trámite formal que surge a partir de una consulta y mantener separado el ciclo de vida del proceso frente al ciclo de vida de la consulta. En el código fuente actual, el proceso se modela como una entidad operativa vinculada a una consulta, a un departamento, a un órgano de control y, de manera opcional, a una especialidad.
+El módulo de procesos administra la información procesal asociada a una consulta jurídica. Permite registrar el trámite formal derivado de la consulta, controlar el estado funcional del proceso, conservar el número de radicado cuando existe y mantener trazabilidad mediante eliminación lógica.
 
-La implementación vigente permite que un proceso exista inicialmente en estado `PENDIENTE` sin número de radicado. Esta decisión refleja que en la operación real puede existir una gestión procesal preliminar antes de contar con radicado formal. Cuando el proceso pasa a un estado final, el backend exige el número de radicado y valida su formato.
+En el código fuente actual, el proceso está modelado como una entidad dependiente de una consulta. Por esa razón, el alcance de lectura y gestión no se calcula de forma aislada: se hereda de la consulta asociada y se complementa con permisos específicos del módulo de procesos.
 
-## Fuentes de código revisadas
+## Fuentes de código validadas
 
-La documentación de este módulo se basa en las siguientes clases y paquetes del backend actual:
+La documentación de este módulo se basa en el código actual de:
 
-| Tipo | Archivos principales |
+| Tipo | Archivos |
 |---|---|
 | Controller | `ProcesoController` |
-| Servicio fachada | `ProcesoService` |
+| Fachada | `ProcesoService` |
 | Escritura | `ProcesoCommandService` |
 | Lectura | `ProcesoQueryService` |
 | Validación | `ProcesoValidator` |
 | Mapeo | `ProcesoMapper` |
-| Acceso y alcance | `ProcesoAccessService` |
+| Acceso | `ProcesoAccessService` |
 | DTO | `ProcesoDTO` |
-| Entidades | `Proceso`, `EstadoProceso`, `OrganoControl`, `Especialidad` |
-| Repositorios | `ProcesoRepository`, `OrganoControlRepository`, `EspecialidadRepository`, `ConsultaRepository`, `DepartamentoRepository` |
-| Catálogos relacionados | `OrganoControlController`, `EspecialidadController` |
+| Entidad | `Proceso` |
+| Enum | `EstadoProceso` |
+| Repositorio | `ProcesoRepository` |
+| Catálogos relacionados | `OrganoControlController`, `EspecialidadController`, `OrganoControlService`, `EspecialidadService` |
 | Pruebas | `ProcesoValidatorTest` |
 
-## Ubicación dentro de la arquitectura
+## Ubicación en la arquitectura
 
-El módulo sigue el patrón de capas usado por el backend:
+El módulo sigue la arquitectura por capas del backend:
 
-1. `ProcesoController` expone el contrato HTTP bajo `/api/procesos`.
-2. `ProcesoService` centraliza el acceso público al caso de uso.
-3. `ProcesoCommandService` maneja creación, actualización, cambio de estado y eliminación lógica.
-4. `ProcesoQueryService` maneja consultas de lectura.
-5. `ProcesoValidator` concentra reglas de negocio del módulo.
-6. `ProcesoAccessService` valida permisos y alcance del usuario autenticado.
-7. `ProcesoMapper` convierte entre entidad y DTO.
-8. `ProcesoRepository` resuelve persistencia y consultas derivadas.
+1. `ProcesoController` expone los endpoints HTTP bajo `/api/procesos`.
+2. `ProcesoService` actúa como fachada de casos de uso.
+3. `ProcesoCommandService` concentra operaciones de escritura.
+4. `ProcesoQueryService` concentra operaciones de lectura.
+5. `ProcesoValidator` valida reglas propias del proceso.
+6. `ProcesoAccessService` valida permisos y alcance.
+7. `ProcesoMapper` transforma entidad y DTO.
+8. `ProcesoRepository` maneja persistencia y agregaciones.
 
-La separación permite mantener las reglas funcionales fuera del controller y evita que la capa HTTP contenga lógica de negocio.
+Esta separación permite que el controller permanezca delgado y que las reglas de negocio se concentren en servicios especializados.
 
-## Entidad principal
+## Entidad `Proceso`
 
-La entidad `Proceso` representa un registro procesal asociado a una consulta. De acuerdo con el modelo actual, contiene principalmente:
+La entidad `Proceso` se persiste en la tabla `proceso`.
 
-| Campo | Descripción |
-|---|---|
-| `id` | Identificador interno del proceso. |
-| `numeroRadicado` | Número de radicado. Puede ser nulo mientras el estado sea `PENDIENTE`. |
-| `departamento` | Departamento asociado al proceso. |
-| `consulta` | Consulta jurídica a la cual pertenece. |
-| `organoControl` | Órgano de control relacionado con el trámite. |
-| `especialidad` | Especialidad del órgano de control, si aplica. |
-| `estado` | Estado funcional del proceso. |
-| `activo` | Marca de eliminación lógica. |
-
-La relación con `Consulta` es esencial porque el proceso no tiene alcance independiente: su visibilidad y capacidad de operación dependen de la consulta asociada.
-
-## DTO de proceso
-
-El contrato de entrada y salida usa `ProcesoDTO`:
-
-| Campo | Tipo | Regla vigente |
+| Campo | Tipo conceptual | Regla |
 |---|---|---|
-| `id` | `Long` | No debe enviarse en creación. |
-| `numeroRadicado` | `String` | Opcional en `PENDIENTE`; obligatorio en estados finales. |
-| `departamentoId` | `Long` | Obligatorio. |
-| `consultaId` | `Long` | Obligatorio. |
-| `especialidadId` | `Long` | Opcional. |
-| `organoControlId` | `Long` | Opcional, pero requerido si se informa especialidad. |
-| `estado` | `EstadoProceso` | Controlado por endpoint específico para cambio de estado. |
-| `activo` | `Boolean` | Controlado por endpoint específico para activación/desactivación. |
+| `id` | Identificador | Generado por base de datos. |
+| `numeroRadicado` | String | Único, longitud máxima definida en columna de 23. Puede ser nulo en `PENDIENTE`. |
+| `departamento` | Relación obligatoria | Departamento activo requerido en creación y actualización. |
+| `consulta` | Relación obligatoria | Consulta jurídica asociada. Define alcance. |
+| `organoControl` | Relación opcional | Órgano de control asociado al proceso. |
+| `especialidad` | Relación opcional | Especialidad asociada al órgano de control. |
+| `estado` | Enum | Estado funcional del proceso. Por defecto `PENDIENTE`. |
+| `activo` | Boolean | Marca de eliminación lógica. Por defecto `true`. |
+
+La entidad aplica valores por defecto con `@PrePersist` y `@PreUpdate`: si `estado` llega nulo se asigna `PENDIENTE`; si `activo` llega nulo se asigna `true`.
+
+## DTO `ProcesoDTO`
+
+`ProcesoDTO` es usado para entrada y salida de la API.
+
+| Campo | Regla |
+|---|---|
+| `id` | No debe enviarse en creación. En actualización, si se envía, debe coincidir con la ruta. |
+| `numeroRadicado` | Se normaliza. Puede quedar nulo mientras el estado sea `PENDIENTE`. |
+| `departamentoId` | Obligatorio por anotación `@NotNull` y validado en service. |
+| `consultaId` | Obligatorio por anotación `@NotNull` y validado en service. |
+| `especialidadId` | Opcional. Si se envía, debe existir activa. |
+| `organoControlId` | Opcional. Obligatorio si se envía especialidad. |
+| `estado` | Expuesto en respuesta. No se cambia desde creación o actualización general. |
+| `activo` | Expuesto en respuesta. No se cambia desde creación o actualización general. |
 
 ## Estados funcionales
 
-El enum `EstadoProceso` define los estados vigentes:
+`EstadoProceso` define:
 
-| Estado | Tipo | Descripción funcional |
+| Estado | Clasificación | Descripción |
 |---|---|---|
-| `PENDIENTE` | Inicial / operativo | Estado por defecto al crear un proceso. Permite no tener radicado. |
-| `SENTENCIA_FAVORABLE` | Final | Resultado favorable. Exige radicado. |
-| `SENTENCIA_DESFAVORABLE` | Final | Resultado desfavorable. Exige radicado. |
-| `DESISTIMIENTO` | Final | El trámite termina por desistimiento. Exige radicado. |
-| `RECHAZO` | Final | El trámite termina por rechazo. Exige radicado. |
-| `PRESCRIPCION` | Final | El trámite termina por prescripción. Exige radicado. |
+| `PENDIENTE` | Operativo/inicial | Estado por defecto. Permite proceso sin radicado. |
+| `SENTENCIA_FAVORABLE` | Final | Resultado final favorable. |
+| `SENTENCIA_DESFAVORABLE` | Final | Resultado final desfavorable. |
+| `DESISTIMIENTO` | Final | Terminación por desistimiento. |
+| `RECHAZO` | Final | Terminación por rechazo. |
+| `PRESCRIPCION` | Final | Terminación por prescripción. |
 
-La clase `EstadoProceso` incluye el método `esFinal()`, que considera final todo estado distinto de `PENDIENTE`.
+El método `esFinal()` considera final todo estado diferente de `PENDIENTE`.
 
-## Regla de radicado
+## Regla del radicado
 
-La regla actual se encuentra en `ProcesoValidator.normalizarNumeroRadicadoParaEstado`:
+`ProcesoValidator.normalizarNumeroRadicadoParaEstado` implementa la regla central del radicado:
 
-- Si el proceso está en `PENDIENTE`, el número de radicado puede ser nulo.
-- Si el estado es final, el número de radicado es obligatorio.
-- Si se informa radicado, se normaliza como texto.
-- El radicado debe tener exactamente 23 caracteres.
-- El radicado informado debe ser único.
+- el texto se normaliza;
+- texto vacío se trata como `null`;
+- si el estado evaluado es `PENDIENTE`, el radicado puede ser nulo;
+- si el estado evaluado es final, el radicado es obligatorio;
+- si se informa radicado, debe tener exactamente 23 caracteres.
 
-Esta regla se aplica tanto al crear como al actualizar datos y al cambiar estado del proceso.
+La unicidad se valida en `ProcesoCommandService`:
 
-## Creación de proceso
+- creación: `existsByNumeroRadicado`;
+- actualización: `existsByNumeroRadicadoAndIdNot`.
 
-El flujo de creación en `ProcesoCommandService.crear` es:
+## Creación
 
-1. Validar que el DTO sea válido para creación.
-2. Normalizar el radicado considerando que el proceso nuevo inicia como `PENDIENTE`.
-3. Validar permiso y alcance mediante `ProcesoAccessService.validarPuedeCrearProceso`.
-4. Validar unicidad del radicado si se informó.
-5. Preparar datos con consulta, departamento, órgano de control y especialidad.
-6. Crear entidad `Proceso`.
-7. Asignar estado `PENDIENTE`.
-8. Asignar `activo=true`.
-9. Persistir y retornar DTO.
+`ProcesoCommandService.crear` ejecuta el siguiente flujo:
 
-El estado inicial no depende de un valor enviado por el cliente. El backend conserva el control del ciclo funcional.
+1. valida DTO obligatorio;
+2. rechaza `id` en creación;
+3. normaliza `numeroRadicado` usando estado `PENDIENTE`;
+4. valida permiso y alcance sobre la consulta;
+5. valida unicidad del radicado si se informó;
+6. carga departamento activo;
+7. carga consulta existente y valida operación operativa;
+8. carga órgano de control activo si se informó;
+9. carga especialidad activa si se informó;
+10. valida que la especialidad pertenezca al órgano de control;
+11. aplica datos a la entidad;
+12. fuerza `estado = PENDIENTE`;
+13. fuerza `activo = true`;
+14. guarda y retorna DTO.
 
-## Actualización de proceso
+El estado y la marca activa no dependen del cuerpo enviado en creación.
 
-La actualización permite modificar datos generales del proceso, pero no permite cambiar la consulta asociada. La consulta define el alcance operativo del proceso y por eso se valida con `validarNoCambieConsulta`.
+## Actualización
 
-El flujo general es:
+`ProcesoCommandService.actualizar` ejecuta:
 
-1. Validar permiso y alcance para editar.
-2. Buscar proceso activo por id.
-3. Validar que la consulta asociada permita operación operativa.
-4. Validar que el DTO no cambie el id.
-5. Validar que no cambie la consulta.
-6. Normalizar radicado según el estado actual del proceso.
-7. Validar unicidad de radicado si cambió.
-8. Validar coherencia entre especialidad y órgano de control.
-9. Verificar que existan cambios reales.
-10. Guardar datos.
+1. valida permiso de actualización y alcance;
+2. valida DTO obligatorio;
+3. valida que el `id` del DTO no cambie;
+4. busca proceso activo;
+5. impide cambiar `consultaId`;
+6. valida radicado contra el estado actual guardado del proceso;
+7. valida unicidad del radicado;
+8. carga departamento activo;
+9. carga consulta y valida operación operativa;
+10. carga órgano y especialidad activos si fueron informados;
+11. valida relación especialidad/órgano;
+12. valida que existan cambios reales;
+13. aplica datos editables;
+14. guarda.
+
+La actualización general no cambia `estado` ni `activo`. Es una operación `PUT` de datos editables, no un cambio parcial de estado.
 
 ## Cambio de estado funcional
 
-El estado funcional cambia mediante:
+`ProcesoCommandService.cambiarEstadoProceso` se invoca desde:
 
-`PATCH /api/procesos/{id}/estado?estado=...`
+```text
+PATCH /api/procesos/{id}/estado?estado=
+```
 
-El flujo aplica:
+El flujo real es:
 
-1. Permiso `GESTIONAR_PROCESOS`.
-2. Proceso activo existente.
-3. Consulta asociada en estado operativo.
-4. Estado nuevo obligatorio y distinto al actual.
-5. Radicado validado según estado nuevo.
-6. Guardado del nuevo estado.
+1. valida permiso `GESTIONAR_PROCESOS`;
+2. bloquea gestión para estudiantes y conciliadores;
+3. valida alcance sobre la consulta asociada;
+4. busca proceso activo;
+5. valida que la consulta permita operación operativa;
+6. valida estado obligatorio;
+7. valida que el nuevo estado sea diferente al actual;
+8. si el estado destino es final, valida que el radicado guardado exista y tenga 23 caracteres;
+9. actualiza estado.
 
-Si se intenta pasar a un estado final sin radicado, el backend rechaza la operación.
+El endpoint de cambio de estado no recibe el radicado en el cuerpo. Si se desea llevar un proceso a estado final, el radicado debe haberse guardado previamente en el proceso.
 
-## Activación y desactivación lógica
+## Activación, desactivación y eliminación lógica
 
-La marca `activo` se maneja por separado del estado funcional:
+El proceso separa dos conceptos:
 
-`PATCH /api/procesos/{id}/activo?activo=false`
+| Concepto | Campo / endpoint | Propósito |
+|---|---|---|
+| Estado funcional | `estado`, `PATCH /estado` | Resultado procesal. |
+| Marca activa | `activo`, `PATCH /activo`, `DELETE` | Eliminación lógica o reactivación. |
 
-La eliminación por `DELETE /api/procesos/{id}` funciona como desactivación lógica. Esto evita pérdida de trazabilidad del proceso y conserva integridad histórica con la consulta.
+`DELETE /api/procesos/{id}` no elimina físicamente. Busca proceso activo y marca `activo=false`.
 
-## Órganos de control y especialidades
+`PATCH /api/procesos/{id}/activo?activo=` permite cambiar la marca activa de un proceso existente, siempre que el usuario tenga permiso, alcance y la consulta asociada permita operación.
 
-El módulo de procesos se apoya en catálogos específicos:
+## Listados operativos
 
-- `OrganoControl`: entidad que representa el órgano o instancia competente.
-- `Especialidad`: entidad relacionada con un órgano de control.
+`ProcesoQueryService.listar` usa:
 
-La validación `validarEspecialidadPerteneceAlOrgano` garantiza que, cuando se informe una especialidad, esta pertenezca al órgano seleccionado. Si se envía especialidad sin órgano de control, el backend rechaza la operación.
+```text
+findByActivoTrueAndConsulta_EstadoNotOrderByIdDesc(ARCHIVADO)
+```
 
-## Alcance y permisos
+Luego aplica alcance registro por registro con `ProcesoAccessService.puedeAccederAProceso`.
 
-El controller protege los endpoints con permisos:
+Por tanto, el listado operativo:
 
-| Operación | Permisos |
+- solo incluye procesos activos;
+- excluye procesos asociados a consultas archivadas;
+- respeta alcance por usuario.
+
+`obtenerPorId` también busca con `findByIdAndActivoTrueAndConsulta_EstadoNot`, por lo que el detalle operativo no expone procesos inactivos ni procesos asociados a consultas archivadas.
+
+## Permisos y alcance
+
+El controller declara permisos con `@PreAuthorize`, pero el comportamiento efectivo incluye validaciones internas.
+
+| Acción | Validación real |
 |---|---|
-| Listar y obtener | `VER_PROCESOS` o `GESTIONAR_PROCESOS` |
-| Crear | `GESTIONAR_PROCESOS` |
-| Actualizar | `GESTIONAR_PROCESOS` |
-| Cambiar estado funcional | `GESTIONAR_PROCESOS` |
-| Cambiar activo | `GESTIONAR_PROCESOS` |
-| Eliminar lógicamente | `GESTIONAR_PROCESOS` |
+| Listar | Requiere `VER_PROCESOS`. |
+| Obtener por id | Requiere `VER_PROCESOS` y alcance. |
+| Crear | Requiere `GESTIONAR_PROCESOS`, no ser estudiante ni conciliador, y alcance sobre consulta. |
+| Actualizar | Requiere `GESTIONAR_PROCESOS`, no ser estudiante ni conciliador, y alcance. |
+| Cambiar estado | Requiere `GESTIONAR_PROCESOS`, no ser estudiante ni conciliador, y alcance. |
+| Cambiar activo | Requiere `GESTIONAR_PROCESOS`, no ser estudiante ni conciliador, y alcance. |
+| Eliminar | Requiere `GESTIONAR_PROCESOS`, no ser estudiante ni conciliador, y alcance. |
 
-El alcance operativo se valida desde `ProcesoAccessService` y se deriva de la consulta asociada. Esto mantiene coherencia entre permisos de proceso y permisos de consulta.
+El estudiante puede consultar procesos si tiene permiso y alcance, pero no los gestiona. El conciliador no tiene alcance operativo sobre procesos en la implementación actual.
+
+## Catálogos relacionados
+
+El proceso se integra con:
+
+- Departamento.
+- Órgano de control.
+- Especialidad.
+
+Los órganos de control y especialidades tienen controllers propios:
+
+```text
+/api/organos-control
+/api/especialidades
+```
+
+La especialidad depende de un órgano de control. En procesos, si se informa una especialidad, debe informarse también un órgano de control, y la especialidad debe pertenecer a ese órgano.
+
+## Repositorio y estadísticas
+
+`ProcesoRepository` contiene consultas operativas y agregaciones:
+
+| Método | Uso |
+|---|---|
+| `findByIdAndActivoTrue` | Buscar proceso activo. |
+| `findByIdAndActivoTrueAndConsulta_EstadoNot` | Buscar proceso activo excluyendo consulta archivada. |
+| `findByActivoTrueAndConsulta_EstadoNotOrderByIdDesc` | Listado operativo. |
+| `existsByNumeroRadicado` | Unicidad en creación. |
+| `existsByNumeroRadicadoAndIdNot` | Unicidad en actualización. |
+| `existsByConsulta_IdAndActivoTrueAndEstado` | Validación de cierre de consulta con procesos pendientes. |
+| `contarProcesosPorEstado` | Agregación global por estado. |
+| `contarProcesosPorEstadoYAsesor` | Agregación por estado filtrada por asesor de consulta. |
+| `contarProcesosPorEstadoYEstudiante` | Agregación por estado filtrada por estudiante de consulta. |
+| `contarProcesosPorEstadoYMonitor` | Agregación por estado filtrada por monitor de consulta. |
+
+No se documenta agregación de procesos por área porque no existe en el repository actual del módulo de procesos.
 
 ## Relación con cierre de consulta
 
-El proceso participa en las reglas de cierre de consulta. `ConsultaEstadoService` consulta si existen procesos activos en estado `PENDIENTE` para bloquear el cierre de una consulta. Esto mantiene coherencia entre el estado de la consulta y sus procesos asociados.
+El proceso influye en el cierre de consulta. `ConsultaEstadoService` bloquea el cierre de una consulta cuando existe un proceso activo en estado `PENDIENTE` asociado a esa consulta.
 
-## Relación con estadísticas
+Los estados finales de proceso permiten que ese bloqueo desaparezca desde la perspectiva de cierre de consulta, siempre que las demás reglas de cierre también se cumplan.
 
-`ProcesoRepository` incluye métodos de agregación por estado y por área. El módulo de estadísticas utiliza esta información para consolidar resultados procesales en reportes por semestre, rango y perfil.
+## Pruebas relacionadas
 
-## Pruebas unitarias relacionadas
-
-`ProcesoValidatorTest` cubre reglas esenciales:
+`ProcesoValidatorTest` valida reglas esenciales del radicado:
 
 - radicado nulo permitido en `PENDIENTE`;
-- texto vacío tratado como radicado nulo en `PENDIENTE`;
+- texto vacío tratado como nulo en `PENDIENTE`;
 - rechazo de estado final sin radicado;
-- rechazo de longitud inválida;
+- rechazo de radicado con longitud distinta de 23;
 - aceptación de radicado válido.
-
-Estas pruebas respaldan la regla principal del módulo.
-
-## Resumen funcional
-
-El módulo de procesos implementa un flujo seguro y trazable para registrar procesos judiciales o administrativos derivados de consultas jurídicas. La regla central consiste en permitir gestión preliminar sin radicado mientras el proceso esté pendiente y exigir radicado cuando el trámite obtiene un resultado final. La separación entre `estado` y `activo` permite conservar historial sin borrar información operativa.

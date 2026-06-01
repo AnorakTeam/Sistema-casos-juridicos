@@ -63,9 +63,11 @@ Características:
 
 `FormFileUpload.jsx` permite cargar archivos con validación visual. Se usa para documentos adjuntos o archivos de soporte.
 
-### `ArchivoForm` y `ArchivosConsultaForm`
+### `FormFileUpload` y `ArchivosConsultaForm`
 
-Estos componentes envuelven patrones de carga de archivo individual o múltiples archivos asociados a consulta. Usan `FormFileUpload` y preparan datos para envío al backend.
+`FormFileUpload` se usa como componente base para selección de archivos en formularios. `ArchivosConsultaForm` se usa como soporte visual para archivos asociados a consulta. Los flujos activos de carga y descarga se implementan dentro de formularios específicos como nueva consulta, consultas jurídicas, seguimientos y conciliaciones.
+
+`ArchivoForm.jsx` existe en el código fuente como componente auxiliar, pero no se documenta como flujo funcional principal porque no está integrado directamente a una ruta operativa principal.
 
 ## Reglas reutilizables de validación
 

@@ -1,11 +1,10 @@
 # Backend - Archivos y almacenamiento documental
 
-> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
-
+> Documento ajustado contra el código fuente actual. Describe la implementación real de almacenamiento genérico y su uso por módulos funcionales.
 
 ## 1. Propósito
 
-El backend incluye un módulo de almacenamiento de archivos para cargar, listar y descargar documentos. Este módulo también es usado por conciliación para almacenar solicitud y acta.
+El backend incluye un módulo de almacenamiento para cargar, listar y descargar archivos. Este módulo es genérico y sirve como soporte documental para consultas, seguimientos y conciliaciones.
 
 ---
 
@@ -13,103 +12,93 @@ El backend incluye un módulo de almacenamiento de archivos para cargar, listar 
 
 | Componente | Responsabilidad |
 |---|---|
-| `FileUploadController` | Expone endpoints bajo `/api/files` |
-| `FileStorageService` | Gestiona guardado, descarga, listado y validación de rutas |
-| `FileNotFoundException` | Excepción específica de archivo no encontrado |
-| `ConciliacionDocumentoService` | Guarda solicitud y acta de conciliación |
+| `FileUploadController` | Expone endpoints bajo `/api/files`. |
+| `FileStorageService` | Guarda, carga, lista archivos y directorios. |
+| `FileStorageException` | Excepción de almacenamiento. |
+| `FileNotFoundException` | Excepción de archivo o directorio no encontrado. |
+| `ConciliacionDocumentoService` | Usa almacenamiento para solicitud y acta PDF de conciliación. |
 
 ---
 
-## 3. Endpoints de archivos
+## 3. Configuración
 
-El controller expone:
+El directorio raíz se configura mediante:
 
-- carga individual;
-- carga múltiple;
-- descarga por ruta;
-- listado de archivos;
-- listado de directorios.
+```properties
+file.upload-dir
+```
 
-Todos los endpoints requieren usuario autenticado.
+Al iniciar, `FileStorageService` normaliza la ruta, crea el directorio si no existe y lo usa como raíz de almacenamiento.
 
 ---
 
-## 4. Carga individual
+## 4. Carga individual y múltiple
 
-Endpoint:
+La carga individual usa:
 
 ```http
 POST /api/files/upload
 ```
 
-Parámetros:
-
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `file` | `MultipartFile` | Archivo a cargar |
-| `path` | texto opcional | Subdirectorio destino |
-
-La respuesta incluye información del archivo almacenado.
-
----
-
-## 5. Carga múltiple
-
-Endpoint:
+La carga múltiple usa:
 
 ```http
 POST /api/files/upload-multiple
 ```
 
-Parámetros:
+Ambos endpoints reciben `MultipartFile` y un `path` opcional. Si se envía `path`, el archivo se almacena bajo ese subdirectorio relativo.
 
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `files` | `MultipartFile[]` | Archivos a cargar |
-| `path` | texto opcional | Subdirectorio destino |
-
-La respuesta es una lista con resultado por archivo.
+La carga múltiple registra un resultado por archivo y permite respuestas mixtas de éxito y error dentro de la misma lista.
 
 ---
 
-## 6. Descarga
+## 5. Descarga y listado
 
-Endpoint:
+El controller expone:
 
 ```http
 GET /api/files/download/**
-```
-
-El path posterior a `/download/` representa la ruta relativa del archivo solicitado.
-
----
-
-## 7. Listado de archivos y directorios
-
-Endpoints:
-
-```http
 GET /api/files/list
 GET /api/files/list/{subDir}
 GET /api/files/directories
 ```
 
-Estos endpoints permiten consultar nombres de archivos y directorios disponibles bajo la raíz configurada del almacenamiento.
+La descarga retorna un `Resource`. El listado de archivos retorna nombres de archivo del directorio solicitado. El listado de directorios recorre la raíz configurada y devuelve rutas relativas de directorios.
 
 ---
 
-## 8. Seguridad documental
+## 6. Seguridad de rutas
 
-`FileStorageService` valida rutas relativas para evitar accesos fuera del directorio permitido. La configuración del almacenamiento se define por propiedades del backend.
+`FileStorageService` aplica las siguientes reglas:
+
+- limpia nombres de archivo con `StringUtils.cleanPath`;
+- rechaza nombres de archivo que contengan `..`;
+- rechaza subdirectorios que contengan `..`;
+- normaliza rutas antes de almacenar o cargar;
+- crea directorios si son necesarios.
+
+El contrato funcional espera rutas relativas bajo la raíz configurada de almacenamiento.
 
 ---
 
-## 9. Uso en conciliación
+## 7. Validación de tipo documental
 
-El módulo de conciliación usa almacenamiento documental para:
+El almacenamiento genérico no valida extensión o MIME type de forma funcional. Es decir, `/api/files/upload` y `/api/files/upload-multiple` guardan el archivo recibido si supera las validaciones de ruta.
 
-- guardar solicitud de conciliación;
-- guardar acta de finalización;
-- conservar rutas en la entidad `Conciliacion`.
+Las reglas de tipo documental se aplican en el módulo que usa el archivo. Por ejemplo, `ConciliacionDocumentoService` exige PDF para solicitud y acta.
 
-La finalización de conciliación exige acta y registra su ruta antes de devolver la respuesta.
+---
+
+## 8. Rutas lógicas usadas por módulos
+
+Los módulos funcionales usan rutas lógicas sobre el almacenamiento:
+
+| Módulo | Ruta lógica |
+|---|---|
+| Consultas | Directorios asociados al id de la consulta. |
+| Seguimientos - tarea | `tareas-{seguimientoId}-documentos` |
+| Seguimientos - respuesta | `tareas-{seguimientoId}-respuestas-{respuestaId}` |
+| Conciliación - solicitud | `conciliacion/{id}/solicitud.pdf` |
+| Conciliación - acta | `conciliacion/{id}/acta.pdf` |
+
+Estas rutas se usan como contrato lógico entre backend, frontend y almacenamiento.

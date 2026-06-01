@@ -1,6 +1,6 @@
 # API - Autenticación
 
-Este documento describe los endpoints de autenticación y gestión de contraseña.
+Este documento describe el contrato HTTP implementado para autenticación, sesión actual, cierre de sesión y gestión de contraseña.
 
 Base path:
 
@@ -10,42 +10,41 @@ Base path:
 
 ## Resumen de endpoints
 
-| Método | Ruta | Autenticación | Uso |
+| Método | Ruta | Acceso configurado | Uso |
 |---|---|---|---|
-| POST | `/api/auth/login` | Pública | Inicia sesión y crea cookie de autenticación. |
-| GET | `/api/auth/me` | Requiere sesión | Consulta usuario autenticado. |
-| POST | `/api/auth/logout` | Pública | Cierra sesión eliminando la cookie. |
-| PATCH | `/api/auth/cambiar-password` | Requiere sesión | Cambia contraseña del usuario autenticado. |
-| POST | `/api/auth/solicitar-recuperacion` | Pública | Solicita recuperación de contraseña. |
-| POST | `/api/auth/restablecer-password` | Pública | Restablece contraseña mediante token válido. |
+| `POST` | `/api/auth/login` | Público | Autentica credenciales y crea la cookie de acceso. |
+| `GET` | `/api/auth/me` | Autenticado | Retorna el usuario asociado a la sesión actual. |
+| `POST` | `/api/auth/logout` | Público | Expira la cookie de acceso. |
+| `PATCH` | `/api/auth/cambiar-password` | Autenticado | Actualiza la contraseña del usuario autenticado. |
+| `POST` | `/api/auth/solicitar-recuperacion` | Público | Procesa una solicitud de recuperación. |
+| `POST` | `/api/auth/restablecer-password` | Público | Actualiza la contraseña mediante un token de recuperación vigente. |
 
 ## Cookie de autenticación
 
-Nombre de cookie:
+Al completar el login, el backend entrega el JWT en una cookie HTTP denominada:
 
 ```text
 access_token
 ```
 
-Características:
-
-| Atributo | Descripción |
+| Atributo | Valor o fuente de configuración |
 |---|---|
-| `HttpOnly` | La cookie no se lee desde JavaScript. |
-| `Secure` | Configurable desde backend. |
-| `SameSite` | Configurable desde backend. |
-| `Path` | `/`. |
-| `Max-Age` | Definido por backend. |
+| `HttpOnly` | `true` |
+| `Secure` | Propiedad `app.auth.cookie.secure`, configurada desde `AUTH_COOKIE_SECURE`; valor predeterminado `true`. |
+| `SameSite` | Propiedad `app.auth.cookie.same-site`, configurada desde `AUTH_COOKIE_SAME_SITE`; valor predeterminado `None`. |
+| `Path` | `/` |
+| `Max-Age` en login | `3600` segundos. |
+| `Max-Age` en logout | `0` segundos. |
 
-El frontend no debe manejar manualmente el token. Debe usar:
+Las solicitudes frontend que requieren sesión incluyen la cookie mediante:
 
 ```javascript
 credentials: "include"
 ```
 
-## POST `/api/auth/login`
+## `POST /api/auth/login`
 
-Inicia sesión con credenciales de usuario.
+Autentica al usuario y establece la cookie `access_token`.
 
 ### Request
 
@@ -55,52 +54,40 @@ Content-Type:
 application/json
 ```
 
-Body:
-
 ```json
 {
-  "username": "<correo-del-usuario>",
-  "password": "<contraseña-del-usuario>"
+  "username": "usuario@dominio.com",
+  "password": "contraseña"
 }
 ```
 
-### Validaciones
+### Validación y autenticación
 
-| Campo | Regla |
+| Dato o condición | Comportamiento implementado |
 |---|---|
-| `username` | Obligatorio. Se normaliza como correo. |
-| `password` | Obligatorio. |
+| `username` | Obligatorio mediante `@NotBlank`; `LoginValidator` lo normaliza como correo antes de buscar el usuario. |
+| `password` | Obligatorio mediante `@NotBlank` y validación del servicio. |
+| Usuario | Debe existir y estar activo. |
+| Rol | Debe estar asociado y activo. |
+| Perfil actual | Debe resolverse como perfil activo. |
+| Contraseña | Se verifica mediante `PasswordEncoder.matches(...)`. |
 
-### Reglas de negocio
-
-El backend valida:
-
-- usuario existente;
-- usuario activo;
-- rol activo;
-- perfil real asociado activo;
-- contraseña correcta.
-
-Si la autenticación es exitosa:
-
-- genera token JWT;
-- devuelve cookie `access_token`;
-- retorna datos del usuario y permisos.
+El formulario web de login valida adicionalmente el formato de correo antes de ejecutar la petición.
 
 ### Response `200 OK`
 
-Headers:
+Header de sesión:
 
 ```text
-Set-Cookie: access_token=<token>; HttpOnly; Path=/; ...
+Set-Cookie: access_token=<jwt>; HttpOnly; Secure=<configurable>; SameSite=<configurable>; Path=/; Max-Age=3600
 ```
 
-Body:
+Body (`LoginResponseDTO`):
 
 ```json
 {
   "usuarioId": 1,
-  "username": "<correo-del-usuario>",
+  "username": "usuario@dominio.com",
   "rolId": 1,
   "rolNombre": "Nombre del rol",
   "perfilId": 1,
@@ -111,22 +98,21 @@ Body:
 }
 ```
 
-### Errores esperados
+Los permisos de la respuesta corresponden a permisos activos del rol.
 
-| Estado | Causa |
+### Respuestas de validación o negocio
+
+| Estado | Situación procesada |
 |---|---|
-| `400 Bad Request` | Campos obligatorios ausentes o credenciales inválidas. |
-| `400 Bad Request` | Usuario, rol o perfil inactivo. |
+| `400 Bad Request` | Datos obligatorios inválidos, credenciales no válidas o estado de usuario, rol o perfil que no permite autenticarse. |
 
-## GET `/api/auth/me`
+## `GET /api/auth/me`
 
-Consulta el usuario autenticado a partir de la cookie de sesión.
+Retorna la información del usuario autenticado. Spring Security exige una autenticación establecida por el filtro JWT antes de acceder al controller.
 
 ### Request
 
-No requiere body.
-
-El frontend debe enviar:
+No requiere body. La cookie se envía con:
 
 ```javascript
 credentials: "include"
@@ -134,10 +120,12 @@ credentials: "include"
 
 ### Response `200 OK`
 
+Body (`UsuarioSistemaDTO`):
+
 ```json
 {
   "id": 1,
-  "username": "<correo-del-usuario>",
+  "username": "usuario@dominio.com",
   "activo": true,
   "rolId": 1,
   "rolNombre": "Nombre del rol",
@@ -149,137 +137,97 @@ credentials: "include"
 }
 ```
 
-### Errores esperados
+Los permisos expuestos son permisos activos del rol y se ordenan por nombre en el mapper de usuario.
 
-| Estado | Causa |
+### Respuesta de seguridad
+
+| Estado | Situación procesada |
 |---|---|
-| `401 Unauthorized` | No existe sesión válida. |
-| `400 Bad Request` | Sesión inválida para un usuario no disponible. |
+| `401 Unauthorized` | La petición no establece autenticación válida mediante la cookie JWT. |
 
-## POST `/api/auth/logout`
+## `POST /api/auth/logout`
 
-Cierra sesión eliminando la cookie de autenticación.
-
-### Request
-
-No requiere body.
+Expira la cookie de autenticación en el navegador.
 
 ### Response `200 OK`
 
-No requiere body.
-
-Headers:
+El endpoint retorna respuesta sin body y envía:
 
 ```text
-Set-Cookie: access_token=; Max-Age=0; Path=/; ...
+Set-Cookie: access_token=; HttpOnly; Secure=<configurable>; SameSite=<configurable>; Path=/; Max-Age=0
 ```
 
-### Notas para frontend
+## `PATCH /api/auth/cambiar-password`
 
-Después de logout, el frontend debe limpiar estado local de usuario y redirigir a login o pantalla pública según el flujo de la aplicación.
-
-## PATCH `/api/auth/cambiar-password`
-
-Cambia la contraseña del usuario autenticado.
-
-### Autenticación
-
-Requiere sesión válida.
+Actualiza la contraseña del usuario autenticado.
 
 ### Request
 
-Content-Type:
-
-```text
-application/json
-```
-
-Body:
-
 ```json
 {
-  "passwordActual": "<contraseña-actual>",
-  "passwordNueva": "<contraseña-nueva>"
+  "passwordActual": "contraseña-actual",
+  "passwordNueva": "contraseña-nueva"
 }
 ```
 
-### Validaciones
+### Validaciones y reglas
 
-| Campo | Regla |
+| Campo o regla | Comportamiento implementado |
 |---|---|
-| `passwordActual` | Obligatoria. |
-| `passwordNueva` | Obligatoria. Debe tener entre 8 y 100 caracteres. |
-
-### Reglas de negocio
-
-El backend valida:
-
-- sesión válida;
-- contraseña actual correcta;
-- nueva contraseña con longitud válida;
-- nueva contraseña diferente a la actual.
-
-La nueva contraseña se almacena cifrada.
+| `passwordActual` | Obligatoria y debe coincidir con el hash almacenado. |
+| `passwordNueva` | Obligatoria; longitud entre 8 y 100 caracteres. |
+| Diferencia de contraseña | La nueva contraseña no puede coincidir con la actual. |
+| Persistencia | La nueva contraseña se codifica mediante BCrypt antes de guardarse en `password_hash`. |
 
 ### Response `204 No Content`
 
-No retorna cuerpo.
+No retorna body.
 
-### Errores esperados
+### Respuestas
 
-| Estado | Causa |
+| Estado | Situación procesada |
 |---|---|
-| `401 Unauthorized` | No existe sesión válida. |
-| `400 Bad Request` | Contraseña actual incorrecta. |
-| `400 Bad Request` | Nueva contraseña inválida o igual a la actual. |
+| `401 Unauthorized` | No existe autenticación válida para ejecutar la operación. |
+| `400 Bad Request` | Datos inválidos, contraseña actual incorrecta o contraseña nueva igual a la actual. |
 
-## POST `/api/auth/solicitar-recuperacion`
+## `POST /api/auth/solicitar-recuperacion`
 
-Solicita el proceso de recuperación de contraseña.
+Inicia el flujo de recuperación asociado a un correo.
 
 ### Request
 
-Content-Type:
-
-```text
-application/json
-```
-
-Body:
+El DTO recibe `username` y acepta `email` como alias JSON:
 
 ```json
 {
-  "username": "<correo-del-usuario>"
+  "username": "usuario@dominio.com"
 }
 ```
 
-También se acepta alias:
+o:
 
 ```json
 {
-  "email": "<correo-del-usuario>"
+  "email": "usuario@dominio.com"
 }
 ```
 
-### Validaciones
+### Validación y procesamiento
 
-| Campo | Regla |
+| Dato o condición | Comportamiento implementado |
 |---|---|
-| `username` / `email` | Obligatorio. Debe tener formato de correo. |
+| `username` / `email` | Obligatorio y con formato de correo mediante `@Email`. |
+| Correo recibido | Se normaliza antes de consultar el usuario. |
+| Usuario, rol y perfil | Cuando los tres se encuentran activos, se genera el token y se envía el correo. |
+| Respuesta HTTP | Conserva el mismo mensaje de confirmación para toda solicitud válida procesada. |
 
-### Reglas de seguridad
+Cuando corresponde enviar la recuperación:
 
-El endpoint devuelve un mensaje genérico para no revelar si el correo existe.
-
-Si el usuario existe y puede recuperar contraseña:
-
-- se invalidan tokens anteriores;
-- se genera token seguro;
-- se guarda únicamente el hash del token;
-- se genera enlace de recuperación;
-- se envía correo con instrucciones.
-
-Si el usuario no existe o no puede recuperar contraseña, el endpoint conserva la respuesta genérica.
+1. se marcan como usados los tokens activos anteriores del usuario;
+2. se genera un token aleatorio seguro;
+3. se persiste únicamente su hash SHA-256;
+4. se construye el enlace con `app.frontend.reset-password-url`;
+5. se envía el correo HTML de recuperación.
 
 ### Response `200 OK`
 
@@ -289,59 +237,37 @@ Si el usuario no existe o no puede recuperar contraseña, el endpoint conserva l
 }
 ```
 
-### Errores esperados
+### Respuesta de validación
 
-| Estado | Causa |
+| Estado | Situación procesada |
 |---|---|
 | `400 Bad Request` | Correo ausente o con formato inválido. |
 
-## POST `/api/auth/restablecer-password`
+## `POST /api/auth/restablecer-password`
 
-Restablece contraseña mediante token de recuperación válido.
+Actualiza la contraseña utilizando el token recibido en el enlace de recuperación.
 
 ### Request
 
-Content-Type:
-
-```text
-application/json
-```
-
-Body:
-
 ```json
 {
-  "token": "<token-de-recuperacion>",
-  "passwordNueva": "<nueva-contraseña>",
-  "confirmarPassword": "<confirmacion-de-contraseña>"
+  "token": "token-recibido",
+  "passwordNueva": "contraseña-nueva",
+  "confirmarPassword": "contraseña-nueva"
 }
 ```
 
-### Validaciones
+### Validaciones y reglas
 
-| Campo | Regla |
+| Campo o regla | Comportamiento implementado |
 |---|---|
-| `token` | Obligatorio. |
-| `passwordNueva` | Obligatoria. Debe tener entre 8 y 100 caracteres. |
-| `confirmarPassword` | Obligatoria. Debe coincidir con `passwordNueva`. |
-
-### Reglas de negocio
-
-El backend valida:
-
-- token existente y activo;
-- token no expirado;
-- usuario activo;
-- rol activo;
-- perfil activo;
-- nueva contraseña diferente a la actual;
-- confirmación igual a la nueva contraseña.
-
-Después de restablecer:
-
-- cifra la nueva contraseña;
-- marca el token como usado;
-- guarda el usuario actualizado.
+| `token` | Obligatorio; se transforma a hash SHA-256 para localizar un token no usado. |
+| `passwordNueva` | Obligatoria; longitud entre 8 y 100 caracteres. |
+| `confirmarPassword` | Obligatoria y debe coincidir con la contraseña nueva. |
+| Vigencia del token | Se valida su fecha de expiración; la configuración actual define `15` minutos. |
+| Estado del usuario | Usuario, rol y perfil asociado deben encontrarse activos. |
+| Contraseña nueva | Debe diferir de la contraseña vigente y se codifica mediante BCrypt. |
+| Consumo del token | Al restablecer exitosamente, el token se marca como usado y registra `fechaUso`. |
 
 ### Response `200 OK`
 
@@ -351,62 +277,15 @@ Después de restablecer:
 }
 ```
 
-### Errores esperados
+### Respuestas de negocio o validación
 
-| Estado | Causa |
+| Estado | Situación procesada |
 |---|---|
-| `400 Bad Request` | Token inválido, usado o expirado. |
-| `400 Bad Request` | Nueva contraseña inválida. |
-| `400 Bad Request` | Confirmación no coincide. |
-| `400 Bad Request` | Nueva contraseña igual a la actual. |
+| `400 Bad Request` | Token inválido, usado o expirado; datos de contraseña inválidos; confirmación diferente; contraseña nueva igual a la vigente. |
 
-## Manejo de seguridad desde frontend
+## Relación con seguridad y frontend
 
-### Peticiones autenticadas
-
-Para rutas protegidas:
-
-```javascript
-await fetch(`${API_URL_BASE}/auth/me`, {
-  method: "GET",
-  credentials: "include",
-});
-```
-
-### Login
-
-Para login:
-
-```javascript
-await fetch(`${API_URL_BASE}/auth/login`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  credentials: "include",
-  body: JSON.stringify({
-    username: "<correo-del-usuario>",
-    password: "<contraseña-del-usuario>"
-  })
-});
-```
-
-### Logout
-
-Para logout:
-
-```javascript
-await fetch(`${API_URL_BASE}/auth/logout`, {
-  method: "POST",
-  credentials: "include"
-});
-```
-
-## Notas importantes
-
-- El frontend no debe almacenar manualmente el token.
-- El token viaja mediante cookie `HttpOnly`.
-- Las rutas protegidas deben usar `credentials: "include"`.
-- La recuperación de contraseña no revela si el correo existe.
-- Los tokens de recuperación se almacenan como hash, no como valor real.
-- No se deben documentar tokens reales ni enlaces reales de recuperación.
+- `SecurityConfig` declara los cuatro endpoints `POST` públicos y protege `/me` y `/cambiar-password`.
+- `JwtAuthenticationFilter` lee la cookie y establece la autenticación con permisos activos del rol.
+- Los contratos de error JSON generados por seguridad se detallan en `doc/05-estandar-api-errores.md`.
+- El flujo visible de pantallas se documenta en `doc/frontend/autenticacion-sesion.md`.

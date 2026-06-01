@@ -1,146 +1,371 @@
 # Backend - Módulo de conciliaciones y reuniones
 
-## Propósito del módulo
+## Propósito
 
-El módulo de conciliaciones administra solicitudes de conciliación asociadas a consultas jurídicas, asignación de estudiante y conciliador, programación de reuniones, historial de reprogramaciones, notificaciones a destinatarios y finalización con acta. Su diseño integra reglas de negocio del consultorio jurídico con trazabilidad documental y control de estados.
+El módulo de conciliaciones administra el flujo conciliatorio que nace desde una consulta jurídica. Permite crear conciliaciones con solicitud PDF, asignar estudiante y conciliador, programar y reprogramar reuniones, registrar historial operativo, notificar destinatarios, finalizar con acta PDF y desactivar registros cuando el flujo administrativo lo requiere.
 
-## Fuentes de código revisadas
+La implementación se apoya en reglas de negocio, permisos, alcance por perfil, almacenamiento documental y control de estados técnicos.
 
-| Tipo | Archivos principales |
+---
+
+## Fuentes de código principales
+
+| Capa | Archivos relevantes |
 |---|---|
 | Controller | `ConciliacionController` |
-| Servicio fachada | `ConciliacionService` |
-| Escritura | `ConciliacionCommandService`, `ReunionConciliacionCommandService` |
-| Lectura | `ConciliacionQueryService` |
-| Validadores | `ConciliacionValidator`, `ReunionConciliacionValidator` |
-| Acceso | `ConciliacionAccessService`, `ConciliacionAlcanceService` |
+| Fachada | `ConciliacionService` |
+| Escritura de conciliación | `ConciliacionCommandService` |
+| Lectura de conciliación | `ConciliacionQueryService` |
+| Validación | `ConciliacionValidator`, `ReunionConciliacionValidator` |
+| Acceso y alcance | `ConciliacionAccessService`, `ConciliacionAlcanceService` |
 | Asignación | `ConciliacionAsignacionService` |
+| Relaciones | `ConciliacionRelacionService`, `ReunionConciliacionRelacionService` |
 | Documentos | `ConciliacionDocumentoService` |
-| Reunión | `ReunionConciliacionService`, `ReunionConciliacionHistorialService`, `ReunionConciliacionMapper` |
-| Notificaciones | `ReunionConciliacionNotificacionService`, `ReunionConciliacionRecordatorioService`, `ReunionConciliacionEnvioNotificacionService`, `ReunionConciliacionNotificacionEstadoService`, `ReunionConciliacionDestinatarioService` |
+| Reuniones | `ReunionConciliacionCommandService`, `ReunionConciliacionService`, `ReunionConciliacionMapper` |
+| Historial | `ReunionConciliacionHistorialService` |
+| Notificaciones | `ReunionConciliacionNotificacionService`, `ReunionConciliacionRecordatorioService`, `ReunionConciliacionDestinatarioService`, `ReunionConciliacionEnvioNotificacionService`, `ReunionConciliacionNotificacionEstadoService` |
 | Scheduler | `ReunionConciliacionNotificacionScheduler` |
-| DTOs | `ConciliacionResponseDTO`, `ConciliacionDetalleResponseDTO`, `ReunionConciliacionRequestDTO`, `ReunionConciliacionResponseDTO` |
 | Entidades | `Conciliacion`, `EstadoConciliacion`, `ReunionConciliacion`, `ReunionConciliacionHistorial`, `ReunionConciliacionNotificacion` |
 | Repositorios | `ConciliacionRepository`, `EstadoConciliacionRepository`, `ReunionConciliacionRepository`, `ReunionConciliacionHistorialRepository`, `ReunionConciliacionNotificacionRepository` |
 
-## Estados técnicos de conciliación
+---
 
-Los códigos técnicos definidos son:
+## Modelo funcional
 
-| Código | Descripción |
+La conciliación se relaciona con:
+
+- una consulta origen;
+- un estudiante asignado a la conciliación;
+- un conciliador asignado;
+- un estado funcional administrado en `estado_conciliacion`;
+- un usuario solicitante;
+- una solicitud PDF;
+- un acta PDF cuando finaliza;
+- una reunión vigente opcional;
+- historial de programación y reprogramación;
+- notificaciones de reunión.
+
+La conciliación no duplica personas. El detalle toma consultante, partes y contrapartes desde la consulta origen.
+
+---
+
+## Estados técnicos
+
+| Estado | Descripción |
 |---|---|
-| `EN_ESPERA` | Conciliación creada, pero sin responsables mínimos completos. |
-| `ESPERANDO_REUNION` | Tiene responsables mínimos y está lista para programar reunión. |
-| `REUNION_PROGRAMADA` | Tiene reunión programada. |
+| `EN_ESPERA` | Conciliación activa sin responsables mínimos completos. |
+| `ESPERANDO_REUNION` | Conciliación con estudiante y conciliador, lista para reunión. |
+| `REUNION_PROGRAMADA` | Conciliación con reunión vigente. |
 | `COMPLETO_CONCILIADO` | Finalizada con acuerdo conciliado. |
-| `COMPLETO_NO_CONCILIADO` | Finalizada sin conciliación. |
+| `COMPLETO_NO_CONCILIADO` | Finalizada sin acuerdo. |
 
-`ConciliacionValidator` distingue estados finalizados y no finalizados para controlar creación, cierre de consulta y cambios de estado.
+`ConciliacionValidator` diferencia estados finalizados y no finalizados mediante códigos técnicos. El backend normaliza códigos recibidos antes de resolver el estado activo.
+
+---
 
 ## Creación desde consulta
 
-La conciliación se crea desde una consulta existente mediante solicitud PDF. El backend valida:
+`ConciliacionCommandService.crearDesdeConsulta` crea la conciliación desde una consulta existente y una solicitud PDF.
 
-1. Permiso para crear conciliación.
-2. Consulta existente.
-3. Consulta no cerrada ni archivada.
-4. Ausencia de conciliación activa no finalizada para la misma consulta.
-5. Selección de estudiante por reglas de asignación.
-6. Selección de conciliador por carga.
-7. Solicitante actual.
-8. Estado calculado según asignación.
-9. Guardado del documento de solicitud.
+Flujo implementado:
 
-El documento se guarda después del primer `save` porque la ruta depende del id de conciliación.
+1. Valida permiso y alcance para crear conciliación.
+2. Obtiene la consulta origen.
+3. Valida que la consulta no esté cerrada ni archivada.
+4. Valida que no exista una conciliación activa no finalizada para la misma consulta.
+5. Selecciona estudiante para conciliación.
+6. Selecciona conciliador disponible.
+7. Registra el usuario solicitante.
+8. Crea la conciliación activa.
+9. Calcula estado inicial según responsables.
+10. Guarda la conciliación para obtener id.
+11. Guarda la solicitud PDF en ruta dependiente del id.
+12. Devuelve `ConciliacionResponseDTO`.
 
-## Asignación de responsables
+El documento se guarda después del primer guardado porque la ruta lógica depende del identificador de conciliación.
 
-El módulo maneja dos responsables específicos:
+---
 
-- estudiante habilitado para conciliación;
-- conciliador activo.
+## Asignación automática
 
-La asignación puede ser automática al crear o manual mediante endpoints específicos. Si falta alguno de los responsables, el estado puede permanecer en `EN_ESPERA`. Si ambos existen, puede pasar a `ESPERANDO_REUNION`.
+`ConciliacionAsignacionService` selecciona responsables al crear la conciliación.
 
-## Programación de reunión
+### Estudiante
 
-La reunión se programa mediante `ReunionConciliacionRequestDTO`, que contiene:
+El backend intenta usar el estudiante de la consulta cuando:
 
-| Campo | Regla |
-|---|---|
-| `fechaReunion` | Obligatoria. Debe ser futura. |
-| `sedeId` | Obligatoria. Debe corresponder a sede activa. |
-| `observaciones` | Opcional, máximo 300 caracteres. |
+- existe estudiante asociado a la consulta;
+- está activo;
+- tiene habilitada la bandera `conciliacion=true`.
 
-Al programar reunión:
+Si no se puede usar ese estudiante, selecciona un estudiante activo habilitado para conciliación con menor carga de conciliaciones activas no finalizadas.
 
-1. Se valida que la conciliación no esté finalizada.
-2. Se valida que la consulta permita operación.
-3. Se exige estudiante y conciliador.
-4. Se exige fecha futura.
-5. Se guarda reunión.
-6. Se registra historial.
-7. Se crean notificaciones inmediatas y recordatorios.
-8. El estado pasa a `REUNION_PROGRAMADA`.
+### Conciliador
 
-## Reprogramación de reunión
+El conciliador se selecciona entre conciliadores activos, priorizando menor carga de conciliaciones activas no finalizadas.
 
-La reprogramación usa `PUT /api/conciliaciones/{id}/reunion`. El backend cancela notificaciones pendientes anteriores y registra nuevo historial. Las notificaciones ya enviadas permanecen como historial.
+Este comportamiento permite iniciar conciliaciones aun cuando falte algún responsable. En ese caso el estado queda `EN_ESPERA`.
 
-## Notificaciones de reunión
+---
 
-El sistema genera notificaciones a destinatarios de la reunión y recordatorios. Los componentes principales son:
+## Asignación manual de responsables
 
-| Servicio | Función |
-|---|---|
-| `ReunionConciliacionNotificacionService` | Orquesta creación, envío y cancelación de pendientes. |
-| `ReunionConciliacionRecordatorioService` | Crea recordatorios programados. |
-| `ReunionConciliacionEnvioNotificacionService` | Envía notificaciones pendientes. |
-| `ReunionConciliacionNotificacionEstadoService` | Crea, envía o desactiva notificaciones. |
-| `ReunionConciliacionDestinatarioService` | Obtiene destinatarios con correo. |
-| `ReunionConciliacionNotificacionScheduler` | Procesa pendientes por fecha. |
+### Estudiante
 
-## Finalización
+La asignación manual de estudiante valida:
 
-La finalización se realiza con acta PDF mediante:
+- permiso funcional;
+- alcance administrativo o conciliador asignado;
+- conciliación activa;
+- conciliación no finalizada;
+- consulta operativa;
+- estudiante activo;
+- estudiante habilitado para conciliación.
 
-`POST /api/conciliaciones/{id}/finalizar`
+Después de asignar estudiante, el estado se recalcula. Si ya existe reunión, se conserva `REUNION_PROGRAMADA`; si no existe reunión, el estado depende de responsables mínimos.
+
+### Conciliador
+
+La asignación manual de conciliador está restringida al alcance administrativo. El conciliador debe estar activo. También recalcula el estado con la misma regla de conservación de reunión programada.
+
+---
+
+## Cambio de estado no final
+
+`ConciliacionCommandService.cambiarEstado` permite cambiar estados no finalizados dentro del flujo operativo.
+
+Reglas aplicadas por `ConciliacionValidator`:
+
+- conciliación activa y no finalizada;
+- consulta asociada operativa;
+- estado destino obligatorio;
+- estado destino activo en catálogo;
+- no se permite estado final;
+- `EN_ESPERA` no se asigna manualmente;
+- no se permite repetir estado;
+- `ESPERANDO_REUNION` exige estudiante y conciliador;
+- `REUNION_PROGRAMADA` exige estudiante, conciliador y reunión registrada.
+
+Los estados finales se gestionan exclusivamente por finalización con acta.
+
+---
+
+## Finalización con acta
+
+`ConciliacionCommandService.finalizar` cierra funcionalmente la conciliación.
+
+Validaciones:
+
+- permiso y alcance para finalizar;
+- conciliación activa;
+- conciliación no finalizada;
+- consulta no cerrada ni archivada;
+- estado final permitido;
+- estudiante y conciliador asignados;
+- acta PDF obligatoria y válida.
+
+Efectos:
+
+- guarda el acta en `conciliacion/{id}/acta.pdf`;
+- asigna estado final;
+- registra `fechaFinalizacion`;
+- cancela notificaciones pendientes de reunión;
+- conserva notificaciones enviadas como historial.
+
+---
+
+## Reemplazo de solicitud
+
+`ConciliacionCommandService.reemplazarSolicitud` permite reemplazar la solicitud PDF.
 
 Reglas:
 
-- Se requiere permiso de gestión o conclusión.
-- La conciliación debe estar activa.
-- La consulta no debe estar cerrada ni archivada.
-- El estado final debe ser `COMPLETO_CONCILIADO` o `COMPLETO_NO_CONCILIADO`.
-- Debe existir estudiante y conciliador.
-- Debe guardarse acta.
-- Se registra fecha de finalización.
-- Se cancelan notificaciones pendientes de reunión.
+- permiso `GESTIONAR_CONCILIACIONES`;
+- alcance administrativo;
+- conciliación activa no finalizada;
+- consulta operativa;
+- archivo PDF válido.
+
+La ruta lógica se mantiene como `conciliacion/{id}/solicitud.pdf`.
+
+---
 
 ## Desactivación lógica
 
-`DELETE /api/conciliaciones/{id}` desactiva la conciliación. No representa finalización con acta. Al desactivar, también se cancelan notificaciones pendientes para evitar recordatorios futuros de una conciliación inactiva.
+`ConciliacionCommandService.desactivar` realiza salida administrativa del registro activo.
+
+Reglas:
+
+- permiso `GESTIONAR_CONCILIACIONES`;
+- alcance administrativo;
+- conciliación activa;
+- conciliación no finalizada;
+- consulta operativa.
+
+Efectos:
+
+- marca `activo=false`;
+- cancela notificaciones pendientes;
+- no asigna estado final;
+- no registra acta;
+- no registra `fechaFinalizacion`.
+
+La desactivación no equivale a finalización conciliatoria.
+
+---
+
+## Reunión de conciliación
+
+`ReunionConciliacion` representa la reunión vigente de una conciliación.
+
+Características técnicas:
+
+- relación uno a uno con `Conciliacion`;
+- usa `conciliacion_id` como identificador;
+- una conciliación solo tiene una reunión vigente;
+- la reprogramación actualiza la misma reunión;
+- el historial conserva eventos de programación y reprogramación.
+
+### Programación
+
+Al programar se valida:
+
+- permiso `PROGRAMAR_REUNIONES_CONCILIACION`;
+- alcance administrador o conciliador asignado;
+- conciliación activa y no finalizada;
+- consulta operativa;
+- estudiante y conciliador asignados;
+- fecha futura;
+- sede activa;
+- inexistencia de reunión previa.
+
+Efectos:
+
+- crea reunión;
+- asegura estado `REUNION_PROGRAMADA`;
+- registra historial `PROGRAMACION`;
+- crea notificaciones inmediatas y recordatorios.
+
+### Reprogramación
+
+Al reprogramar se valida:
+
+- permiso `REPROGRAMAR_REUNIONES_CONCILIACION`;
+- alcance administrador o conciliador asignado;
+- reunión existente;
+- fecha futura;
+- sede activa;
+- cambio real en fecha, sede u observaciones.
+
+Efectos:
+
+- actualiza reunión vigente;
+- asegura estado `REUNION_PROGRAMADA`;
+- registra historial `REPROGRAMACION`;
+- cancela notificaciones pendientes anteriores;
+- crea nuevas notificaciones y recordatorios.
+
+---
+
+## Historial de reunión
+
+`ReunionConciliacionHistorialService` registra:
+
+- programación inicial;
+- reprogramación.
+
+El historial conserva:
+
+- tipo de evento;
+- fecha anterior y nueva;
+- sede anterior y nueva;
+- observaciones anteriores y nuevas;
+- usuario que ejecutó el evento;
+- fecha del evento.
+
+La API actual no expone endpoint independiente para listar historial; el historial queda registrado en backend.
+
+---
+
+## Notificaciones de reunión
+
+`ReunionConciliacionNotificacionService` administra notificaciones asociadas a programación y reprogramación.
+
+### Destinatarios
+
+Los destinatarios se obtienen desde la consulta:
+
+- consultante;
+- partes;
+- contrapartes.
+
+Los correos se normalizan y se deduplican por email. Los tipos técnicos de destinatario son:
+
+- `CONSULTANTE`;
+- `PARTE`;
+- `CONTRAPARTE`;
+- `ADMINISTRATIVO`.
+
+`ADMINISTRATIVO` se usa para alertas administrativas cuando no hay destinatarios notificables o cuando se registran errores operativos.
+
+### Momentos
+
+| Momento | Uso |
+|---|---|
+| `INMEDIATA` | Al programar o reprogramar. |
+| `RECORDATORIO` | Un día antes de la reunión, si esa fecha aún está en el futuro. |
+
+### Cancelación
+
+Se cancelan notificaciones pendientes cuando:
+
+- se reprograma la reunión;
+- se finaliza la conciliación;
+- se desactiva la conciliación.
+
+Las notificaciones enviadas permanecen como historial.
+
+### Scheduler
+
+`ReunionConciliacionNotificacionScheduler` procesa pendientes con cron configurable. El valor por defecto es:
+
+```text
+0 0 * * * *
+```
+
+Este valor ejecuta el procesamiento en el minuto cero de cada hora.
+
+---
+
+## Documentos PDF
+
+`ConciliacionDocumentoService` valida y guarda:
+
+| Documento | Momento | Ruta lógica |
+|---|---|---|
+| Solicitud | Creación o reemplazo | `conciliacion/{id}/solicitud.pdf` |
+| Acta | Finalización | `conciliacion/{id}/acta.pdf` |
+
+Validaciones:
+
+- archivo obligatorio;
+- extensión `.pdf`;
+- `contentType=application/pdf` cuando viene informado.
+
+---
 
 ## Relación con cierre de consulta
 
-Una consulta no puede cerrarse si tiene conciliaciones activas en estados no finalizados:
+La consulta no puede cerrarse si tiene conciliaciones activas en estados no finalizados:
 
-- `EN_ESPERA`
-- `ESPERANDO_REUNION`
-- `REUNION_PROGRAMADA`
+- `EN_ESPERA`;
+- `ESPERANDO_REUNION`;
+- `REUNION_PROGRAMADA`.
 
-Los estados finalizados no bloquean el cierre.
+Las conciliaciones finalizadas no bloquean el cierre de consulta. Las conciliaciones inactivas tampoco bloquean porque las validaciones consideran conciliaciones activas.
 
-## Permisos
+---
 
-| Operación | Permiso |
-|---|---|
-| Ver conciliaciones | `VER_CONCILIACIONES` |
-| Crear, asignar conciliador, reemplazar solicitud, desactivar | `GESTIONAR_CONCILIACIONES` |
-| Programar reunión | `PROGRAMAR_REUNIONES_CONCILIACION` |
-| Reprogramar reunión | `REPROGRAMAR_REUNIONES_CONCILIACION` |
-| Concluir/finalizar | `CONCLUIR_CONCILIACIONES` o `GESTIONAR_CONCILIACIONES` |
+## Estadísticas relacionadas
 
-## Resumen funcional
-
-El módulo de conciliación implementa un flujo completo: solicitud, asignación, reunión, notificación, historial y finalización documental. El backend mantiene consistencia entre estados, responsables, documentos y notificaciones pendientes.
+`ConciliacionRepository` aporta agregaciones por periodo y estado. También contiene conteos de carga no finalizada usados para seleccionar estudiante y conciliador durante la asignación automática.

@@ -1,91 +1,147 @@
 # API - Procesos
 
+## Propósito
+
+La API de procesos expone las operaciones necesarias para registrar, consultar, actualizar, cambiar estado funcional y desactivar lógicamente los procesos asociados a consultas jurídicas. El proceso no maneja un alcance independiente: su visibilidad y operación se derivan de la consulta a la que pertenece.
+
+El contrato documentado en este archivo corresponde al código fuente actual del módulo `ProcesoController`, `ProcesoService`, `ProcesoCommandService`, `ProcesoQueryService`, `ProcesoValidator`, `ProcesoAccessService`, `ProcesoDTO`, `Proceso` y `EstadoProceso`.
+
 ## Base URL
 
-Todos los endpoints del módulo se exponen bajo:
+```text
+/api/procesos
+```
 
-`/api/procesos`
+## Seguridad efectiva
 
-El controller responsable es `ProcesoController`.
+Los endpoints están protegidos por permisos de Spring Security y por validaciones internas de alcance en `ProcesoAccessService`.
 
-## Seguridad
+| Operación | Permiso efectivo | Observación |
+|---|---|---|
+| Listar procesos | `VER_PROCESOS` | Aunque el controller acepta también `GESTIONAR_PROCESOS`, la validación interna de lectura exige `VER_PROCESOS`. |
+| Obtener proceso por id | `VER_PROCESOS` | También valida alcance sobre la consulta asociada. |
+| Crear proceso | `GESTIONAR_PROCESOS` | Estudiantes y conciliadores no gestionan procesos. |
+| Actualizar proceso | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
+| Cambiar estado funcional | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
+| Cambiar marca `activo` | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
+| Eliminar lógicamente | `GESTIONAR_PROCESOS` | Desactiva el proceso, no lo borra físicamente. |
 
-Los endpoints usan autorización por permisos con `@PreAuthorize`.
+El proceso hereda su alcance de la consulta. Por ello, aun teniendo el permiso general, el backend valida si el usuario puede acceder o gestionar la consulta asociada.
 
-| Permiso | Uso |
-|---|---|
-| `VER_PROCESOS` | Consulta de procesos. |
-| `GESTIONAR_PROCESOS` | Creación, edición, cambios de estado, activación y eliminación lógica. |
+## Alcance por perfil
+
+| Perfil | Lectura | Gestión |
+|---|---|---|
+| Administrativo autorizado | Según permisos. | Según permisos. |
+| Asesor | Puede acceder si la consulta está dentro de su alcance. | Puede gestionar si tiene permiso y la consulta está dentro de su alcance. |
+| Monitor | Puede acceder si la consulta está asignada al monitor. | Puede gestionar si tiene permiso y alcance. |
+| Estudiante | Puede consultar procesos de sus consultas si tiene permiso de lectura. | No puede crear, editar, cambiar estado ni desactivar procesos. |
+| Conciliador | No tiene alcance operativo sobre procesos en esta fase. | No puede gestionar procesos. |
 
 ## DTO principal
 
-`ProcesoDTO` es el contrato principal:
+`ProcesoDTO` es el contrato de entrada y salida.
 
-| Campo | Tipo | Obligatorio | Observación |
+| Campo | Tipo | Entrada | Regla |
 |---|---|---|---|
-| `id` | Long | No en creación | Identificador del proceso. |
-| `numeroRadicado` | String | Condicional | Opcional si el estado es `PENDIENTE`; obligatorio si el estado es final. |
-| `departamentoId` | Long | Sí | Departamento del trámite. |
-| `consultaId` | Long | Sí | Consulta asociada. |
-| `especialidadId` | Long | No | Especialidad del órgano de control. |
-| `organoControlId` | Long | No | Órgano de control. Requerido cuando se informa especialidad. |
-| `estado` | EstadoProceso | No en creación | Controlado por endpoint de estado. |
-| `activo` | Boolean | No en creación | Controlado por endpoint de activo. |
+| `id` | Long | No en creación | En actualización debe coincidir con el id de la ruta si se envía. |
+| `numeroRadicado` | String | Opcional según estado | Puede ser nulo en `PENDIENTE`; para estados finales debe existir y tener 23 caracteres. |
+| `departamentoId` | Long | Obligatorio | Debe corresponder a un departamento activo. |
+| `consultaId` | Long | Obligatorio | La consulta asociada define alcance y debe permitir operación. No se puede cambiar en edición. |
+| `especialidadId` | Long | Opcional | Si se informa, debe estar activa y pertenecer al órgano de control indicado. |
+| `organoControlId` | Long | Opcional | Si hay especialidad, el órgano de control es obligatorio. |
+| `estado` | EstadoProceso | Respuesta / referencia | No se modifica por `POST` ni por `PUT`; se cambia por `PATCH /estado`. |
+| `activo` | Boolean | Respuesta / referencia | No se modifica por `POST` ni por `PUT`; se cambia por `PATCH /activo` o `DELETE`. |
 
-## Estados aceptados
+## Estados de proceso
 
-`EstadoProceso`:
+`EstadoProceso` contiene:
 
-- `PENDIENTE`
-- `SENTENCIA_FAVORABLE`
-- `SENTENCIA_DESFAVORABLE`
-- `DESISTIMIENTO`
-- `RECHAZO`
-- `PRESCRIPCION`
+```text
+PENDIENTE
+SENTENCIA_FAVORABLE
+SENTENCIA_DESFAVORABLE
+DESISTIMIENTO
+RECHAZO
+PRESCRIPCION
+```
 
-Todo estado diferente de `PENDIENTE` se considera final para efectos de radicado.
+El método `esFinal()` considera final todo estado distinto de `PENDIENTE`. Esa regla se usa para exigir radicado antes de registrar un resultado final.
 
 ## Listar procesos
 
-`GET /api/procesos`
+```http
+GET /api/procesos
+```
 
-Permisos:
+### Permiso efectivo
 
-- `VER_PROCESOS`
-- `GESTIONAR_PROCESOS`
+```text
+VER_PROCESOS
+```
 
-Respuesta: lista de `ProcesoDTO`.
+### Comportamiento
 
-Uso típico: mostrar procesos activos o consultables según alcance del usuario.
+El backend:
+
+1. valida permiso de lectura;
+2. consulta procesos activos;
+3. excluye procesos asociados a consultas archivadas;
+4. filtra cada registro según el alcance del usuario;
+5. retorna lista de `ProcesoDTO`.
+
+### Respuesta
+
+```json
+[
+  {
+    "id": 10,
+    "numeroRadicado": "12345678901234567890123",
+    "departamentoId": 1,
+    "consultaId": 15,
+    "especialidadId": 4,
+    "organoControlId": 2,
+    "estado": "SENTENCIA_FAVORABLE",
+    "activo": true
+  }
+]
+```
 
 ## Obtener proceso por id
 
-`GET /api/procesos/{id}`
+```http
+GET /api/procesos/{id}
+```
 
-Permisos:
+### Permiso efectivo
 
-- `VER_PROCESOS`
-- `GESTIONAR_PROCESOS`
+```text
+VER_PROCESOS
+```
 
-Parámetros:
+### Parámetros
 
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `id` | Long | Identificador del proceso. |
+| Parámetro | Tipo | Ubicación | Descripción |
+|---|---|---|---|
+| `id` | Long | Path | Identificador del proceso. |
 
-Respuesta: `ProcesoDTO`.
+### Comportamiento
+
+El backend valida permiso de lectura, verifica alcance sobre el proceso y retorna el registro activo siempre que no pertenezca a una consulta archivada.
 
 ## Crear proceso
 
-`POST /api/procesos`
+```http
+POST /api/procesos
+```
 
-Permiso:
+### Permiso
 
-- `GESTIONAR_PROCESOS`
+```text
+GESTIONAR_PROCESOS
+```
 
-Cuerpo: `ProcesoDTO`.
-
-Ejemplo de creación pendiente sin radicado:
+### Cuerpo
 
 ```json
 {
@@ -97,41 +153,44 @@ Ejemplo de creación pendiente sin radicado:
 }
 ```
 
-Reglas aplicadas:
+### Reglas aplicadas
 
 1. `id` no debe enviarse.
-2. `departamentoId` es obligatorio.
+2. `departamentoId` es obligatorio y debe estar activo.
 3. `consultaId` es obligatorio.
-4. El proceso se crea en estado `PENDIENTE`.
-5. `numeroRadicado` puede ser nulo cuando el proceso está pendiente.
-6. Si se informa radicado, debe tener 23 caracteres.
-7. Si se informa radicado, debe ser único.
-8. Si se informa especialidad, debe corresponder al órgano de control.
-9. La consulta asociada debe permitir operación operativa.
+4. La consulta asociada debe permitir operación operativa.
+5. El usuario debe tener permiso y alcance para crear proceso en esa consulta.
+6. El proceso se crea siempre con `estado = PENDIENTE`.
+7. El proceso se crea siempre con `activo = true`.
+8. `numeroRadicado` puede ser nulo o vacío en creación porque el estado inicial es `PENDIENTE`.
+9. Si se informa radicado, debe tener exactamente 23 caracteres.
+10. Si se informa radicado, debe ser único.
+11. Si se informa especialidad, debe informarse órgano de control.
+12. La especialidad debe pertenecer al órgano de control seleccionado.
 
-Respuesta: `201 Created` con `ProcesoDTO`.
+### Respuesta
+
+```http
+201 Created
+```
+
+con `ProcesoDTO`.
 
 ## Actualizar proceso
 
-`PUT /api/procesos/{id}`
+```http
+PUT /api/procesos/{id}
+```
 
-Permiso:
+### Permiso
 
-- `GESTIONAR_PROCESOS`
+```text
+GESTIONAR_PROCESOS
+```
 
-Cuerpo: `ProcesoDTO`.
+### Cuerpo
 
-Reglas:
-
-1. No se permite cambiar el `id`.
-2. No se permite cambiar la consulta asociada.
-3. La consulta asociada debe permitir operación operativa.
-4. El radicado se valida según el estado actual del proceso.
-5. Si se cambia el radicado, se valida unicidad.
-6. Si se informa especialidad, debe pertenecer al órgano de control.
-7. Deben existir cambios reales para actualizar.
-
-Ejemplo:
+El endpoint espera el DTO con los datos editables del proceso. No funciona como actualización parcial.
 
 ```json
 {
@@ -140,84 +199,146 @@ Ejemplo:
   "departamentoId": 1,
   "consultaId": 15,
   "organoControlId": 2,
-  "especialidadId": 4,
-  "estado": "PENDIENTE",
-  "activo": true
+  "especialidadId": 4
 }
 ```
 
+### Reglas aplicadas
+
+1. El usuario debe tener permiso de gestión y alcance sobre la consulta asociada.
+2. El proceso debe estar activo.
+3. No se permite cambiar el `id`.
+4. No se permite cambiar `consultaId`.
+5. La consulta asociada debe permitir operación operativa.
+6. El radicado se valida contra el estado funcional actual guardado en base de datos.
+7. Si el proceso ya está en un estado final, debe conservar radicado válido.
+8. Si se informa radicado, debe tener exactamente 23 caracteres.
+9. Si se informa radicado, debe conservar unicidad.
+10. El departamento debe estar activo.
+11. El órgano de control, si se informa, debe estar activo.
+12. La especialidad, si se informa, debe estar activa.
+13. La especialidad debe pertenecer al órgano de control seleccionado.
+14. Deben existir cambios reales para actualizar.
+
+### Campos no modificados por `PUT`
+
+`PUT /api/procesos/{id}` no modifica:
+
+- `estado`;
+- `activo`.
+
+El estado funcional se cambia con `PATCH /api/procesos/{id}/estado`. La marca de eliminación lógica se cambia con `PATCH /api/procesos/{id}/activo` o mediante `DELETE`.
+
 ## Cambiar estado funcional
 
-`PATCH /api/procesos/{id}/estado?estado=SENTENCIA_FAVORABLE`
+```http
+PATCH /api/procesos/{id}/estado?estado=SENTENCIA_FAVORABLE
+```
 
-Permiso:
+### Permiso
 
-- `GESTIONAR_PROCESOS`
+```text
+GESTIONAR_PROCESOS
+```
 
-Parámetros:
+### Parámetros
 
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `id` | Long | Identificador del proceso. |
-| `estado` | EstadoProceso | Nuevo estado funcional. |
+| Parámetro | Tipo | Ubicación | Descripción |
+|---|---|---|---|
+| `id` | Long | Path | Identificador del proceso. |
+| `estado` | EstadoProceso | Query | Nuevo estado funcional. |
 
-Reglas:
+### Reglas aplicadas
 
-1. El estado es obligatorio.
-2. No puede ser igual al estado actual.
-3. La consulta asociada debe permitir operación operativa.
-4. Si el estado nuevo es final, el proceso debe tener radicado válido.
-5. El radicado debe tener exactamente 23 caracteres.
+1. El usuario debe poder gestionar procesos.
+2. Estudiantes y conciliadores no pueden cambiar estados de procesos.
+3. El proceso debe estar activo.
+4. La consulta asociada debe permitir operación operativa.
+5. El estado es obligatorio.
+6. El nuevo estado no puede ser igual al actual.
+7. Si el nuevo estado es final, el proceso debe tener radicado guardado previamente.
+8. El radicado guardado debe tener exactamente 23 caracteres.
 
-Respuesta: `ProcesoDTO` actualizado.
+El endpoint no recibe el radicado. Para pasar a un estado final, el radicado debe haberse guardado antes mediante creación o actualización del proceso.
 
 ## Cambiar marca activo
 
-`PATCH /api/procesos/{id}/activo?activo=false`
+```http
+PATCH /api/procesos/{id}/activo?activo=false
+```
 
-Permiso:
+### Permiso
 
-- `GESTIONAR_PROCESOS`
+```text
+GESTIONAR_PROCESOS
+```
 
-Reglas:
+### Reglas aplicadas
 
-1. `activo` es obligatorio.
-2. No puede ser igual al valor actual.
-3. Cambia la marca de eliminación lógica.
+1. El proceso se busca por id, esté activo o inactivo.
+2. La consulta asociada debe permitir operación operativa.
+3. El valor `activo` es obligatorio.
+4. El nuevo valor no puede ser igual al actual.
+5. No cambia el estado funcional del proceso.
 
-Este endpoint no modifica el estado funcional del proceso.
+Este endpoint permite desactivar o reactivar lógicamente el proceso desde API. La pantalla frontend actual de procesos usa `DELETE` para la desactivación lógica y no expone reactivación desde esta vista.
 
 ## Eliminar proceso
 
-`DELETE /api/procesos/{id}`
+```http
+DELETE /api/procesos/{id}
+```
 
-Permiso:
+### Permiso
 
-- `GESTIONAR_PROCESOS`
+```text
+GESTIONAR_PROCESOS
+```
 
-Respuesta: `204 No Content`.
+### Comportamiento
 
-La eliminación se maneja como desactivación lógica para conservar trazabilidad.
+El backend busca el proceso activo, valida permiso y alcance, valida que la consulta permita operación operativa y marca:
 
-## Validaciones de error frecuentes
+```json
+{
+  "activo": false
+}
+```
 
-| Situación | Resultado esperado |
+No hay eliminación física.
+
+### Respuesta
+
+```http
+204 No Content
+```
+
+## Validaciones frecuentes
+
+| Situación | Resultado |
 |---|---|
 | Crear con `id` | Error de negocio. |
-| Crear sin departamento | Error de validación. |
-| Crear sin consulta | Error de validación. |
-| Finalizar sin radicado | Error de negocio. |
+| Crear sin departamento | Error de validación o negocio. |
+| Crear sin consulta | Error de validación o negocio. |
+| Actualizar cambiando `consultaId` | Error de negocio. |
+| Proceso final sin radicado | Error de negocio. |
 | Radicado con longitud distinta de 23 | Error de negocio. |
 | Radicado duplicado | Error de negocio. |
 | Especialidad sin órgano de control | Error de negocio. |
 | Especialidad que no pertenece al órgano | Error de negocio. |
-| Cambiar consulta en edición | Error de negocio. |
-| Cambiar estado a mismo estado | Error de negocio. |
+| Cambiar estado al mismo estado | Error de negocio. |
+| Cambiar `activo` al mismo valor | Error de negocio. |
+| Gestionar proceso asociado a consulta cerrada o archivada | Error de negocio. |
+| Consultar proceso sin alcance | Error de autorización. |
 
 ## Relación con catálogos de proceso
 
-El módulo se complementa con órganos de control y especialidades. La especialidad depende del órgano de control. La API de procesos espera identificadores existentes y activos para estos catálogos.
+El módulo de procesos usa tres catálogos principales:
 
-## Consideraciones para frontend
+| Catálogo | Uso |
+|---|---|
+| Departamento | Obligatorio para crear o actualizar proceso. |
+| Órgano de control | Opcional, pero requerido cuando se informa especialidad. |
+| Especialidad | Opcional, dependiente de órgano de control. |
 
-El frontend debe tratar `numeroRadicado` como campo opcional mientras el proceso esté pendiente. Cuando el usuario seleccione o intente llevar el proceso a un estado final, debe proveer radicado válido. Aunque el frontend ayude al usuario, la validación definitiva pertenece al backend.
+Los endpoints de órgano de control y especialidad se documentan también en `api/catalogos.md` porque son catálogos operativos usados por el módulo de procesos.

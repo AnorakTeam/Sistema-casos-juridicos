@@ -176,7 +176,7 @@ En actualización se valida:
 
 ## 6. Estado activo del perfil y UsuarioSistema
 
-El sistema conserva sincronizado el estado del perfil operativo con el usuario de acceso asociado.
+El sistema conserva sincronizado el estado del perfil operativo con el usuario de acceso asociado cuando el cambio se realiza desde los command services de perfiles.
 
 La clase `UsuarioSistemaPerfilEstadoService` sincroniza el estado de `UsuarioSistema` cuando se desactiva o reactiva un perfil desde los command services de:
 
@@ -383,3 +383,65 @@ Pruebas observadas:
 - `PerfilEstadoHandlerRegistryTest`;
 - `PerfilUsuarioActivoResolverRegistryTest`;
 - `ConsultaResponsableOperacionServiceTest`.
+
+
+---
+
+## 15. Precisiones de implementación validadas en código
+
+### 15.1 Gestión de administrativos
+
+La gestión de administrativos no depende únicamente de la anotación de permisos del controller. `AdministrativoAccessService` exige que el usuario autenticado opere como administrador y que su perfil administrativo activo tenga `directora=true`. Esta regla aplica a creación, actualización, cambio de estado, cambio de marca de directora y eliminación lógica de administrativos.
+
+### 15.2 Alcance de estudiantes
+
+`EstudianteQueryService` aplica alcance posterior a la validación de permisos:
+
+- administrador: consulta todos los estudiantes según el método invocado;
+- asesor: consulta únicamente estudiantes asociados a su asesoría;
+- otros perfiles: no reciben estudiantes desde el listado operativo cuando no tienen alcance funcional.
+
+Para `listarActivosPorAsesor`, el administrador puede consultar cualquier asesor; el asesor autenticado solo puede consultar su propio id de asesor.
+
+`listarConConciliacion` retorna estudiantes activos con `conciliacion=true` y luego aplica la regla de visibilidad definida por `EstudianteAccessService`.
+
+### 15.3 Importación masiva de estudiantes
+
+El flujo de importación lee un archivo Excel enviado como `archivo`, procesa la primera hoja y espera encabezados exactos. Cada fila se convierte a `EstudianteDTO` y pasa por `EstudianteCommandService.crear`, reutilizando validaciones de campos, catálogos, duplicados, asesor activo y creación de `UsuarioSistema`.
+
+Encabezados esperados:
+
+```text
+Nombre, TipoDocumentoId, Documento, Email, Telefono, Usuario, SedeId, Codigo, AsesorId, Activo, Conciliacion
+```
+
+La importación reporta resultado por filas mediante `ImportacionEstudiantesDTO`.
+
+### 15.4 Sincronización de estado
+
+`UsuarioSistemaPerfilEstadoService` se invoca desde los command services de perfiles cuando se cambia el estado del perfil. Por eso, desactivar o reactivar un perfil sincroniza la cuenta de acceso asociada.
+
+El servicio `UsuarioSistemaService.cambiarEstado` cambia directamente el estado del `UsuarioSistema` y no ejecuta una sincronización inversa sobre el perfil real. Esta separación permite administrar la cuenta de acceso sin modificar necesariamente el registro funcional del perfil.
+
+### 15.5 Cambio de perfil
+
+El cambio de perfil tiene reglas propias:
+
+- el email del perfil destino se toma desde `UsuarioSistema.username`;
+- el perfil destino puede crearse o reactivarse si ya existía para el mismo usuario;
+- el perfil anterior se desactiva, pero el `UsuarioSistema` permanece activo;
+- la obligatoriedad de `documento`, `tipoDocumentoId`, `sedeId` y campos específicos depende del handler de Strategy del perfil destino.
+
+| Perfil destino | Reglas de datos aplicadas por handler |
+|---|---|
+| Administrativo | Documento, tipo de documento y sede opcionales; `directora` opcional. |
+| Asesor | Documento, tipo de documento, sede y área obligatorios. |
+| Estudiante | Documento, tipo de documento, sede y asesor obligatorios; `conciliacion` opcional. |
+| Monitor | Documento, tipo de documento y sede opcionales. |
+| Conciliador | Documento y tipo de conciliador obligatorios; tipo de documento y sede opcionales. |
+
+### 15.6 Roles y permisos
+
+La creación de rol exige una lista de permisos activa y no vacía. En actualización, enviar `permisoIds` reemplaza la lista completa de permisos; omitir `permisoIds` conserva la asignación existente.
+
+La API de permisos trabaja con activación/desactivación lógica mediante `PATCH /activo`; no expone eliminación física por `DELETE`.

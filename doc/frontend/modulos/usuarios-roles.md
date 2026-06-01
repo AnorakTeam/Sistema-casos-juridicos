@@ -180,10 +180,10 @@ La lógica de cambio de perfil se valida en backend. El frontend reúne la infor
 Endpoint usado:
 
 ```text
-GET /api/audit?page={page}&size={size}&action={action}&entityName={entityName}&actorUsername={actorUsername}
+GET /api/audit?page={page}&size={size}&username={username}&sortBy={sortBy}&sortDir={sortDir}
 ```
 
-La tabla permite consultar registros de auditoría con filtros y paginación.
+La tabla consume la paginación del backend con índice base cero. Desde la interfaz se maneja página visual base uno y se envía `page - 1` al backend. Permite búsqueda por `username`, ordenamiento por `timestamp` o `username`, y visualización de detalles en diálogo modal.
 
 ## 10. Vista de estudiantes
 

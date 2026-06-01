@@ -86,6 +86,9 @@ Reglas generales:
 
 ## Catálogos jerárquicos
 
+Los endpoints jerárquicos activos exigen que el catálogo padre esté activo. Las variantes administrativas terminadas en `/todos` validan que el padre exista, pero permiten consultar hijos asociados aunque el padre esté inactivo, porque están orientadas a administración y mantenimiento de catálogos.
+
+
 | Catálogo | Base path | Relación |
 |---|---|---|
 | Municipios | `/api/municipios` | Municipio pertenece a departamento. |
@@ -418,6 +421,8 @@ Base path:
 /api/tipos-documento
 ```
 
+`TipoDocumento` no sigue exactamente la convención general de catálogos: no expone endpoint `/todos` ni endpoint `DELETE`. `GET /api/tipos-documento` lista todos los registros, `GET /api/tipos-documento/activos` lista únicamente activos y `GET /api/tipos-documento/{id}` consulta por identificador sin filtrar por estado activo.
+
 ## Endpoints
 
 | Método | Ruta | Permiso | Uso |
@@ -532,3 +537,10 @@ Cada uno usa la misma estructura:
 - Para tipos de documento, usar `/activos` cuando se necesiten únicamente activos.
 - Usar `credentials: "include"` en todas las peticiones protegidas.
 - Manejar errores de duplicado y relaciones inactivas desde el mensaje del backend.
+
+
+## Precisiones de respuesta HTTP
+
+Los endpoints `DELETE` de catálogos que existen realizan desactivación lógica y responden `204 No Content`. No retornan DTO. `TipoDocumento` no expone endpoint `DELETE`; su estado se administra mediante `PATCH /api/tipos-documento/{id}/activo?activo=`.
+
+En la mayoría de catálogos, `GET /{id}` retorna registros activos. La excepción documentada es `TipoDocumento`, cuyo endpoint por id consulta por identificador sin filtrar por `activo`.

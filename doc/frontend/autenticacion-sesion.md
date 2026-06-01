@@ -1,143 +1,207 @@
 # Autenticación y sesión
 
-El frontend implementa autenticación real contra el backend. El inicio de sesión se realiza con credenciales de usuario, el backend crea la sesión y las peticiones protegidas se envían con `credentials: "include"` para incluir la cookie de sesión.
+El frontend implementa las pantallas públicas de acceso y recuperación de contraseña, y consume la sesión autenticada en la navegación interna. La cookie de autenticación es creada por el backend y se envía en solicitudes protegidas mediante `credentials: "include"`.
 
 ## Componentes involucrados
 
-| Archivo | Responsabilidad |
+| Archivo | Responsabilidad implementada |
 |---|---|
-| `src/app/page.js` | Página pública de login. |
-| `src/components/auth/LoginForm.jsx` | Formulario de autenticación. |
-| `src/app/recuperar-password/page.js` | Página de recuperación de contraseña. |
-| `src/components/auth/RecuperarPasswordForm.jsx` | Solicita instrucciones de recuperación. |
-| `src/app/restablecer-password/page.js` | Página de restablecimiento con token. |
-| `src/components/auth/RestablecerPasswordForm.jsx` | Envía nueva contraseña al backend. |
-| `src/components/navigation/PermissionSidebar.jsx` | Valida sesión consultando `/auth/me`. |
-| `src/components/app-sidebar.jsx` | Muestra usuario y ejecuta logout. |
+| `src/app/page.js` | Renderiza la página pública de login. |
+| `src/components/auth/LoginForm.jsx` | Verifica sesión existente y envía credenciales de acceso. |
+| `src/app/recuperar-password/page.js` | Renderiza la página pública para solicitar recuperación. |
+| `src/components/auth/RecuperarPasswordForm.jsx` | Envía el correo para iniciar la recuperación. |
+| `src/app/restablecer-password/page.js` | Lee el token del query parameter y renderiza el formulario correspondiente. |
+| `src/components/auth/RestablecerPasswordForm.jsx` | Envía token y nueva contraseña. |
+| `src/components/navigation/PermissionSidebar.jsx` | Consulta la sesión y filtra las páginas visibles por permisos. |
+| `src/components/app-sidebar.jsx` | Consulta datos visibles del usuario y ejecuta logout. |
+| `src/lib/config.js` | Expone `API_URL_BASE` para construir rutas al backend. |
+| `src/lib/api.js` | Lee cuerpos JSON, texto o vacío y obtiene mensajes de respuesta. |
 
-## Login
+## Página de login
 
-`LoginForm.jsx` usa `react-hook-form` y envía:
-
-```http
-POST /api/auth/login
-```
-
-El payload enviado es:
-
-```json
-{
-  "username": "correo@dominio.com",
-  "password": "contraseña"
-}
-```
-
-La petición usa:
-
-```javascript
-credentials: "include"
-```
-
-Si la respuesta es exitosa, el frontend redirige a:
-
-```text
-/inicio
-```
-
-Si la respuesta falla, el formulario muestra el mensaje devuelto por el backend mediante los helpers de `src/lib/api.js`.
-
-## Validación de usuario autenticado
-
-La sesión se consulta con:
-
-```http
-GET /api/auth/me
-```
-
-Este endpoint se usa en componentes de navegación para obtener:
-
-- usuario autenticado;
-- nombre o correo visible;
-- rol;
-- tipo de perfil;
-- permisos asignados.
-
-`PermissionSidebar.jsx` usa esta información para filtrar el menú lateral. `app-sidebar.jsx` también consulta `/auth/me` para mostrar nombre y correo en la barra lateral.
-
-## Comportamiento ante sesión expirada
-
-Cuando `PermissionSidebar.jsx` recibe `401` en `/auth/me`, redirige al login:
+La ruta pública:
 
 ```text
 /
 ```
 
-`useApiForm` también redirige a `/` ante `401`, mostrando un mensaje de sesión expirada.
+renderiza `LoginForm.jsx` y ofrece selección de tema claro, oscuro o sistema.
 
-## Logout
+### Verificación inicial de sesión
 
-El cierre de sesión se ejecuta desde `app-sidebar.jsx` con:
+Al montarse, `LoginForm` ejecuta:
+
+```http
+GET /api/auth/me
+```
+
+con:
+
+```javascript
+credentials: "include"
+```
+
+Si la respuesta es exitosa, redirige a:
+
+```text
+/inicio
+```
+
+Mientras se ejecuta esta consulta, el componente muestra el estado `Cargando...`.
+
+### Envío de credenciales
+
+El formulario usa `react-hook-form`, valida el correo con `requiredEmailRule()` y requiere contraseña antes de enviar:
+
+```http
+POST /api/auth/login
+```
+
+Payload:
+
+```json
+{
+  "username": "usuario@dominio.com",
+  "password": "contraseña"
+}
+```
+
+La petición incluye:
+
+```javascript
+credentials: "include"
+```
+
+Cuando el login es exitoso, navega a `/inicio`. Cuando la respuesta no es exitosa, lee el cuerpo mediante `readResponseBody(...)` y presenta el mensaje obtenido por `getApiErrorTitle(...)` dentro del formulario.
+
+## Sesión y navegación autenticada
+
+### Menú filtrado por permisos
+
+`PermissionSidebar.jsx` consulta:
+
+```http
+GET /api/auth/me
+```
+
+con cookies incluidas. Con la respuesta del usuario:
+
+- conserva el usuario en estado local;
+- filtra las páginas de `SIDEBAR_PAGES`;
+- evalúa permisos requeridos mediante `tieneAlgunPermiso(...)` o `tieneTodosLosPermisos(...)`.
+
+Si `/auth/me` responde `401`, ejecuta:
+
+```javascript
+router.replace("/")
+```
+
+### Datos visibles y cierre de sesión
+
+`app-sidebar.jsx` consulta `/api/auth/me` para obtener `username`. El nombre mostrado se obtiene desde `user.nombre` cuando está presente o desde la parte inicial de `username`.
+
+El botón de salida ejecuta:
 
 ```http
 POST /api/auth/logout
 ```
 
-La petición incluye cookies y, después de llamar al backend, el frontend redirige al login con `router.replace("/")`.
+con:
 
-## Recuperación de contraseña
+```javascript
+credentials: "include"
+```
 
-La ruta `/recuperar-password` renderiza `RecuperarPasswordForm`. El formulario envía:
+Después de la petición, navega mediante:
+
+```javascript
+router.replace("/")
+```
+
+## Solicitud de recuperación
+
+La ruta:
+
+```text
+/recuperar-password
+```
+
+renderiza `RecuperarPasswordForm.jsx` y ofrece selección de tema.
+
+El formulario:
+
+- valida el correo con `requiredEmailRule()`;
+- envía el valor como `username`;
+- consume el mensaje retornado por el backend;
+- programa la navegación a `/` después de `2500` milisegundos cuando la respuesta es exitosa;
+- muestra el mensaje de error dentro del formulario cuando la respuesta falla.
+
+Request:
 
 ```http
 POST /api/auth/solicitar-recuperacion
 ```
 
-Payload:
-
 ```json
 {
-  "username": "correo@dominio.com"
+  "username": "usuario@dominio.com"
 }
 ```
 
-El componente muestra mensaje de éxito o error. Cuando la solicitud es exitosa, redirige al login después de unos segundos.
-
 ## Restablecimiento de contraseña
 
-La ruta `/restablecer-password` recibe un parámetro de URL:
+La ruta:
 
 ```text
-/restablecer-password?token=...
+/restablecer-password?token=<valor>
 ```
 
-Si el token no existe, la página muestra enlace inválido o incompleto. Si el token existe, renderiza `RestablecerPasswordForm` y envía:
+obtiene el token mediante `useSearchParams()`.
+
+| Caso | Comportamiento implementado |
+|---|---|
+| Query parameter `token` presente | Renderiza `RestablecerPasswordForm` con el token. |
+| Query parameter `token` ausente | Muestra el texto `Enlace inválido o incompleto`. |
+
+`RestablecerPasswordForm` valida en interfaz:
+
+- contraseña nueva obligatoria;
+- longitud mínima de 8 caracteres;
+- confirmación obligatoria;
+- coincidencia de contraseña y confirmación.
+
+Después envía:
 
 ```http
 POST /api/auth/restablecer-password
 ```
 
-Payload:
-
 ```json
 {
-  "token": "valor-del-token",
-  "passwordNueva": "nueva-contraseña",
-  "confirmarPassword": "confirmación"
+  "token": "token-recibido",
+  "passwordNueva": "contraseña-nueva",
+  "confirmarPassword": "contraseña-nueva"
 }
 ```
 
-El formulario valida coincidencia de contraseñas en frontend y el backend conserva la validación definitiva.
+Cuando la respuesta es exitosa, muestra:
 
-## Tema visual en pantallas públicas
+```text
+La contraseña se restableció correctamente
+```
 
-Las páginas públicas de login, recuperación y restablecimiento incluyen selector de tema usando `next-themes`. Las opciones visibles son:
+y navega a `/` después de `2000` milisegundos. Cuando la respuesta falla, muestra el mensaje procesado mediante `getApiErrorTitle(...)`.
 
-- claro;
-- oscuro;
-- sistema.
+## Transporte de sesión
 
-## Responsabilidad de seguridad
+Los componentes autenticados incluidos en este flujo envían la cookie usando:
 
-El frontend nunca almacena tokens de acceso en `localStorage`. La sesión depende de la cookie gestionada por backend y enviada en peticiones con `credentials: "include"`.
+```javascript
+credentials: "include"
+```
 
-La autorización real no depende del frontend. Aunque el menú o los botones se filtren visualmente por permisos, el backend valida cada operación protegida.
+El token JWT no se lee desde los componentes frontend; la sesión se consume mediante la cookie gestionada por el backend.
+
+## Relación con autorización
+
+La navegación lateral filtra opciones visibles según los permisos retornados por `/api/auth/me`. La autorización de cada operación protegida se procesa en backend mediante la configuración de seguridad y los permisos de los controllers.

@@ -1,37 +1,51 @@
 # Reglas de negocio - Archivos
 
-> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
-
+> Documento ajustado contra el código fuente actual. Describe reglas funcionales del almacenamiento documental.
 
 ## 1. Regla general
 
-Los archivos se almacenan como recursos documentales asociados al sistema. El backend conserva rutas relativas y evita exponer rutas físicas internas como contrato funcional.
+Los archivos se almacenan como recursos documentales asociados a flujos funcionales del sistema. El backend conserva rutas relativas y evita exponer rutas físicas internas como contrato de negocio.
 
 ---
 
-## 2. Seguridad de rutas
+## 2. Autenticación
 
-El almacenamiento valida las rutas solicitadas para operar dentro del directorio permitido. Esta regla protege contra accesos fuera del área de almacenamiento configurada.
-
----
-
-## 3. Carga de documentos
-
-La carga puede ser individual o múltiple. Los archivos se reciben como `MultipartFile` y se almacenan usando `FileStorageService`.
+Los endpoints de `/api/files` requieren usuario autenticado. No aplican permisos funcionales granulares por tipo de documento.
 
 ---
 
-## 4. Descarga de documentos
+## 3. Rutas relativas
 
-La descarga se realiza por ruta relativa. Si el recurso no existe, el backend responde con estado de no encontrado.
+El almacenamiento trabaja con rutas relativas bajo una raíz configurada. El servicio limpia nombres de archivo, normaliza rutas y rechaza nombres o subdirectorios que contengan `..`.
 
 ---
 
-## 5. Uso documental en conciliación
+## 4. Carga individual y múltiple
 
-La conciliación usa archivos para soportar:
+La carga puede ser individual o múltiple. En carga múltiple, cada archivo genera un resultado propio. Una respuesta puede contener archivos cargados exitosamente y errores individuales.
 
-- solicitud inicial;
-- acta de finalización.
+---
 
-La finalización de conciliación registra el acta como soporte del cierre funcional.
+## 5. Validaciones documentales específicas
+
+El módulo genérico de archivos no impone validación de tipo de documento. Cuando un flujo requiere restricciones específicas, la validación se implementa en el módulo correspondiente.
+
+Ejemplo: conciliación exige PDF para solicitud inicial y acta de finalización mediante `ConciliacionDocumentoService`.
+
+---
+
+## 6. Rutas usadas por módulos
+
+Rutas documentales relevantes:
+
+- consulta: directorio asociado a la consulta;
+- tarea de seguimiento: `tareas-{seguimientoId}-documentos`;
+- respuesta de seguimiento: `tareas-{seguimientoId}-respuestas-{respuestaId}`;
+- solicitud de conciliación: `conciliacion/{id}/solicitud.pdf`;
+- acta de conciliación: `conciliacion/{id}/acta.pdf`.
+
+---
+
+## 7. Descarga y listado
+
+La descarga se realiza por ruta relativa. Si el recurso no existe, el backend responde como no encontrado. El listado permite consultar archivos y directorios disponibles bajo la raíz configurada.

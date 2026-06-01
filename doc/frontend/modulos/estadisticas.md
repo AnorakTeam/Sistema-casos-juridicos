@@ -1,182 +1,112 @@
 # Frontend - Módulo de estadísticas
 
-## 1. Propósito del módulo
+> Documento ajustado contra el código fuente actual del frontend. Describe las vistas y consumos reales de `EstadisticasForm` e `InicioForm`.
 
-El módulo de estadísticas permite visualizar información agregada del consultorio jurídico a partir de los datos operativos del backend. La interfaz ofrece una pantalla principal para reportes globales y también integra estadísticas del semestre actual en el panel de inicio.
+## 1. Propósito
 
-Componentes principales:
+El frontend presenta estadísticas en dos espacios:
 
-```text
-src/components/forms/estadisticas/EstadisticasForm.jsx
-src/components/forms/inicio/InicioForm.jsx
-```
+- la ruta `/estadisticas`, orientada a reportes institucionales para usuarios con `VER_REPORTES`;
+- la ruta `/inicio`, que muestra indicadores del semestre actual según el perfil autenticado.
 
-## 2. Rutas relacionadas
+---
 
-| Ruta | Componente | Propósito |
-|---|---|---|
-| `/estadisticas` | `EstadisticasForm` | Consulta de estadísticas globales por semestre o rango de fechas y descarga de PDF. |
-| `/inicio` | `InicioForm` | Panel de inicio con tarjetas, gráficos y listas operativas según perfil. |
+## 2. Vista `/estadisticas`
 
-La ruta `/estadisticas` exige permiso de reportes. La ruta `/inicio` utiliza el usuario autenticado para mostrar información operativa correspondiente a su perfil.
+La pantalla principal de estadísticas se implementa en `EstadisticasForm.jsx`.
 
-## 3. Archivos relacionados
+Flujo principal:
 
-```text
-src/app/(dashboard)/estadisticas/page.js
-src/app/(dashboard)/inicio/page.js
-src/components/forms/estadisticas/EstadisticasForm.jsx
-src/components/forms/inicio/InicioForm.jsx
-src/lib/config.js
-src/lib/permission.js
-src/lib/authz.js
-```
+1. Consulta sesión mediante `/api/auth/me`.
+2. Verifica permiso `VER_REPORTES`.
+3. Si el usuario no tiene permiso, redirige a `/inicio`.
+4. Carga semestres disponibles desde `/api/estadisticas/semestres`.
+5. Permite consultar reportes por semestre.
+6. Permite consultar reportes por rango libre de fechas.
+7. Permite descargar PDF según el modo seleccionado.
 
-## 4. Permisos usados
+---
 
-| Permiso | Uso frontend |
+## 3. Endpoints consumidos en `/estadisticas`
+
+| Uso | Endpoint |
 |---|---|
-| `Ver reportes` | Permite acceder a `/estadisticas` y consultar estadísticas globales. |
-| `Ver consultas` | Permite cargar estadísticas por perfil en el panel de inicio cuando aplica. |
+| Semestres disponibles | `GET /api/estadisticas/semestres` |
+| Reporte por semestre | `GET /api/estadisticas/{año}/semestre/{semestre}` |
+| PDF por semestre | `GET /api/estadisticas/{año}/semestre/{semestre}/pdf` |
+| Reporte por rango | `GET /api/estadisticas/reporte?fechaInicio=&fechaFin=` |
+| PDF por rango | `GET /api/estadisticas/reporte/pdf?fechaInicio=&fechaFin=` |
 
-La navegación lateral muestra `Estadísticas` cuando el usuario tiene permiso `Ver reportes`.
+---
 
-## 5. Componente `EstadisticasForm`
+## 4. Semestres disponibles
 
-`EstadisticasForm` implementa la vista principal de reportes. Al iniciar:
+La pantalla usa el endpoint de semestres como selector. El backend construye esos semestres desde 2024 hasta el año actual, incluyendo solo semestres que ya iniciaron.
 
-```text
-GET /api/auth/me
-GET /api/estadisticas/semestres
-```
+---
 
-Si el usuario no tiene permiso `Ver reportes`, la pantalla redirige a `/inicio`.
+## 5. Rango libre de fechas
 
-## 6. Modos de consulta en la pantalla de estadísticas
+El modo rango envía fechas en formato ISO `yyyy-MM-dd`.
 
-La pantalla permite trabajar en dos modos:
+Las validaciones definitivas las aplica el backend. El frontend construye la URL con `fechaInicio` y `fechaFin` y muestra el resultado o los mensajes de error retornados.
 
-| Modo | Endpoint principal | Uso |
-|---|---|---|
-| Semestre | `GET /api/estadisticas/{año}/semestre/{semestre}` | Consulta datos agregados de un semestre seleccionado. |
-| Rango libre | `GET /api/estadisticas/reporte?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD` | Consulta datos agregados entre dos fechas. |
+---
 
-El usuario puede descargar PDF para ambos modos.
+## 6. Descarga PDF
 
-## 7. Endpoints consumidos por `EstadisticasForm`
+La pantalla descarga PDFs llamando al endpoint correspondiente según el modo actual:
 
-### 7.1 Semestres disponibles
+- semestre;
+- rango libre.
 
-```text
-GET /api/estadisticas/semestres
-```
+El backend retorna `application/pdf`. El reporte por rango se genera con la misma plantilla del reporte semestral y se identifica como reporte personalizado.
 
-Alimenta el selector de periodo.
+---
 
-### 7.2 Estadísticas por semestre
+## 7. Panel de inicio
 
-```text
-GET /api/estadisticas/{año}/semestre/{semestre}
-```
+`InicioForm.jsx` usa estadísticas para mostrar una vista de resumen del semestre actual.
 
-Carga conteos y distribuciones del periodo seleccionado.
+Comportamiento:
 
-### 7.3 Estadísticas por rango de fechas
+- calcula el semestre actual en el navegador;
+- si el usuario es administrativo o tiene `VER_REPORTES`, consulta el reporte global del semestre;
+- si el usuario tiene `VER_CONSULTAS`, consume endpoints por perfil cuando el tipo de perfil es estudiante, asesor o monitor;
+- usa `perfilId` recibido desde `/api/auth/me` para construir la URL por perfil.
 
-```text
-GET /api/estadisticas/reporte?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD
-```
+Endpoints por perfil usados desde inicio:
 
-Permite generar un reporte con fechas personalizadas.
-
-### 7.4 PDF por semestre
-
-```text
-GET /api/estadisticas/{año}/semestre/{semestre}/pdf
-```
-
-La interfaz descarga el blob recibido y crea un enlace temporal para el archivo.
-
-### 7.5 PDF por rango
-
-```text
-GET /api/estadisticas/reporte/pdf?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD
-```
-
-Genera el PDF correspondiente al rango seleccionado.
-
-## 8. Descarga de PDF
-
-La función de descarga construye la URL según el modo activo. Después:
-
-```text
-1. Ejecuta fetch con credentials: include.
-2. Verifica respuesta HTTP.
-3. Convierte la respuesta en Blob.
-4. Crea un objeto URL temporal.
-5. Simula clic de descarga.
-6. Libera el objeto URL.
-```
-
-Los nombres de archivo se generan según el periodo consultado.
-
-## 9. Componente `InicioForm`
-
-`InicioForm` presenta un panel inicial por rol. Calcula el semestre actual desde el navegador y carga estadísticas según el perfil del usuario.
-
-Para usuarios administrativos o con `Ver reportes`, usa:
-
-```text
-GET /api/estadisticas/{año}/semestre/{semestre}
-```
-
-Para perfiles operativos usa endpoints específicos:
-
-```text
+```http
+GET /api/estadisticas/{año}/semestre/{semestre}/estudiante/{perfilId}
 GET /api/estadisticas/{año}/semestre/{semestre}/asesor/{perfilId}
 GET /api/estadisticas/{año}/semestre/{semestre}/monitor/{perfilId}
-GET /api/estadisticas/{año}/semestre/{semestre}/estudiante/{perfilId}
 ```
 
-El `perfilId` proviene de la respuesta de `/api/auth/me`.
+No existe endpoint frontend/backend para estadísticas por conciliador en el código actual.
 
-## 10. Información operativa del panel de inicio
+---
 
-Además de estadísticas, `InicioForm` carga listas operativas:
+## 8. Vista resumida por perfil
 
-```text
-GET /api/consultas
-GET /api/seguimientos/consulta/{consultaId}/visibles-estudiante
-GET /api/seguimientos/respuestas/pendientes
-```
+Los endpoints por perfil reutilizan `EstadisticasSemestreDTO`, pero el backend entrega una vista resumida. El frontend debe tratar como opcionales los agregados que no forman parte del resumen por perfil.
 
-El objetivo de estas listas es mostrar al usuario información útil de trabajo: consultas pendientes, tareas visibles para estudiante y respuestas pendientes de calificación.
+La vista por perfil se orienta a métricas de inicio, principalmente:
 
-## 11. Visualización
-
-El frontend usa componentes internos SVG y tarjetas para representar:
-
-- total de consultas;
 - consultas finalizadas;
 - consultas pendientes;
-- porcentaje de avance;
-- distribución por área;
-- listas operativas por perfil.
+- total de consultas;
+- personas atendidas;
+- procesos por estado.
 
-La visualización se construye en el cliente a partir de los DTOs entregados por el backend.
+---
 
-## 12. Manejo de errores
+## 9. Indicadores de procesos
 
-El componente maneja errores de conexión, errores de permisos y errores de disponibilidad de PDF. Cuando una consulta no puede cargarse, se muestra mensaje sin comprometer el resto de la interfaz.
+El indicador `procesosPorEstado` se muestra como dato complementario. En reportes globales no está filtrado por semestre o rango; en reportes por perfil se filtra por el perfil correspondiente, pero no por semestre.
 
-## 13. Relación con backend
+---
 
-La estructura y significado de los datos estadísticos se documenta en:
+## 10. Manejo de errores
 
-```text
-doc/backend/estadisticas.md
-doc/api/estadisticas.md
-doc/reglas/estadisticas.md
-```
-
-El frontend no calcula estadísticas de negocio principales; consume los agregados que entrega el backend y los presenta visualmente.
+La pantalla usa los mensajes retornados por backend para mostrar errores de validación, permisos o parámetros temporales inválidos.

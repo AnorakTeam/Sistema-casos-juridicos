@@ -154,17 +154,19 @@ Si la persona es menor de edad según fecha de nacimiento, el backend exige:
 
 - nombre del acudiente;
 - relación del acudiente;
-- teléfono o correo del acudiente.
+- al menos un medio de contacto del acudiente: teléfono o correo.
+
+El correo principal y el correo del acudiente deben enviarse vacíos/nulos o con formato válido. No se debe enviar un texto informativo como `No informa` en campos de correo, porque la validación de formato de correo aplica cuando el campo viene informado.
 
 ### Estado activo
 
-La persona puede desactivarse y reactivarse.
+La persona puede desactivarse y reactivarse mediante endpoints específicos. En el código actual, estas operaciones asignan directamente `activo=false` o `activo=true` sobre la persona encontrada por id; no validan que el estado previo sea distinto.
 
 La desactivación mantiene el registro para conservar historial y relaciones con otros módulos.
 
 ## Relaciones cargadas en creación y actualización
 
-`PersonaCommandService` carga relaciones activas desde repositories:
+`PersonaCommandService` carga relaciones activas desde repositories. La actualización de persona espera un DTO completo y no modifica el campo `activo`:
 
 | Relación | Repository |
 |---|---|
@@ -351,3 +353,12 @@ Los catálogos `Condicion`, `Empresa`, `Ocupacion` y `TipoPersona` siguen un pat
 - Enviar al menos teléfono o correo.
 - Usar `credentials: "include"` en peticiones protegidas.
 - Manejar errores de validación por campo y errores de negocio.
+
+
+## Precisiones operativas validadas
+
+- `GET /api/personas` lista el conjunto general de personas registradas.
+- `GET /api/personas/activos` lista únicamente personas activas ordenadas por nombres y apellidos.
+- `PATCH /api/personas/{id}/desactivar` y `PATCH /api/personas/{id}/reactivar` responden `204 No Content`.
+- `PUT /api/personas/{id}` actualiza datos de persona, pero no cambia el estado lógico `activo`.
+- La desactivación de persona no bloquea por relaciones existentes con consultas, partes o contrapartes; el código conserva el registro y solo cambia el estado lógico.

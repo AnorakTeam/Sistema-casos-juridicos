@@ -227,3 +227,13 @@ Al modificar este módulo debe verificarse:
 4. Que el campo `notificarEstudiante` siga coordinado con backend.
 5. Que el formulario no prometa envío de notificaciones desde frontend; esa responsabilidad es del backend.
 6. Que el manejo de archivos conserve la base configurada.
+
+
+## Archivos de tareas y respuestas
+
+La vista de seguimientos gestiona archivos de soporte para dos momentos del flujo:
+
+- documentos de tarea: `tareas-{seguimientoId}-documentos`;
+- documentos de respuesta: `tareas-{seguimientoId}-respuestas-{respuestaId}`.
+
+Ambos flujos usan los endpoints genéricos de archivos para carga múltiple, listado y descarga.

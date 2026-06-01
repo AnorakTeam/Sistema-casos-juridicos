@@ -260,3 +260,13 @@ doc/backend/conciliaciones.md
 doc/api/conciliaciones.md
 doc/reglas/conciliaciones.md
 ```
+
+
+## Documentos PDF y descarga
+
+La solicitud y el acta se almacenan en backend mediante rutas lógicas de conciliación:
+
+- `conciliacion/{id}/solicitud.pdf`;
+- `conciliacion/{id}/acta.pdf`.
+
+La vista descarga estos documentos usando los endpoints genéricos de archivos cuando el backend expone la ruta correspondiente en el detalle de conciliación.
