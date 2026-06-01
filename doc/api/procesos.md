@@ -24,7 +24,7 @@ Los endpoints están protegidos por permisos de Spring Security y por validacion
 | Actualizar proceso | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
 | Cambiar estado funcional | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
 | Cambiar marca `activo` | `GESTIONAR_PROCESOS` | Requiere alcance sobre la consulta asociada. |
-| Eliminar lógicamente | `GESTIONAR_PROCESOS` | Desactiva el proceso, no lo borra físicamente. |
+| Desactivar lógicamente | `GESTIONAR_PROCESOS` | Conserva el proceso con `activo=false`. |
 
 El proceso hereda su alcance de la consulta. Por ello, aun teniendo el permiso general, el backend valida si el usuario puede acceder o gestionar la consulta asociada.
 
@@ -281,9 +281,9 @@ GESTIONAR_PROCESOS
 4. El nuevo valor no puede ser igual al actual.
 5. No cambia el estado funcional del proceso.
 
-Este endpoint permite desactivar o reactivar lógicamente el proceso desde API. La pantalla frontend actual de procesos usa `DELETE` para la desactivación lógica y no expone reactivación desde esta vista.
+Este endpoint permite cambiar la marca activa del proceso desde API. La pantalla frontend de procesos utiliza `DELETE` para ejecutar la desactivación lógica visible.
 
-## Eliminar proceso
+## Desactivar lógicamente un proceso
 
 ```http
 DELETE /api/procesos/{id}
@@ -305,7 +305,7 @@ El backend busca el proceso activo, valida permiso y alcance, valida que la cons
 }
 ```
 
-No hay eliminación física.
+La operación conserva el registro persistido con `activo=false`.
 
 ### Respuesta
 

@@ -105,7 +105,7 @@ El listado operativo de procesos:
 
 ## Regla 12: detalle operativo
 
-La consulta por id retorna procesos activos y no expone procesos asociados a consultas archivadas por el flujo operativo.
+La consulta por id retorna procesos activos asociados a consultas con estado diferente de `ARCHIVADO` en el flujo operativo.
 
 ## Regla 13: permisos efectivos
 
@@ -131,9 +131,9 @@ La lectura efectiva exige `VER_PROCESOS` porque así lo valida `ProcesoAccessSer
 | Estudiante | Puede consultar procesos de sus consultas si tiene permiso, pero no gestionarlos. |
 | Conciliador | No tiene alcance operativo sobre procesos en esta fase. |
 
-## Regla 15: eliminación lógica
+## Regla 15: desactivación lógica
 
-`DELETE /api/procesos/{id}` no borra registros. Marca el proceso como inactivo.
+`DELETE /api/procesos/{id}` realiza la desactivación lógica del proceso y establece `activo=false`, conservando el registro persistido.
 
 Los procesos inactivos dejan de aparecer en listados operativos, pero permanecen disponibles como historial en base de datos.
 
@@ -156,7 +156,7 @@ Las agregaciones implementadas en `ProcesoRepository` se basan en:
 - conteo por estado filtrado por estudiante;
 - conteo por estado filtrado por monitor.
 
-No se documenta agregación por área en este módulo porque no existe en el repository actual de procesos.
+Estas son las agregaciones de procesos implementadas en el repository para el módulo y para los reportes que lo consumen.
 
 ## Regla 19: frontend y API
 
@@ -165,5 +165,4 @@ La interfaz de procesos acompaña las reglas del backend:
 - permite crear proceso sin radicado;
 - valida radicado de 23 caracteres si se informa;
 - bloquea visualmente el cambio a estado final sin radicado;
-- usa `DELETE` para desactivación lógica;
-- no expone reactivación mediante `PATCH /activo` desde la pantalla actual.
+- usa `DELETE` para la desactivación lógica visible del proceso.

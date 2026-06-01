@@ -375,13 +375,13 @@ Desactiva una persona.
 ### Reglas
 
 - la persona debe existir;
-- el endpoint asigna `activo=false`;
-- no valida que el estado previo sea activo;
+- el endpoint asigna `activo=false` al registro identificado;
+- la asignación se ejecuta independientemente del valor previo de `activo`;
 - se aplica desactivación lógica.
 
 ### Response `204 No Content`
 
-La operación no retorna cuerpo de respuesta.
+La respuesta se entrega sin cuerpo.
 
 ## PATCH `/api/personas/{id}/reactivar`
 
@@ -396,13 +396,13 @@ Reactiva una persona.
 ### Reglas
 
 - la persona debe existir;
-- el endpoint asigna `activo=true`;
-- no valida que el estado previo sea inactivo;
+- el endpoint asigna `activo=true` al registro identificado;
+- la asignación se ejecuta independientemente del valor previo de `activo`;
 - se reactiva el registro.
 
 ### Response `204 No Content`
 
-La operación no retorna cuerpo de respuesta.
+La respuesta se entrega sin cuerpo.
 
 ## Errores comunes
 
@@ -429,14 +429,13 @@ La operación no retorna cuerpo de respuesta.
 - En creación, no enviar `id`.
 - En actualización, enviar `id` solo si coincide con la ruta.
 - En desactivar/reactivar, usar los endpoints específicos.
-- No cambiar estado activo desde `PUT`.
+- Administrar el estado activo mediante los endpoints específicos de desactivación y reactivación.
 - Usar `credentials: "include"` en peticiones protegidas.
 - Manejar errores de validación por campo desde `detalles`.
 
 
 ## Precisiones de coherencia con el código actual
 
-- `PATCH /api/personas/{id}/desactivar` y `PATCH /api/personas/{id}/reactivar` responden `204 No Content`; no retornan `PersonaDTO`.
-- Las operaciones de desactivar y reactivar asignan directamente el valor lógico del campo `activo`; no validan el estado anterior del registro.
+- `PATCH /api/personas/{id}/desactivar` y `PATCH /api/personas/{id}/reactivar` responden `204 No Content`.
+- Las operaciones de estado asignan directamente `activo=false` o `activo=true` al registro identificado.
 - `departamentoId` es un campo de apoyo para el frontend y para la respuesta. La entidad `Persona` persiste la relación con municipio y el departamento se infiere desde esa relación.
-- No existe validación de bloqueo por uso de la persona en consultas, partes o contrapartes dentro de estos endpoints.

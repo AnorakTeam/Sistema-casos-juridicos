@@ -263,7 +263,7 @@ El endpoint `GET /api/estudiantes/activos/asesor/{asesorId}` valida adicionalmen
 
 ### 9.4 Importación masiva de estudiantes
 
-`POST /api/estudiantes/importar` recibe un archivo Excel en el parámetro multipart `archivo`. El backend procesa la primera hoja del libro y espera estos encabezados exactos:
+`POST /api/estudiantes/importar` recibe un archivo Excel en el parámetro multipart `archivo`. El backend procesa la primera hoja del libro y valida estos encabezados en el orden definido, sin distinguir mayúsculas y minúsculas:
 
 | Columna | Uso |
 |---|---|

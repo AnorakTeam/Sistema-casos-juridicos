@@ -13,6 +13,12 @@ business/model/catalogo
 business/repository/catalogo
 business/service/catalogo
 business/service/catalogo/{submodulo}
+business/controller/proceso
+business/dto/proceso
+business/model/proceso
+business/repository/proceso
+business/service/proceso
+business/service/proceso/catalogo
 ```
 
 ## Permisos usados
@@ -37,6 +43,8 @@ El módulo usa permisos centralizados en `PermisoNombre`.
 | Sede | `SedeController` | `/api/sedes` |
 | Nacionalidad | `NacionalidadController` | `/api/nacionalidades` |
 | Tipo de documento | `TipoDocumentoController` | `/api/tipos-documento` |
+| Órgano de control | `OrganoControlController` | `/api/organos-control` |
+| Especialidad | `EspecialidadController` | `/api/especialidades` |
 
 ## Entidades
 
@@ -51,6 +59,8 @@ El módulo usa permisos centralizados en `PermisoNombre`.
 | `Sede` | `sede` | `id`, `nombre`, `activo` | Se usa como sede del sistema. |
 | `Nacionalidad` | `nacionalidades` | `id`, `nombre`, `activo` | Se usa en datos de persona. |
 | `TipoDocumento` | `tipodoc` | `id`, `nombre`, `activo` | Se usa en identificación de personas y usuarios. |
+| `OrganoControl` | `organo_control` | `id`, `nombre`, `activo` | Agrupa especialidades asociadas a procesos. |
+| `Especialidad` | `especialidad` | `id`, `nombre`, `activo`, `organo_control_id` | Pertenece a un órgano de control. |
 
 ## DTOs
 
@@ -65,6 +75,8 @@ El módulo usa permisos centralizados en `PermisoNombre`.
 | `SedeDTO` | `id`, `nombre`, `activo` | `nombre` obligatorio, máximo 100 caracteres. |
 | `NacionalidadDTO` | `id`, `nombre`, `activo` | `nombre` obligatorio, máximo 100 caracteres. |
 | `TipoDocumentoDTO` | `id`, `nombre`, `activo` | `nombre` obligatorio, máximo 100 caracteres. |
+| `OrganoControlDTO` | `id`, `nombre`, `activo` | `nombre` obligatorio, máximo 80 caracteres. |
+| `EspecialidadDTO` | `id`, `nombre`, `organoControlId`, `activo` | `nombre` obligatorio, máximo 80 caracteres; `organoControlId` obligatorio. |
 
 ## Patrón general del módulo
 
@@ -126,13 +138,13 @@ En cambio de estado:
 
 ### Eliminación
 
-En los catálogos con endpoint `DELETE`, la eliminación se implementa como desactivación lógica mediante `activo=false` y responde `204 No Content`. No retorna DTO.
+En los catálogos con endpoint `DELETE`, la eliminación se implementa como desactivación lógica mediante `activo=false` y responde `204 No Content`.
 
 Esto conserva referencias históricas de otros módulos.
 
 ### Tipo de documento
 
-`TipoDocumentoController` usa cambio de estado mediante `PATCH /{id}/activo`. A diferencia de otros catálogos, no expone endpoint `/todos` ni endpoint `DELETE`; `GET /api/tipos-documento` lista todos los registros y `GET /api/tipos-documento/activos` lista solo activos. `TipoDocumentoService.obtenerPorId` consulta por id sin exigir que el registro esté activo.
+`TipoDocumentoController` administra el estado mediante `PATCH /{id}/activo`. `GET /api/tipos-documento` lista todos los registros, `GET /api/tipos-documento/activos` lista únicamente activos y `TipoDocumentoService.obtenerPorId` consulta el registro por identificador, incluyendo registros activos o inactivos.
 
 Este catálogo conserva los registros para no afectar información asociada a casos, personas o usuarios.
 
@@ -149,6 +161,8 @@ Este catálogo conserva los registros para no afectar información asociada a ca
 | Barrio | Nombre único dentro del municipio. |
 | Tema | Nombre único dentro del área. |
 | Tipo | Nombre único dentro del tema. |
+| Órgano de control | Nombre único. |
+| Especialidad | Nombre único dentro del órgano de control. |
 
 ## Relaciones jerárquicas
 
@@ -157,6 +171,7 @@ El módulo maneja jerarquías:
 ```text
 Departamento -> Municipio -> Barrio
 Area -> Tema -> Tipo
+Órgano de control -> Especialidad
 ```
 
 Reglas principales:
@@ -165,8 +180,65 @@ Reglas principales:
 - para crear o actualizar barrio se requiere municipio activo;
 - para crear o actualizar tema se requiere área activa;
 - para crear o actualizar tipo se requiere tema activo;
+- para crear o actualizar una especialidad se requiere órgano de control activo;
+- la consulta de especialidades por órgano retorna especialidades activas de un órgano activo;
+- para desactivar un órgano de control no deben existir especialidades activas asociadas;
 - los endpoints de consulta por padre activo validan que el padre esté activo;
-- los endpoints administrativos `/todos` validan que el padre exista, pero permiten consultar registros asociados aunque el padre se encuentre inactivo, porque están orientados a administración.
+- los endpoints administrativos `/todos` de las jerarquías que los exponen validan las reglas definidas por cada service.
+
+## Catálogos asociados a procesos
+
+Los catálogos `OrganoControl` y `Especialidad` se implementan en el paquete funcional de procesos y suministran las relaciones seleccionables en la creación y actualización de un proceso.
+
+### Componentes
+
+| Catálogo | Controller | Service | Validator | Mapper | Repository |
+|---|---|---|---|---|---|
+| Órgano de control | `OrganoControlController` | `OrganoControlService` | `OrganoControlValidator` | `OrganoControlMapper` | `OrganoControlRepository` |
+| Especialidad | `EspecialidadController` | `EspecialidadService` | `EspecialidadValidator` | `EspecialidadMapper` | `EspecialidadRepository` |
+
+### Órgano de control
+
+`OrganoControlService` implementa:
+
+| Operación | Comportamiento |
+|---|---|
+| `listar()` | Consulta órganos activos ordenados por nombre y los convierte a DTO. |
+| `listarTodos()` | Consulta registros activos e inactivos y los ordena por nombre sin distinguir mayúsculas y minúsculas. |
+| `obtenerPorId(id)` | Obtiene un órgano activo. |
+| `crear(dto)` | Valida creación, normaliza nombre, valida unicidad y persiste una entidad activa. |
+| `actualizar(id, dto)` | Busca el registro por id, valida cambios y actualiza únicamente el nombre. |
+| `cambiarEstado(id, activo)` | Cambia el estado; cuando el valor solicitado es `false`, valida la ausencia de especialidades activas. |
+| `eliminar(id)` | Busca un órgano activo, valida la ausencia de especialidades activas y establece `activo=false`. |
+
+`OrganoControlValidator` aplica las reglas de id, nombre normalizado, longitud máxima de 80 caracteres, unicidad sin distinguir mayúsculas y minúsculas, existencia de cambios y control de desactivación.
+
+### Especialidad
+
+`EspecialidadService` implementa:
+
+| Operación | Comportamiento |
+|---|---|
+| `listar()` | Consulta especialidades activas ordenadas por nombre y las convierte a DTO. |
+| `listarTodos()` | Consulta registros activos e inactivos y los ordena por nombre sin distinguir mayúsculas y minúsculas. |
+| `listarPorOrganoControl(organoControlId)` | Obtiene un órgano activo y lista sus especialidades activas ordenadas por nombre. |
+| `obtenerPorId(id)` | Obtiene una especialidad activa. |
+| `crear(dto)` | Valida creación, normaliza nombre, obtiene el órgano activo, valida unicidad contextual y persiste una entidad activa. |
+| `actualizar(id, dto)` | Busca el registro por id, obtiene el órgano activo indicado y actualiza nombre y asociación. |
+| `cambiarEstado(id, activo)` | Cambia el estado cuando el valor solicitado difiere del registrado. |
+| `eliminar(id)` | Busca una especialidad activa y establece `activo=false`. |
+
+`EspecialidadValidator` aplica las reglas de id, nombre normalizado, longitud máxima de 80 caracteres, `organoControlId` obligatorio, unicidad del nombre dentro del órgano seleccionado y existencia de cambios.
+
+### Persistencia y mapeo
+
+| Entidad | Persistencia y exposición |
+|---|---|
+| `OrganoControl` | Se guarda en `organo_control`, inicia con `activo=true` y expone `id`, `nombre` y `activo` en `OrganoControlDTO`. |
+| `Especialidad` | Se guarda en `especialidad`, referencia obligatoriamente `organo_control_id`, inicia con `activo=true` y expone `organoControlId` en `EspecialidadDTO`. |
+
+La actualización de datos no modifica el campo `activo`; el ciclo de vida se gestiona mediante los endpoints de cambio de estado y desactivación lógica.
+
 
 ## Endpoints por catálogo
 
@@ -339,6 +411,44 @@ Base path:
 | PUT | `/api/tipos-documento/{id}` | `Gestionar catálogos` | Actualiza tipo de documento. |
 | PATCH | `/api/tipos-documento/{id}/activo` | `Gestionar catálogos` | Cambia estado activo. |
 
+### Órganos de control
+
+Base path:
+
+```text
+/api/organos-control
+```
+
+| Método | Ruta | Permiso | Uso |
+|---|---|---|---|
+| GET | `/api/organos-control` | `Ver catálogos` o `Gestionar catálogos` | Lista órganos activos ordenados por nombre. |
+| GET | `/api/organos-control/todos` | `Gestionar catálogos` | Lista órganos activos e inactivos ordenados por nombre. |
+| GET | `/api/organos-control/{id}` | `Ver catálogos` o `Gestionar catálogos` | Consulta un órgano activo por id. |
+| POST | `/api/organos-control` | `Gestionar catálogos` | Crea un órgano activo y responde `201 Created`. |
+| PUT | `/api/organos-control/{id}` | `Gestionar catálogos` | Actualiza datos sin modificar estado. |
+| PATCH | `/api/organos-control/{id}/activo?activo=` | `Gestionar catálogos` | Cambia estado y retorna DTO. |
+| DELETE | `/api/organos-control/{id}` | `Gestionar catálogos` | Desactiva lógicamente y responde `204 No Content`. |
+
+### Especialidades
+
+Base path:
+
+```text
+/api/especialidades
+```
+
+| Método | Ruta | Permiso | Uso |
+|---|---|---|---|
+| GET | `/api/especialidades` | `Ver catálogos` o `Gestionar catálogos` | Lista especialidades activas ordenadas por nombre. |
+| GET | `/api/especialidades/todos` | `Gestionar catálogos` | Lista especialidades activas e inactivas ordenadas por nombre. |
+| GET | `/api/especialidades/organo-control/{organoControlId}` | `Ver catálogos` o `Gestionar catálogos` | Lista especialidades activas de un órgano activo. |
+| GET | `/api/especialidades/{id}` | `Ver catálogos` o `Gestionar catálogos` | Consulta una especialidad activa por id. |
+| POST | `/api/especialidades` | `Gestionar catálogos` | Crea una especialidad activa y responde `201 Created`. |
+| PUT | `/api/especialidades/{id}` | `Gestionar catálogos` | Actualiza nombre y órgano activo asociado sin modificar estado. |
+| PATCH | `/api/especialidades/{id}/activo?activo=` | `Gestionar catálogos` | Cambia estado y retorna DTO. |
+| DELETE | `/api/especialidades/{id}` | `Gestionar catálogos` | Desactiva lógicamente y responde `204 No Content`. |
+
+
 ## Ejemplo de cuerpo JSON
 
 Ejemplo general para catálogos simples:
@@ -372,6 +482,15 @@ Ejemplo para catálogos dependientes:
 }
 ```
 
+Ejemplo para una especialidad asociada a un órgano de control:
+
+```json
+{
+  "nombre": "Nombre de la especialidad",
+  "organoControlId": 1
+}
+```
+
 ## Repositories
 
 Los repositories usan consultas derivadas de Spring Data JPA para:
@@ -398,15 +517,14 @@ Los services aplican el flujo de negocio:
 
 ## Mappers
 
-Los mappers convierten entidades a DTOs y aplican datos normalizados a entidades.
-
-No validan permisos ni consultan repositorios.
+Los mappers convierten entidades a DTOs y aplican datos normalizados a entidades. Las validaciones de permisos y las consultas de persistencia se ejecutan en los componentes de servicio, acceso y repositorio correspondientes.
 
 ## Consideraciones para frontend
 
 - Usar endpoints activos para formularios y selects.
 - Usar endpoints `/todos` para pantallas administrativas.
 - En catálogos jerárquicos, cargar hijos según el padre seleccionado.
+- En formularios de procesos, cargar órganos activos y especialidades activas asociadas al órgano seleccionado.
 - Manejar errores de validación y negocio devueltos por backend.
 - Usar `credentials: "include"` en peticiones protegidas.
 
@@ -414,6 +532,7 @@ No validan permisos ni consultan repositorios.
 ## Precisiones validadas sobre catálogos
 
 - La mayoría de endpoints `GET /{id}` de catálogos usan búsquedas activas (`findByIdAndActivoTrue`).
-- `TipoDocumento` es la excepción: su consulta por id no filtra por activo.
+- `TipoDocumento` consulta por id sobre el registro identificado y puede retornar tipos activos o inactivos.
 - Los catálogos jerárquicos distinguen entre consulta operativa de hijos activos por padre activo y consulta administrativa `/todos` por padre existente.
-- En frontend, la administración visible de catálogos está concentrada en áreas, temas y tipos; los demás catálogos existen en backend y se consumen como datos auxiliares.
+- En frontend, la administración visible de catálogos está concentrada en áreas, temas y tipos; los demás catálogos documentados se consumen como datos auxiliares en sus formularios correspondientes.
+- `OrganoControl` y `Especialidad` son catálogos del módulo de procesos; su relación activa se utiliza al registrar y actualizar procesos.

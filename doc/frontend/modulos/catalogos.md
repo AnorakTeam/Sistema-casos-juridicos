@@ -171,11 +171,14 @@ Los mensajes se muestran mediante `toast` y estados locales.
 
 ## 12. Alcance de la documentación
 
-Este documento describe la administración frontend de área, tema y tipo. Otros catálogos consumidos por el sistema, como sedes, tipos de documento, órganos de control y especialidades, pueden estar disponibles como endpoints backend o selectores en otros módulos, pero esta pantalla de administración documentada corresponde a los formularios existentes en `/admin`.
+Este documento describe los formularios visibles de administración implementados en `/admin` para áreas, temas y tipos.
 
+Sedes, tipos de documento, órganos de control y especialidades se consumen como datos auxiliares en los formularios de los módulos que los requieren.
 
-## Alcance del frontend actual
+Los formularios frontend de área, tema y tipo administran su estado mediante:
 
-La documentación frontend de catálogos se limita a los formularios visibles de administración implementados en `/admin`: áreas, temas y tipos. Otros catálogos existen en backend y se consumen como datos auxiliares en formularios, pero no tienen una vista CRUD dedicada en el frontend actual.
-
-Aunque el backend dispone de `DELETE` para desactivación lógica de varios catálogos, los formularios frontend actuales de área, tema y tipo usan `PATCH /activo?activo=false` para cambiar el estado.
+```text
+PATCH /api/areas/{id}/activo?activo=
+PATCH /api/temas/{id}/activo?activo=
+PATCH /api/tipos/{id}/activo?activo=
+```

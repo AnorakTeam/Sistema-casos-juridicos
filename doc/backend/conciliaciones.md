@@ -283,7 +283,7 @@ El historial conserva:
 - usuario que ejecutó el evento;
 - fecha del evento.
 
-La API actual no expone endpoint independiente para listar historial; el historial queda registrado en backend.
+La programación y la reprogramación registran su historial en backend mediante `ReunionConciliacionHistorialService`.
 
 ---
 

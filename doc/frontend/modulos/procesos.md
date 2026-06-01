@@ -2,7 +2,7 @@
 
 ## 1. Propósito del módulo
 
-El módulo frontend de procesos permite registrar, listar, editar, cambiar estado funcional y eliminar lógicamente procesos asociados a consultas jurídicas. En la implementación actual se compone de dos vistas principales:
+El módulo frontend de procesos permite registrar, listar, editar, cambiar estado funcional y desactivar lógicamente procesos asociados a consultas jurídicas. En la implementación actual se compone de dos vistas principales:
 
 | Ruta | Componente de página | Componente principal |
 |---|---|---|
@@ -161,7 +161,7 @@ RECHAZO
 PRESCRIPCION
 ```
 
-### Eliminación lógica
+### Desactivación lógica
 
 La vista usa:
 
@@ -171,7 +171,7 @@ DELETE /api/procesos/{id}
 
 La acción se muestra solo para usuarios con permiso de gestión y usa `ConfirmActionDialog` antes de ejecutar.
 
-La pantalla actual no expone reactivación por `PATCH /api/procesos/{id}/activo`, aunque ese endpoint existe en backend.
+La acción visible de ciclo de vida en esta pantalla es la desactivación lógica mediante `DELETE /api/procesos/{id}`.
 
 ## 6. Relación con backend
 
@@ -184,7 +184,7 @@ La pantalla actual no expone reactivación por `PATCH /api/procesos/{id}/activo`
 | Especialidad depende de órgano. | La UI filtra especialidades y valida órgano requerido. |
 | Gestión protegida por permiso. | Las acciones se muestran según `GESTIONAR_PROCESOS`. |
 | Listado protegido por permiso. | La vista exige `VER_PROCESOS` para cargar procesos. |
-| Eliminación lógica por backend. | La UI llama `DELETE` con confirmación. |
+| Desactivación lógica del proceso. | La UI llama `DELETE` con confirmación. |
 
 ## 7. Manejo de errores
 
@@ -212,7 +212,7 @@ Mensajes visibles del módulo incluyen:
 | Componente | Función |
 |---|---|
 | `NuevoProcesoForm` | Creación de proceso. |
-| `ProcesosForm` | Listado, edición, cambio de estado y eliminación lógica. |
+| `ProcesosForm` | Listado, edición, cambio de estado y desactivación lógica. |
 | `ConfirmActionDialog` | Confirmación de eliminación. |
 
 ## 9. Consideraciones de mantenimiento
@@ -223,6 +223,6 @@ Al modificar el módulo frontend de procesos debe verificarse:
 2. que la longitud de radicado siga siendo 23 caracteres;
 3. que `PUT /api/procesos/{id}` no se use para cambiar estado;
 4. que `PATCH /api/procesos/{id}/estado` siga usando query param `estado`;
-5. que la eliminación visible en la pantalla siga usando `DELETE`;
-6. que no se documente reactivación desde esta vista mientras no exista acción UI para `PATCH /activo`;
+5. que la desactivación visible en la pantalla siga usando `DELETE`;
+6. que las acciones visibles del ciclo de vida correspondan a los controles implementados en la interfaz;
 7. que el permiso efectivo de carga de procesos sea compatible con `VER_PROCESOS`.

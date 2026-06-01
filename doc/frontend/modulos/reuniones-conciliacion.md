@@ -129,4 +129,4 @@ La validación definitiva se mantiene en backend.
 
 ## Relación con notificaciones
 
-La pantalla no envía correos directamente. La programación y reprogramación invocan endpoints backend que registran notificaciones inmediatas y recordatorios. El backend también registra alertas administrativas cuando no hay destinatarios con correo.
+La interfaz solicita la programación y la reprogramación mediante endpoints backend que registran notificaciones inmediatas y recordatorios. Cuando no se encuentran destinatarios con correo para notificar la reunión, el backend registra alertas administrativas.

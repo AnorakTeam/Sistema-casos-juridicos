@@ -176,7 +176,7 @@ El proceso separa dos conceptos:
 | Estado funcional | `estado`, `PATCH /estado` | Resultado procesal. |
 | Marca activa | `activo`, `PATCH /activo`, `DELETE` | Eliminación lógica o reactivación. |
 
-`DELETE /api/procesos/{id}` no elimina físicamente. Busca proceso activo y marca `activo=false`.
+`DELETE /api/procesos/{id}` ejecuta la desactivación lógica: busca un proceso activo y establece `activo=false`, conservando el registro persistido.
 
 `PATCH /api/procesos/{id}/activo?activo=` permite cambiar la marca activa de un proceso existente, siempre que el usuario tenga permiso, alcance y la consulta asociada permita operación.
 
@@ -196,7 +196,7 @@ Por tanto, el listado operativo:
 - excluye procesos asociados a consultas archivadas;
 - respeta alcance por usuario.
 
-`obtenerPorId` también busca con `findByIdAndActivoTrueAndConsulta_EstadoNot`, por lo que el detalle operativo no expone procesos inactivos ni procesos asociados a consultas archivadas.
+`obtenerPorId` también usa `findByIdAndActivoTrueAndConsulta_EstadoNot`, por lo que el detalle operativo retorna procesos activos asociados a consultas con estado diferente de `ARCHIVADO`.
 
 ## Permisos y alcance
 
@@ -248,7 +248,7 @@ La especialidad depende de un órgano de control. En procesos, si se informa una
 | `contarProcesosPorEstadoYEstudiante` | Agregación por estado filtrada por estudiante de consulta. |
 | `contarProcesosPorEstadoYMonitor` | Agregación por estado filtrada por monitor de consulta. |
 
-No se documenta agregación de procesos por área porque no existe en el repository actual del módulo de procesos.
+Las agregaciones de procesos implementadas en el repository corresponden al conteo global por estado y a los conteos por estado filtrados por asesor, estudiante o monitor de la consulta.
 
 ## Relación con cierre de consulta
 

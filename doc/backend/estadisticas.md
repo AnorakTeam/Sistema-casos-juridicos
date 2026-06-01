@@ -31,7 +31,7 @@ La entrada REST se encuentra en `EstadisticasController` y la lógica se distrib
 
 `EstadisticasQueryService.listarSemestresDisponibles()` construye los semestres desde el año mínimo `2024` hasta el año actual. Incluye únicamente semestres cuya fecha de inicio no sea futura.
 
-La lista funciona como selector de periodos para frontend. No se construye consultando si existen registros operativos en cada semestre.
+La lista funciona como selector de periodos para frontend y se construye por calendario, independientemente de la presencia de registros operativos en cada semestre.
 
 ---
 
@@ -85,7 +85,7 @@ En el DTO de salida, `año` y `semestre` se envían como `null`, porque el perio
 
 `procesosPorEstado` se obtiene desde `ProcesoRepository`.
 
-En reportes globales por semestre y por rango, el método usado por el código no recibe filtro temporal; por eso este indicador se presenta como distribución complementaria de procesos por estado. En reportes por perfil se filtra por estudiante, asesor o monitor, pero tampoco por semestre.
+En reportes globales por semestre y por rango, este indicador representa la distribución vigente de procesos por estado, independientemente del periodo seleccionado. En reportes por perfil representa la distribución vigente asociada al estudiante, asesor o monitor indicado.
 
 La documentación del reporte debe distinguir este indicador de otros agregados que sí se calculan con periodo, como consultas, personas, conciliaciones y seguimientos.
 
@@ -99,7 +99,7 @@ La documentación del reporte debe distinguir este indicador de otros agregados 
 - asesor;
 - monitor.
 
-Estos endpoints están orientados al panel de inicio. Reutilizan `EstadisticasSemestreDTO`, pero no llenan todos los campos del reporte institucional. La vista por perfil calcula principalmente:
+Estos endpoints están orientados al panel de inicio. Reutilizan `EstadisticasSemestreDTO` y construyen una vista resumida que calcula principalmente:
 
 - periodo;
 - consultas finalizadas;
@@ -109,7 +109,7 @@ Estos endpoints están orientados al panel de inicio. Reutilizan `EstadisticasSe
 - procesos por estado;
 - `consultasPorArea` como lista vacía.
 
-No existe servicio de estadísticas por conciliador en el código actual.
+Los servicios de estadísticas por perfil implementados corresponden a estudiante, asesor y monitor.
 
 ---
 

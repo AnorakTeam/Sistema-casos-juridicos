@@ -2,7 +2,7 @@
 
 ## Propósito
 
-El backend incluye pruebas unitarias orientadas a reglas críticas de negocio, validadores y estrategias de seguridad. Estas pruebas sirven como soporte técnico para validar comportamientos funcionales importantes del sistema.
+El backend incluye pruebas automatizadas para carga del contexto de aplicación, reglas críticas de negocio, validadores y estrategias de seguridad. Estas pruebas sirven como soporte técnico para validar comportamientos funcionales importantes del sistema.
 
 ## Ubicación
 
@@ -35,6 +35,9 @@ y scripts asociados en `frontend/package.json`.
 | `PerfilEstadoHandlerRegistryTest` | Valida registro y resolución de handlers de estado de perfil. |
 | `PerfilUsuarioActivoResolverRegistryTest` | Valida registro y resolución de resolvers de perfil activo. |
 | `UsuarioSistemaPerfilEstadoServiceTest` | Valida sincronización entre perfil y usuario del sistema. |
+| `LegalCasesApplicationTests.contextLoads()` | Verifica que el contexto principal de Spring Boot pueda cargarse durante la ejecución de pruebas. |
+
+`LegalCasesApplicationTests.contextLoads()` utiliza `@SpringBootTest` para validar la carga del contexto de la aplicación. Las demás pruebas listadas se orientan a reglas funcionales, validadores y estrategias del backend.
 
 ## Reglas críticas cubiertas
 

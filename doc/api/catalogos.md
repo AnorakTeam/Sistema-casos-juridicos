@@ -105,6 +105,13 @@ Los endpoints jerárquicos activos exigen que el catálogo padre esté activo. L
 | Ocupaciones | `/api/ocupaciones` | `OcupacionDTO` |
 | Tipos de persona | `/api/tipos-persona` | `TipoPersonaDTO` |
 
+## Catálogos asociados a procesos
+
+| Catálogo | Base path | DTO | Relación |
+|---|---|---|---|
+| Órganos de control | `/api/organos-control` | `OrganoControlDTO` | Agrupa especialidades utilizadas por procesos. |
+| Especialidades | `/api/especialidades` | `EspecialidadDTO` | Pertenece a un órgano de control. |
+
 ---
 
 # Áreas
@@ -421,7 +428,7 @@ Base path:
 /api/tipos-documento
 ```
 
-`TipoDocumento` no sigue exactamente la convención general de catálogos: no expone endpoint `/todos` ni endpoint `DELETE`. `GET /api/tipos-documento` lista todos los registros, `GET /api/tipos-documento/activos` lista únicamente activos y `GET /api/tipos-documento/{id}` consulta por identificador sin filtrar por estado activo.
+El contrato de `TipoDocumento` expone el listado general mediante `GET /api/tipos-documento`, el listado activo mediante `GET /api/tipos-documento/activos`, la consulta por identificador mediante `GET /api/tipos-documento/{id}` y la gestión de estado mediante `PATCH /api/tipos-documento/{id}/activo?activo=`. La consulta por identificador puede retornar registros activos o inactivos.
 
 ## Endpoints
 
@@ -441,6 +448,147 @@ Base path:
   "nombre": "Nombre del tipo de documento"
 }
 ```
+
+---
+
+# Órganos de control
+
+Base path:
+
+```text
+/api/organos-control
+```
+
+Los órganos de control constituyen el catálogo padre de especialidades asociadas al registro de procesos.
+
+## DTO
+
+```json
+{
+  "id": 1,
+  "nombre": "Nombre del órgano de control",
+  "activo": true
+}
+```
+
+## Endpoints
+
+| Método | Ruta | Permiso | Uso | Respuesta exitosa |
+|---|---|---|---|---|
+| GET | `/api/organos-control` | `Ver catálogos` o `Gestionar catálogos` | Lista órganos activos ordenados por nombre. | `200 OK` con lista de `OrganoControlDTO`. |
+| GET | `/api/organos-control/todos` | `Gestionar catálogos` | Lista órganos activos e inactivos ordenados por nombre. | `200 OK` con lista de `OrganoControlDTO`. |
+| GET | `/api/organos-control/{id}` | `Ver catálogos` o `Gestionar catálogos` | Consulta un órgano activo por id. | `200 OK` con `OrganoControlDTO`. |
+| POST | `/api/organos-control` | `Gestionar catálogos` | Crea un órgano de control activo. | `201 Created` con `OrganoControlDTO`. |
+| PUT | `/api/organos-control/{id}` | `Gestionar catálogos` | Actualiza el nombre del órgano registrado. | `200 OK` con `OrganoControlDTO`. |
+| PATCH | `/api/organos-control/{id}/activo?activo=` | `Gestionar catálogos` | Cambia el estado activo del órgano. | `200 OK` con `OrganoControlDTO`. |
+| DELETE | `/api/organos-control/{id}` | `Gestionar catálogos` | Desactiva lógicamente un órgano activo. | `204 No Content`. |
+
+## Request de creación
+
+```json
+{
+  "nombre": "Nombre del órgano de control"
+}
+```
+
+## Request de actualización
+
+```json
+{
+  "id": 1,
+  "nombre": "Nombre actualizado"
+}
+```
+
+El campo `id` puede omitirse en la actualización; cuando se informa, coincide con el identificador de la ruta.
+
+## Reglas
+
+- `nombre` es obligatorio y admite hasta 80 caracteres.
+- El nombre se normaliza antes de persistirse.
+- El nombre es único sin distinguir mayúsculas y minúsculas.
+- La creación no recibe `id` y establece `activo=true`.
+- `PUT` actualiza los datos del catálogo sin modificar `activo`.
+- `PATCH` requiere el parámetro `activo` y aplica un estado diferente al actual.
+- Para cambiar el estado a inactivo o ejecutar `DELETE`, el órgano no conserva especialidades activas asociadas.
+- `DELETE` mantiene el registro y establece `activo=false`.
+
+---
+
+# Especialidades
+
+Base path:
+
+```text
+/api/especialidades
+```
+
+Una especialidad pertenece a un órgano de control y expone `organoControlId` en su DTO.
+
+## DTO
+
+```json
+{
+  "id": 1,
+  "nombre": "Nombre de la especialidad",
+  "organoControlId": 2,
+  "activo": true
+}
+```
+
+## Endpoints
+
+| Método | Ruta | Permiso | Uso | Respuesta exitosa |
+|---|---|---|---|---|
+| GET | `/api/especialidades` | `Ver catálogos` o `Gestionar catálogos` | Lista especialidades activas ordenadas por nombre. | `200 OK` con lista de `EspecialidadDTO`. |
+| GET | `/api/especialidades/todos` | `Gestionar catálogos` | Lista especialidades activas e inactivas ordenadas por nombre. | `200 OK` con lista de `EspecialidadDTO`. |
+| GET | `/api/especialidades/organo-control/{organoControlId}` | `Ver catálogos` o `Gestionar catálogos` | Lista especialidades activas de un órgano activo, ordenadas por nombre. | `200 OK` con lista de `EspecialidadDTO`. |
+| GET | `/api/especialidades/{id}` | `Ver catálogos` o `Gestionar catálogos` | Consulta una especialidad activa por id. | `200 OK` con `EspecialidadDTO`. |
+| POST | `/api/especialidades` | `Gestionar catálogos` | Crea una especialidad activa vinculada a un órgano activo. | `201 Created` con `EspecialidadDTO`. |
+| PUT | `/api/especialidades/{id}` | `Gestionar catálogos` | Actualiza nombre y órgano activo asociado. | `200 OK` con `EspecialidadDTO`. |
+| PATCH | `/api/especialidades/{id}/activo?activo=` | `Gestionar catálogos` | Cambia el estado activo de la especialidad. | `200 OK` con `EspecialidadDTO`. |
+| DELETE | `/api/especialidades/{id}` | `Gestionar catálogos` | Desactiva lógicamente una especialidad activa. | `204 No Content`. |
+
+## Request de creación
+
+```json
+{
+  "nombre": "Nombre de la especialidad",
+  "organoControlId": 2
+}
+```
+
+## Request de actualización
+
+```json
+{
+  "id": 1,
+  "nombre": "Nombre actualizado",
+  "organoControlId": 2
+}
+```
+
+El campo `id` puede omitirse en la actualización; cuando se informa, coincide con el identificador de la ruta.
+
+## Reglas
+
+- `nombre` es obligatorio y admite hasta 80 caracteres.
+- `organoControlId` es obligatorio.
+- El nombre se normaliza antes de persistirse.
+- El nombre es único dentro del órgano de control seleccionado, sin distinguir mayúsculas y minúsculas.
+- La creación no recibe `id` y establece `activo=true`.
+- La creación y la actualización vinculan la especialidad con un órgano de control activo.
+- `PUT` actualiza nombre y órgano asociado sin modificar `activo`.
+- `PATCH` requiere el parámetro `activo` y aplica un estado diferente al actual.
+- `DELETE` mantiene el registro y establece `activo=false`.
+
+## Consulta por órgano de control
+
+```http
+GET /api/especialidades/organo-control/{organoControlId}
+```
+
+Esta consulta valida el órgano activo indicado y retorna exclusivamente sus especialidades activas ordenadas por nombre. El contrato permite cargar opciones asociadas al órgano seleccionado en formularios de procesos.
 
 ---
 
@@ -513,6 +661,8 @@ Cada uno usa la misma estructura:
 | Empresa | Nombre único. |
 | Ocupación | Nombre único. |
 | Tipo de persona | Nombre único. |
+| Órgano de control | Nombre único. |
+| Especialidad | Nombre único dentro del órgano de control. |
 
 ## Errores comunes
 
@@ -535,12 +685,13 @@ Cada uno usa la misma estructura:
 - Usar `/todos` en pantallas administrativas.
 - Para jerarquías, cargar hijos después de seleccionar el padre.
 - Para tipos de documento, usar `/activos` cuando se necesiten únicamente activos.
+- Para procesos, usar los listados activos de órganos de control y especialidades; la consulta por órgano permite cargar especialidades activas asociadas.
 - Usar `credentials: "include"` en todas las peticiones protegidas.
 - Manejar errores de duplicado y relaciones inactivas desde el mensaje del backend.
 
 
 ## Precisiones de respuesta HTTP
 
-Los endpoints `DELETE` de catálogos que existen realizan desactivación lógica y responden `204 No Content`. No retornan DTO. `TipoDocumento` no expone endpoint `DELETE`; su estado se administra mediante `PATCH /api/tipos-documento/{id}/activo?activo=`.
+Los endpoints `DELETE` documentados para catálogos realizan desactivación lógica y responden `204 No Content`. En `TipoDocumento`, el estado se administra mediante `PATCH /api/tipos-documento/{id}/activo?activo=`.
 
-En la mayoría de catálogos, `GET /{id}` retorna registros activos. La excepción documentada es `TipoDocumento`, cuyo endpoint por id consulta por identificador sin filtrar por `activo`.
+En la mayoría de catálogos, `GET /{id}` retorna registros activos. `GET /api/tipos-documento/{id}` consulta el tipo de documento por identificador y conserva disponible el registro independientemente del valor de `activo`.

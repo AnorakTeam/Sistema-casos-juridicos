@@ -29,7 +29,7 @@ La API de estadísticas expone reportes consolidados en JSON y PDF. El módulo t
 | `GET` | `/api/estadisticas/{año}/semestre/{semestre}/asesor/{id}` | Reporte resumido por asesor | `VER_CONSULTAS` |
 | `GET` | `/api/estadisticas/{año}/semestre/{semestre}/monitor/{id}` | Reporte resumido por monitor | `VER_CONSULTAS` |
 
-No existe endpoint estadístico específico por conciliador en el código actual.
+Los reportes resumidos por perfil expuestos por el controller corresponden a estudiante, asesor y monitor.
 
 ---
 
@@ -92,7 +92,7 @@ Reglas aplicadas por el backend:
 - el año de `fechaInicio` debe ser mayor o igual a `2024`;
 - `fechaInicio` no puede ser futura.
 
-El código actual no bloquea expresamente que `fechaFin` sea futura; la validación se concentra en la fecha inicial y en el orden del rango.
+La validación temporal del rango aplica el año mínimo y el control de fecha futura sobre `fechaInicio`; `fechaFin` participa en las validaciones de obligatoriedad y orden del rango.
 
 ---
 
@@ -135,7 +135,7 @@ Campos principales:
 
 El campo `procesosPorEstado` se obtiene desde agregaciones de `ProcesoRepository`.
 
-En reportes globales por semestre o por rango, la agregación de procesos por estado no recibe filtro temporal. Funciona como indicador complementario de distribución vigente de procesos. En reportes por perfil se filtra por estudiante, asesor o monitor, pero tampoco recibe filtro de semestre.
+En reportes globales por semestre o por rango, `procesosPorEstado` representa la distribución vigente de procesos, independientemente del periodo seleccionado. En reportes por perfil representa la distribución vigente asociada al estudiante, asesor o monitor indicado.
 
 Esta precisión es importante porque los demás indicadores institucionales del reporte sí usan el periodo consultado cuando el repositorio correspondiente recibe año, semestre o rango.
 
@@ -164,7 +164,7 @@ Estos endpoints reutilizan `EstadisticasSemestreDTO`, pero entregan una vista re
 - procesosPorEstado;
 - totalPersonasAtendidas.
 
-No todos los agregados del reporte institucional se calculan en los endpoints por perfil.
+Los endpoints por perfil calculan el subconjunto de campos descrito para la vista resumida del panel de inicio.
 
 Los endpoints por perfil requieren `VER_CONSULTAS` y reciben el id del perfil en la ruta. En el frontend de inicio, ese id se toma del `perfilId` del usuario autenticado.
 

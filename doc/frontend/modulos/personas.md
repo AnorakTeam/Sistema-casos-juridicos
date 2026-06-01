@@ -148,7 +148,7 @@ El formulario usa `useApiForm` para manejar envío, estado de carga, mensajes y 
 
 ## 4. Administración de personas
 
-La ruta `/personas` renderiza `PersonasForm`, que permite listar personas activas, buscar, editar y desactivar. La reactivación de personas no se realiza desde esta vista; se gestiona desde el módulo de eliminación/reactivación.
+La ruta `/personas` renderiza `PersonasForm`, que permite listar personas activas, buscar, editar y desactivar. El módulo de eliminación/reactivación ofrece la acción de reactivar personas.
 
 ### 4.1 Permisos
 
@@ -187,9 +187,9 @@ La desactivación de persona se realiza con:
 
 ```text
 PATCH /api/personas/{id}/desactivar
-
-La respuesta del backend es `204 No Content`; por tanto, la interfaz actualiza la vista recargando o retirando el registro de la lista activa, no leyendo un DTO de respuesta.
 ```
+
+La respuesta del backend es `204 No Content`; por tanto, la interfaz actualiza la vista recargando o retirando el registro de la lista activa.
 
 La acción usa `ConfirmActionDialog` para solicitar confirmación antes de enviarla.
 
@@ -251,5 +251,5 @@ Al modificar el módulo debe verificarse:
 
 - `/recepcion` usa `PersonaForm` para crear nuevas personas mediante `POST /api/personas`.
 - `/personas` usa `PersonasForm` para listar personas activas, editar por `PUT /api/personas/{id}` y desactivar por `PATCH /api/personas/{id}/desactivar`.
-- La pantalla `/personas` no expone reactivación; esa operación se administra desde el módulo de eliminación/reactivación.
+- La reactivación de personas se administra desde el módulo de eliminación/reactivación.
 - El formulario usa catálogos activos y carga municipios/barrios dependientes para respetar la relación Departamento → Municipio → Barrio.

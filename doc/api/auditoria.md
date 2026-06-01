@@ -18,7 +18,7 @@ La API de auditoría permite consultar registros generados por métodos del back
 |---|---|---|---|
 | `GET` | `/api/audit` | Consulta paginada de registros de auditoría | `ACCEDER_ADMINISTRACION` |
 
-No existen endpoints de creación, edición, eliminación o consulta por id en el controller de auditoría.
+La operación expuesta por `AuditLogController` es la consulta paginada `GET /api/audit`, con filtro opcional por `username`.
 
 ---
 
@@ -62,4 +62,4 @@ Ejemplo de elemento:
 
 ## 5. Alcance de consulta
 
-El endpoint permite filtrar por `username` y ordenar/paginar resultados. Aunque el repositorio contiene métodos auxiliares para otros criterios, el controller expone únicamente la consulta paginada general y el filtro por usuario.
+El endpoint permite filtrar por `username`, ordenar y paginar los resultados de auditoría.

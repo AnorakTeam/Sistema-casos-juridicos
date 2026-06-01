@@ -67,7 +67,7 @@ Características:
 
 `FormFileUpload` se usa como componente base para selección de archivos en formularios. `ArchivosConsultaForm` se usa como soporte visual para archivos asociados a consulta. Los flujos activos de carga y descarga se implementan dentro de formularios específicos como nueva consulta, consultas jurídicas, seguimientos y conciliaciones.
 
-`ArchivoForm.jsx` existe en el código fuente como componente auxiliar, pero no se documenta como flujo funcional principal porque no está integrado directamente a una ruta operativa principal.
+`ArchivoForm.jsx` es un componente auxiliar disponible en el código frontend para cargar archivos.
 
 ## Reglas reutilizables de validación
 

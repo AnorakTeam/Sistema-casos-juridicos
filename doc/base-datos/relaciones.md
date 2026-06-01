@@ -198,4 +198,4 @@ perfiles internos
 catálogos jurídicos
 ```
 
-No existe una entidad persistente de reporte estadístico principal en el código actual. Los reportes se generan desde servicios de consulta y PDF.
+Los reportes estadísticos se generan dinámicamente desde servicios de consulta y generación PDF a partir de las entidades operativas relacionadas.

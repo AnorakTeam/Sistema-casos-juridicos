@@ -13,6 +13,19 @@ Esta sección documenta los endpoints relacionados con cuentas de acceso, roles,
 
 Además, implementa endpoints específicos para cambiar el perfil activo de un usuario y actualizar su rol asociado.
 
+### Representación de permisos en este contrato
+
+En las tablas de endpoints, identificadores como `VER_USUARIOS` y `GESTIONAR_ROLES` corresponden a constantes de `PermisoNombre` utilizadas por los controllers. El valor textual de la constante es la autoridad evaluada y el dato expuesto en los DTOs.
+
+Ejemplo:
+
+| Constante de código | Valor expuesto |
+|---|---|
+| `VER_CONSULTAS` | `"Ver consultas"` |
+| `EDITAR_CONSULTAS` | `"Editar consultas"` |
+
+Por esta razón, los ejemplos JSON de usuarios, roles y permisos utilizan los nombres textuales retornados por los mappers.
+
 ---
 
 ## 2. Usuarios del sistema
@@ -46,7 +59,7 @@ Ruta base:
   "rolNombre": "ASESOR",
   "perfilId": 10,
   "tipoPerfil": "ASESOR",
-  "permisos": ["VER_CONSULTAS", "EDITAR_CONSULTAS"]
+  "permisos": ["Editar consultas", "Ver consultas"]
 }
 ```
 
@@ -121,7 +134,7 @@ Ruta base:
   "activo": true,
   "permisoIds": [1, 2, 3],
   "permisos": [
-    { "id": 1, "nombre": "VER_CONSULTAS", "descripcion": "...", "activo": true }
+    { "id": 1, "nombre": "Ver consultas", "descripcion": "Descripción registrada para el permiso", "activo": true }
   ]
 }
 ```
@@ -150,7 +163,7 @@ Ruta base:
 ```json
 {
   "id": 1,
-  "nombre": "VER_CONSULTAS",
+  "nombre": "Ver consultas",
   "descripcion": "Permite consultar casos jurídicos",
   "activo": true
 }
@@ -173,11 +186,11 @@ Ruta base:
 
 ## 7. Precisiones del cambio de perfil
 
-El cambio de perfil usa DTOs especializados y estrategias por perfil destino. Estos DTOs no son equivalentes a los DTOs de creación directa de perfiles.
+El cambio de perfil usa DTOs especializados y estrategias por perfil destino. Estos DTOs corresponden a la transición de perfil y se distinguen de los DTOs utilizados para la creación de perfiles operativos.
 
 ### 7.1 Correo del perfil destino
 
-En el cambio de perfil no se recibe un campo `email` dentro del DTO. El correo del perfil destino se toma del `username` del `UsuarioSistema`, porque la cuenta de acceso continúa siendo la misma.
+En el cambio de perfil, el correo del perfil destino se toma del `username` del `UsuarioSistema`, conservando la identidad de acceso de la cuenta.
 
 ### 7.2 Obligatoriedad por perfil destino
 
@@ -195,11 +208,11 @@ Los campos comunes obligatorios para el cambio de perfil son `rolId`, `motivo`, 
 
 ### 7.3 Perfil destino reutilizado
 
-Si el usuario ya tuvo previamente el perfil destino, el handler lo reutiliza y lo reactiva. Esta reutilización solo aplica sobre un perfil asociado al mismo `UsuarioSistema`; no se reutilizan perfiles de otros usuarios.
+Si el usuario ya tuvo previamente el perfil destino, el handler lo reutiliza y lo reactiva. La reutilización se aplica exclusivamente a un perfil asociado al mismo `UsuarioSistema`.
 
 ### 7.4 Perfil anterior y UsuarioSistema
 
-Durante el cambio de perfil, el sistema desactiva el perfil anterior mediante `PerfilEstadoHandler`, pero no desactiva el `UsuarioSistema`. La cuenta continúa activa con el perfil destino y el nuevo rol asociado.
+Durante el cambio de perfil, el sistema desactiva el perfil anterior mediante `PerfilEstadoHandler` y conserva activo el `UsuarioSistema` con el perfil destino y el nuevo rol asociado.
 
 ---
 
@@ -207,18 +220,18 @@ Durante el cambio de perfil, el sistema desactiva el perfil anterior mediante `P
 
 ### 8.1 Creación y actualización de roles
 
-En la creación de rol, el backend espera `permisoIds` no nulo ni vacío. Los permisos indicados deben existir y estar activos.
+En la creación de rol, el backend requiere `permisoIds` informado con al menos un elemento. Los permisos indicados deben existir y estar activos.
 
-En la actualización de rol, si `permisoIds` se envía, el backend reemplaza la lista completa de permisos por la lista recibida. Si `permisoIds` no se envía, conserva los permisos existentes del rol.
+En la actualización de rol, al informar `permisoIds` el backend reemplaza la lista completa de permisos por la lista recibida; al omitir el campo, conserva los permisos existentes del rol.
 
 La asignación individual mediante `PATCH /api/roles/{rolId}/permisos/{permisoId}` también exige que el permiso exista y esté activo. La remoción individual usa `DELETE /api/roles/{rolId}/permisos/{permisoId}`.
 
-### 8.2 Permisos sin eliminación física
+### 8.2 Administración del estado de permisos
 
-La API de permisos no expone `DELETE /api/permisos/{id}`. El estado de un permiso se administra mediante `PATCH /api/permisos/{id}/activo`.
+El estado de un permiso se administra mediante `PATCH /api/permisos/{id}/activo?activo=true|false`.
 
 ### 8.3 UsuarioSistema y creación de cuentas
 
-La API de usuarios del sistema no expone creación directa con `POST /api/usuarios-sistema`. La cuenta se crea como efecto de la creación de un perfil operativo desde su respectivo endpoint.
+La cuenta de acceso se crea al registrar un perfil operativo desde su endpoint correspondiente.
 
-`PATCH /api/usuarios-sistema/{id}/activo` cambia el estado de la cuenta de acceso. Ese endpoint no cambia automáticamente el estado del perfil operativo real asociado.
+`PATCH /api/usuarios-sistema/{id}/activo?activo=true|false` administra el estado de la cuenta de acceso. El estado del perfil operativo se administra mediante las operaciones del módulo de perfil correspondiente.

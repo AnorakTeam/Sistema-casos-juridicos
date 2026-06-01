@@ -55,6 +55,17 @@ api/autenticacion.md
 
 La API combina permisos funcionales con reglas de alcance. La presencia de un permiso habilita una acción general, pero el backend puede aplicar controles adicionales según el perfil activo, la consulta relacionada, los responsables asignados o el estado funcional del recurso.
 
+### Representación documental de permisos
+
+`PermisoNombre` centraliza permisos como constantes Java cuyo valor es el nombre funcional utilizado por Spring Security y expuesto por los DTOs.
+
+| Forma | Ejemplo | Uso en la documentación |
+|---|---|---|
+| Constante Java | `VER_CONSULTAS` | Referencia técnica empleada por controllers y anotaciones de autorización. |
+| Valor textual del permiso | `"Ver consultas"` | Autoridad evaluada y valor retornado en campos como `UsuarioSistemaDTO.permisos` y `PermisoDTO.nombre`. |
+
+Las tablas de autorización pueden citar constantes Java para corresponder con el código fuente. Los ejemplos de respuestas API que incluyen permisos utilizan el valor textual expuesto por los mappers.
+
 Ejemplos:
 
 | Módulo | Control aplicado |

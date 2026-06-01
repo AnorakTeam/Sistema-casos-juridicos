@@ -188,8 +188,8 @@ La clase `UsuarioSistemaPerfilEstadoService` sincroniza el estado de `UsuarioSis
 
 La sincronización se ejecuta de forma segura:
 
-- si el perfil no tiene usuario asociado, no interrumpe la operación;
-- si el estado del usuario ya coincide, no guarda cambios innecesarios;
+- cuando el perfil tiene un usuario asociado, sincroniza el estado de la cuenta de acceso;
+- persiste el usuario asociado únicamente cuando su estado requiere actualización;
 - si el perfil se desactiva, el usuario asociado queda inactivo;
 - si el perfil se reactiva, el usuario asociado queda activo.
 
@@ -391,7 +391,7 @@ Pruebas observadas:
 
 ### 15.1 Gestión de administrativos
 
-La gestión de administrativos no depende únicamente de la anotación de permisos del controller. `AdministrativoAccessService` exige que el usuario autenticado opere como administrador y que su perfil administrativo activo tenga `directora=true`. Esta regla aplica a creación, actualización, cambio de estado, cambio de marca de directora y eliminación lógica de administrativos.
+La gestión de administrativos combina la anotación de permisos del controller con `AdministrativoAccessService`, que exige que el usuario autenticado opere como administrador y que su perfil administrativo activo tenga `directora=true`. Esta regla aplica a creación, actualización, cambio de estado, cambio de marca de directora y eliminación lógica de administrativos.
 
 ### 15.2 Alcance de estudiantes
 
@@ -399,7 +399,7 @@ La gestión de administrativos no depende únicamente de la anotación de permis
 
 - administrador: consulta todos los estudiantes según el método invocado;
 - asesor: consulta únicamente estudiantes asociados a su asesoría;
-- otros perfiles: no reciben estudiantes desde el listado operativo cuando no tienen alcance funcional.
+- otros perfiles: el listado operativo aplica el alcance funcional definido por `EstudianteAccessService`.
 
 Para `listarActivosPorAsesor`, el administrador puede consultar cualquier asesor; el asesor autenticado solo puede consultar su propio id de asesor.
 
@@ -407,7 +407,7 @@ Para `listarActivosPorAsesor`, el administrador puede consultar cualquier asesor
 
 ### 15.3 Importación masiva de estudiantes
 
-El flujo de importación lee un archivo Excel enviado como `archivo`, procesa la primera hoja y espera encabezados exactos. Cada fila se convierte a `EstudianteDTO` y pasa por `EstudianteCommandService.crear`, reutilizando validaciones de campos, catálogos, duplicados, asesor activo y creación de `UsuarioSistema`.
+El flujo de importación lee un archivo Excel enviado como `archivo`, procesa la primera hoja y valida los encabezados esperados en el orden definido, sin distinguir mayúsculas y minúsculas. Cada fila se convierte a `EstudianteDTO` y pasa por `EstudianteCommandService.crear`, reutilizando validaciones de campos, catálogos, duplicados, asesor activo y creación de `UsuarioSistema`.
 
 Encabezados esperados:
 
@@ -421,7 +421,7 @@ La importación reporta resultado por filas mediante `ImportacionEstudiantesDTO`
 
 `UsuarioSistemaPerfilEstadoService` se invoca desde los command services de perfiles cuando se cambia el estado del perfil. Por eso, desactivar o reactivar un perfil sincroniza la cuenta de acceso asociada.
 
-El servicio `UsuarioSistemaService.cambiarEstado` cambia directamente el estado del `UsuarioSistema` y no ejecuta una sincronización inversa sobre el perfil real. Esta separación permite administrar la cuenta de acceso sin modificar necesariamente el registro funcional del perfil.
+El servicio `UsuarioSistemaService.cambiarEstado` administra directamente el estado del `UsuarioSistema`. El estado del perfil operativo se gestiona desde los command services de perfiles, donde `UsuarioSistemaPerfilEstadoService` sincroniza la cuenta asociada.
 
 ### 15.5 Cambio de perfil
 
@@ -429,7 +429,7 @@ El cambio de perfil tiene reglas propias:
 
 - el email del perfil destino se toma desde `UsuarioSistema.username`;
 - el perfil destino puede crearse o reactivarse si ya existía para el mismo usuario;
-- el perfil anterior se desactiva, pero el `UsuarioSistema` permanece activo;
+- el perfil anterior se desactiva y el `UsuarioSistema` permanece activo con el perfil destino;
 - la obligatoriedad de `documento`, `tipoDocumentoId`, `sedeId` y campos específicos depende del handler de Strategy del perfil destino.
 
 | Perfil destino | Reglas de datos aplicadas por handler |
@@ -442,6 +442,6 @@ El cambio de perfil tiene reglas propias:
 
 ### 15.6 Roles y permisos
 
-La creación de rol exige una lista de permisos activa y no vacía. En actualización, enviar `permisoIds` reemplaza la lista completa de permisos; omitir `permisoIds` conserva la asignación existente.
+La creación de rol exige una lista de permisos activos con al menos un elemento. En actualización, informar `permisoIds` reemplaza la lista completa de permisos; omitir `permisoIds` conserva la asignación existente.
 
-La API de permisos trabaja con activación/desactivación lógica mediante `PATCH /activo`; no expone eliminación física por `DELETE`.
+La API de permisos administra el ciclo de vida mediante activación y desactivación lógica con `PATCH /api/permisos/{id}/activo?activo=true|false`.

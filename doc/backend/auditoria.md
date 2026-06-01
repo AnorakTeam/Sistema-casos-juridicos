@@ -29,7 +29,7 @@ Los métodos de escritura que requieren trazabilidad se anotan con `@Auditable`,
 - acción;
 - nombre de entidad.
 
-El aspecto `AuditAspect` usa `@AfterReturning`, por lo que registra métodos anotados que terminan correctamente y retornan control al flujo. El módulo no audita automáticamente todos los endpoints; audita los métodos marcados explícitamente con `@Auditable`.
+El aspecto `AuditAspect` usa `@AfterReturning`, por lo que registra los métodos marcados explícitamente con `@Auditable` cuando terminan correctamente y retornan control al flujo.
 
 ---
 
@@ -91,4 +91,4 @@ El paquete incluye el script:
 backend/db/triggers/audit_immutable.sql
 ```
 
-Este recurso permite reforzar el carácter histórico de la tabla de auditoría a nivel de base de datos cuando se aplica en el ambiente correspondiente. La API no expone endpoints de escritura o eliminación de registros de auditoría.
+Este recurso permite reforzar el carácter histórico de la tabla de auditoría a nivel de base de datos cuando se aplica en el ambiente correspondiente. El registro de eventos se realiza desde el módulo backend de auditoría y su consulta HTTP se ofrece mediante `GET /api/audit`.

@@ -4,7 +4,7 @@
 
 ## 1. Regla general
 
-Las estadísticas se calculan a partir de información operativa persistida. No se capturan manualmente como registros independientes; se derivan de consultas, personas, procesos, seguimientos, conciliaciones y estudiantes.
+Las estadísticas se calculan dinámicamente a partir de información operativa persistida en consultas, personas, procesos, seguimientos, conciliaciones y estudiantes.
 
 ---
 
@@ -60,15 +60,13 @@ Los campos de estudiantes activos representan el estado actual al momento de gen
 
 El indicador `procesosPorEstado` se calcula desde las agregaciones disponibles en `ProcesoRepository`.
 
-En reportes globales, funciona como distribución complementaria vigente de procesos por estado. En reportes por perfil se filtra por estudiante, asesor o monitor, pero no por semestre. Esta regla debe conservarse al interpretar el reporte.
+En reportes globales, funciona como distribución complementaria vigente de procesos por estado. En reportes por perfil, representa la distribución vigente asociada al estudiante, asesor o monitor indicado. Esta regla debe conservarse al interpretar el reporte.
 
 ---
 
 ## 7. Reportes por perfil
 
-Los reportes por estudiante, asesor y monitor reutilizan el DTO de estadísticas semestrales, pero entregan una vista resumida para el panel de inicio. No calculan todos los agregados del reporte institucional.
-
-No existe reporte estadístico por conciliador en el código actual.
+Los reportes resumidos por perfil implementados corresponden a estudiante, asesor y monitor. Reutilizan el DTO de estadísticas semestrales y entregan para el panel de inicio los campos construidos por `EstadisticasPerfilQueryService`.
 
 ---
 

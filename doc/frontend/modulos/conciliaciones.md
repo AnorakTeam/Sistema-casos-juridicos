@@ -65,55 +65,75 @@ Ver conciliaciones
 
 Si la sesión no es válida, el frontend redirige al login. Si el usuario no cuenta con los permisos necesarios para el módulo, redirige a `/inicio`.
 
-## 5. Permisos usados por la pantalla
+## 5. Permisos y acciones visibles en la pantalla
 
 El componente utiliza permisos declarados en `src/lib/permission.js` y evaluados con helpers de `src/lib/authz.js`.
 
-| Permiso | Uso frontend |
-|---|---|
-| `Acceder conciliaciones` | Habilita el ingreso a la ruta `/conciliaciones`. |
-| `Ver conciliaciones` | Permite cargar y mostrar el listado y detalle de conciliaciones. |
-| `Gestionar conciliaciones` | Permite crear conciliación, asignar estudiante, asignar conciliador, reemplazar solicitud y desactivar. |
-| `Concluir conciliaciones` | Permite acciones de cierre o conclusión del trámite, incluyendo finalización con acta cuando el backend lo autoriza. |
-| `Ver consultas` | Permite cargar consultas para crear conciliaciones asociadas. |
-| `Ver estudiantes` / `Ver perfiles auxiliares` | Permite cargar estudiantes habilitados para conciliación. |
-| `Ver conciliadores` / `Ver perfiles auxiliares` | Permite cargar conciliadores activos. |
+### Acceso y datos principales
 
-El frontend no reemplaza las validaciones del backend. La interfaz muestra u oculta acciones según permisos, pero el backend conserva la decisión final de autorización, alcance y estado.
+| Elemento visible o carga | Condición evaluada por la interfaz |
+|---|---|
+| Ingreso a `/conciliaciones` | Requiere simultáneamente `Acceder conciliaciones` y `Ver conciliaciones`. |
+| Listado y detalle de conciliaciones | Se cargan después de validar el acceso al módulo. |
+| Consultas para crear una conciliación | Se solicitan cuando el usuario tiene `Ver consultas`. |
+| Estudiantes habilitados para conciliación | Se solicitan cuando el usuario tiene `Ver estudiantes`, `Ver perfiles auxiliares`, `Gestionar conciliaciones` o `Concluir conciliaciones`. |
+| Conciliadores activos | Se solicitan cuando el usuario tiene `Ver conciliadores`, `Ver perfiles auxiliares` o `Gestionar conciliaciones`. |
+
+Los catálogos auxiliares se cargan mediante peticiones separadas y, cuando una de ellas no retorna datos disponibles para la interfaz, el componente conserva vacío el conjunto correspondiente.
+
+### Capacidad operativa y acciones
+
+El componente calcula una capacidad operativa para acciones sobre el detalle:
+
+```text
+Gestionar conciliaciones
+o
+Concluir conciliaciones cuando el usuario no es estudiante
+```
+
+Para las acciones administrativas utiliza `esRolAdministrador(usuario)`, que reconoce el perfil administrativo o los roles `Administrador`, `Administrativo` y `Director`.
+
+| Acción visible | Condición evaluada por `ConciliacionesForm` |
+|---|---|
+| Crear conciliación desde consulta | Tiene `Gestionar conciliaciones` y no corresponde a estudiante ni conciliador. |
+| Asignar estudiante | Tiene capacidad operativa y no corresponde a estudiante. |
+| Asignar conciliador | Tiene `Gestionar conciliaciones` y cumple la condición administrativa/directiva. |
+| Cambiar estado no final | Tiene capacidad operativa y no corresponde a estudiante. |
+| Finalizar con acta | Tiene capacidad operativa y no corresponde a estudiante. |
+| Reemplazar solicitud | Tiene `Gestionar conciliaciones` y cumple la condición administrativa/directiva. |
+| Desactivar conciliación | Tiene `Gestionar conciliaciones` y cumple la condición administrativa/directiva. |
+
+La autorización y las reglas funcionales de cada operación se aplican en el backend al recibir la petición.
 
 ## 6. Estados usados por la interfaz
 
-La interfaz trabaja con estados de conciliación entregados por el backend. En el componente se separan estados operativos y finales para controlar el cambio de estado normal y la finalización con acta.
+La interfaz muestra el estado recibido en los datos de la conciliación y ofrece controles específicos para transición operativa y finalización.
 
-Estados operativos documentados por el flujo:
+| Uso en la interfaz | Estado o estados utilizados |
+|---|---|
+| Estado no final seleccionable en el panel `Cambiar estado no final` | `ESPERANDO_REUNION` |
+| Estados seleccionables en el panel `Finalizar con acta` | `COMPLETO_CONCILIADO`, `COMPLETO_NO_CONCILIADO` |
+| Estados que el listado o detalle puede presentar según la respuesta recibida | Incluyen `EN_ESPERA`, `REUNION_PROGRAMADA` y estados cuyo código contiene `COMPLETO`. |
 
-```text
-EN_ESPERA
-ESPERANDO_REUNION
-REUNION_PROGRAMADA
-```
-
-Estados finales usados en finalización:
-
-```text
-COMPLETO_CONCILIADO
-COMPLETO_NO_CONCILIADO
-```
-
-La acción de finalización no se trata como un simple cambio de estado, porque requiere cargar acta en PDF y enviar un formulario multipart.
+La acción de finalización envía el estado final junto con el acta PDF mediante un formulario multipart, utilizando un endpoint diferente al cambio de estado no final.
 
 ## 7. Carga inicial de datos
 
-Durante la inicialización, el componente carga:
+Después de validar la sesión y el acceso al módulo, el componente carga el listado principal:
 
 ```text
 GET /api/conciliaciones
-GET /api/consultas
-GET /api/estudiantes/activos/conciliacion
-GET /api/conciliadores/activos
 ```
 
-La carga de consultas, estudiantes y conciliadores depende de permisos. Si el usuario no tiene permiso para ver alguno de esos recursos, la pantalla puede seguir mostrando conciliaciones, pero sin habilitar las acciones que dependen de esos catálogos operativos.
+También intenta cargar información auxiliar según los permisos evaluados en la interfaz:
+
+| Datos auxiliares | Ruta consumida | Condición frontend |
+|---|---|---|
+| Consultas | `GET /api/consultas` | `Ver consultas`. |
+| Estudiantes habilitados para conciliación | `GET /api/estudiantes/conciliacion` | `Ver estudiantes`, `Ver perfiles auxiliares`, `Gestionar conciliaciones` o `Concluir conciliaciones`. |
+| Conciliadores activos | `GET /api/conciliadores/activos` | `Ver conciliadores`, `Ver perfiles auxiliares` o `Gestionar conciliaciones`. |
+
+Cada endpoint conserva la autorización configurada en backend. En la vista, las listas auxiliares se utilizan para habilitar selecciones en los paneles de creación y asignación.
 
 El listado de conciliaciones se pagina y filtra en el cliente para facilitar la consulta visual.
 
@@ -148,7 +168,7 @@ El frontend envía un `FormData` con el campo:
 solicitud
 ```
 
-El archivo de solicitud es obligatorio en la interfaz y debe ser PDF. La validación visual evita enviar extensiones distintas a `.pdf`.
+El archivo de solicitud es obligatorio en la interfaz y debe ser PDF. La función `archivoEsPdf(...)` acepta el archivo cuando su tipo MIME es `application/pdf` o cuando su nombre termina en `.pdf`.
 
 ### 8.4 Asignar estudiante
 
@@ -172,7 +192,7 @@ El conciliador se selecciona desde la lista de conciliadores activos. La pantall
 PATCH /api/conciliaciones/{id}/estado?estado={codigoEstado}
 ```
 
-Esta acción se usa para estados no finales. La finalización formal se hace con un endpoint independiente porque requiere acta.
+Esta acción se usa para el estado no final seleccionable en el formulario: `ESPERANDO_REUNION`. La finalización se realiza con un endpoint independiente porque requiere acta.
 
 ### 8.7 Finalizar conciliación con acta
 
@@ -188,7 +208,7 @@ estado
 acta
 ```
 
-El campo `acta` debe ser un PDF. El uso de `POST` corresponde al código actual del frontend y al contrato backend vigente.
+El campo `acta` debe ser un PDF y se valida mediante el tipo MIME `application/pdf` o la extensión `.pdf`. El uso de `POST` corresponde al contrato consumido por la interfaz.
 
 ### 8.8 Reemplazar solicitud PDF
 
@@ -197,7 +217,7 @@ POST /api/conciliaciones/{id}/solicitud
 Content-Type: multipart/form-data
 ```
 
-Permite reemplazar el documento de solicitud de conciliación. La interfaz valida que el archivo seleccionado sea PDF.
+Permite reemplazar el documento de solicitud de conciliación. La interfaz valida que el archivo tenga tipo MIME `application/pdf` o nombre terminado en `.pdf`.
 
 ### 8.9 Desactivar conciliación
 
@@ -210,23 +230,29 @@ La pantalla pide confirmación antes de desactivar la conciliación. La desactiv
 ### 8.10 Descargar documentos
 
 ```text
-GET /files/download/{path}
+GET /api/files/download/{path}
 ```
 
-La descarga se realiza usando `FILE_STORAGE_API_URL_BASE`. El path se codifica para evitar problemas con caracteres especiales en rutas.
+El componente construye esta petición a partir de `FILE_STORAGE_API_URL_BASE`, que se normaliza con el sufijo `/api`, y codifica cada segmento del path antes de solicitar la descarga.
 
 ## 9. Validación de archivos PDF
 
-El componente valida visualmente que los documentos cargados para solicitud o acta sean PDF. Esta validación se aplica antes de construir el `FormData`.
+El componente aplica la función `archivoEsPdf(file)` antes de construir los formularios multipart. El archivo se considera PDF cuando:
+
+```text
+file.type === "application/pdf"
+o
+el nombre del archivo termina en ".pdf"
+```
 
 Validaciones aplicadas por la interfaz:
 
-- la solicitud de creación debe existir y ser PDF;
-- el acta de finalización debe existir y ser PDF;
-- el reemplazo de solicitud debe ser PDF;
-- se limpian los inputs después de una operación exitosa.
+- la solicitud utilizada para crear una conciliación debe existir y cumplir la validación PDF;
+- el acta utilizada para finalizar una conciliación debe existir y cumplir la validación PDF;
+- el reemplazo de solicitud debe cumplir la validación PDF;
+- los inputs de archivo se limpian después de las operaciones exitosas correspondientes.
 
-La validación frontend mejora la experiencia de usuario, mientras que la validación definitiva corresponde al backend.
+Los documentos recibidos se envían al backend mediante `FormData` en las operaciones que requieren solicitud o acta.
 
 ## 10. Gestión de mensajes y errores
 

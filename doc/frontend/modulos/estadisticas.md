@@ -83,13 +83,13 @@ GET /api/estadisticas/{año}/semestre/{semestre}/asesor/{perfilId}
 GET /api/estadisticas/{año}/semestre/{semestre}/monitor/{perfilId}
 ```
 
-No existe endpoint frontend/backend para estadísticas por conciliador en el código actual.
+Desde `/inicio`, los reportes resumidos por perfil consumidos corresponden a estudiante, asesor y monitor.
 
 ---
 
 ## 8. Vista resumida por perfil
 
-Los endpoints por perfil reutilizan `EstadisticasSemestreDTO`, pero el backend entrega una vista resumida. El frontend debe tratar como opcionales los agregados que no forman parte del resumen por perfil.
+Los endpoints por perfil reutilizan `EstadisticasSemestreDTO` y el backend entrega una vista resumida. El frontend trata como opcionales los agregados adicionales al resumen por perfil.
 
 La vista por perfil se orienta a métricas de inicio, principalmente:
 
@@ -103,7 +103,7 @@ La vista por perfil se orienta a métricas de inicio, principalmente:
 
 ## 9. Indicadores de procesos
 
-El indicador `procesosPorEstado` se muestra como dato complementario. En reportes globales no está filtrado por semestre o rango; en reportes por perfil se filtra por el perfil correspondiente, pero no por semestre.
+El indicador `procesosPorEstado` se muestra como dato complementario: en reportes globales representa la distribución vigente de procesos y, en reportes por perfil, la distribución vigente asociada al perfil correspondiente.
 
 ---
 

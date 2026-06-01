@@ -127,7 +127,7 @@ Las notificaciones de reunión se envían a destinatarios derivados de la consul
 - partes;
 - contrapartes.
 
-No se documenta al estudiante ni al conciliador como destinatarios directos de esta notificación porque el servicio de destinatarios usa las personas de la consulta.
+El servicio de destinatarios obtiene estos receptores desde las personas vinculadas a la consulta.
 
 ## Regla 24. Los correos se deduplican
 

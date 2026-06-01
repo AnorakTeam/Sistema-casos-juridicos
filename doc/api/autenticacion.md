@@ -181,7 +181,7 @@ Actualiza la contraseña del usuario autenticado.
 
 ### Response `204 No Content`
 
-No retorna body.
+La respuesta se entrega sin cuerpo.
 
 ### Respuestas
 
