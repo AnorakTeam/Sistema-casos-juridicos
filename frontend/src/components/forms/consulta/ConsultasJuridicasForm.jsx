@@ -1310,7 +1310,7 @@ export function ConsultasJuridicasForm() {
                         </Button>
                       )}
 
-                      {puedeArchivarConsultas && normalizarEstadoConsulta(row.estado) !== "ARCHIVADO" && (
+                      {puedeArchivarRegistro(row) && (
                         <Button
                           size="sm"
                           variant="destructive"
