@@ -1,154 +1,262 @@
-# Módulo: Conciliaciones
+# Frontend - Módulo de conciliaciones
 
-## Propósito
+## 1. Propósito del módulo
 
-El módulo de conciliaciones permite gestionar conciliaciones asociadas a consultas jurídicas. Incluye la creación, seguimiento de estado, asignación de responsables, subida de documentos PDF y finalización.
+El módulo de conciliaciones permite gestionar, desde la interfaz web, las conciliaciones asociadas a consultas jurídicas. Su objetivo es ofrecer una vista operativa para consultar conciliaciones, crear una conciliación desde una consulta, revisar el detalle, asignar estudiante y conciliador, cambiar estados operativos, cargar documentos PDF y finalizar el trámite cuando existe acta.
 
-Ver `doc/api/conciliaciones.md` y `doc/reglas/conciliaciones.md` para la documentación completa de backend.
+La implementación frontend se concentra en la ruta:
 
-## Pantallas y rutas
+```text
+/conciliaciones
+```
 
-| Ruta | Componente principal | Descripción |
-|---|---|---|
-| `/conciliaciones` | `ConciliacionesForm` + `ReunionesConciliacionForm` | Listado de conciliaciones y gestión de reuniones |
-
-## Componentes
+y en el componente:
 
 ```text
 src/components/forms/conciliacion/ConciliacionesForm.jsx
-src/components/forms/conciliacion/ReunionesConciliacionForm.jsx
 ```
 
-## Permisos requeridos
+La página de conciliaciones también integra el componente de reuniones de conciliación mediante pestañas, pero la gestión específica de programación y reprogramación se documenta en `doc/frontend/modulos/reuniones-conciliacion.md`.
 
-| Permiso | Uso en frontend |
+## 2. Ruta y composición visual
+
+La página se define en:
+
+```text
+src/app/(dashboard)/conciliaciones/page.js
+```
+
+La ruta presenta dos pestañas principales:
+
+| Pestaña | Componente | Uso |
+|---|---|---|
+| Conciliaciones | `ConciliacionesForm` | Consulta, creación, asignación, documentos, estados y finalización de conciliaciones. |
+| Reuniones | `ReunionesConciliacionForm` | Programación y reprogramación de reuniones de conciliación. |
+
+Esta composición permite mantener en una sola sección funcional todo el flujo conciliatorio, pero separando la administración general de la conciliación y la gestión de reuniones.
+
+## 3. Archivos de código relacionados
+
+```text
+src/app/(dashboard)/conciliaciones/page.js
+src/components/forms/conciliacion/ConciliacionesForm.jsx
+src/components/forms/conciliacion/ReunionesConciliacionForm.jsx
+src/lib/config.js
+src/lib/permission.js
+src/lib/authz.js
+```
+
+El componente usa `API_URL_BASE` para consumir endpoints del backend y `FILE_STORAGE_API_URL_BASE` para descargar documentos almacenados por ruta.
+
+## 4. Control de sesión y permisos
+
+Al cargar el módulo, el componente consulta el usuario autenticado mediante:
+
+```text
+GET /api/auth/me
+```
+
+La pantalla exige que el usuario tenga acceso al módulo de conciliaciones. En código se valida la combinación de permisos:
+
+```text
+Acceder conciliaciones
+Ver conciliaciones
+```
+
+Si la sesión no es válida, el frontend redirige al login. Si el usuario no cuenta con los permisos necesarios para el módulo, redirige a `/inicio`.
+
+## 5. Permisos usados por la pantalla
+
+El componente utiliza permisos declarados en `src/lib/permission.js` y evaluados con helpers de `src/lib/authz.js`.
+
+| Permiso | Uso frontend |
 |---|---|
-| `Acceder conciliaciones` | Mostrar el módulo en el menú lateral. |
-| `Ver conciliaciones` | Cargar y mostrar el listado de conciliaciones. |
-| `Gestionar conciliaciones` | Crear conciliaciones, asignar conciliador, reemplazar solicitud, desactivar. |
-| `Concluir conciliaciones` | Acciones de flujo y finalización para conciliador asignado. |
-| `Programar reuniones de conciliación` | Mostrar botón "Programar reunión". |
-| `Reprogramar reuniones de conciliación` | Mostrar botón "Reprogramar reunión". |
+| `Acceder conciliaciones` | Habilita el ingreso a la ruta `/conciliaciones`. |
+| `Ver conciliaciones` | Permite cargar y mostrar el listado y detalle de conciliaciones. |
+| `Gestionar conciliaciones` | Permite crear conciliación, asignar estudiante, asignar conciliador, reemplazar solicitud y desactivar. |
+| `Concluir conciliaciones` | Permite acciones de cierre o conclusión del trámite, incluyendo finalización con acta cuando el backend lo autoriza. |
+| `Ver consultas` | Permite cargar consultas para crear conciliaciones asociadas. |
+| `Ver estudiantes` / `Ver perfiles auxiliares` | Permite cargar estudiantes habilitados para conciliación. |
+| `Ver conciliadores` / `Ver perfiles auxiliares` | Permite cargar conciliadores activos. |
 
-## Endpoints consumidos
+El frontend no reemplaza las validaciones del backend. La interfaz muestra u oculta acciones según permisos, pero el backend conserva la decisión final de autorización, alcance y estado.
 
-### Listado de conciliaciones
+## 6. Estados usados por la interfaz
+
+La interfaz trabaja con estados de conciliación entregados por el backend. En el componente se separan estados operativos y finales para controlar el cambio de estado normal y la finalización con acta.
+
+Estados operativos documentados por el flujo:
+
+```text
+EN_ESPERA
+ESPERANDO_REUNION
+REUNION_PROGRAMADA
+```
+
+Estados finales usados en finalización:
+
+```text
+COMPLETO_CONCILIADO
+COMPLETO_NO_CONCILIADO
+```
+
+La acción de finalización no se trata como un simple cambio de estado, porque requiere cargar acta en PDF y enviar un formulario multipart.
+
+## 7. Carga inicial de datos
+
+Durante la inicialización, el componente carga:
+
+```text
+GET /api/conciliaciones
+GET /api/consultas
+GET /api/estudiantes/activos/conciliacion
+GET /api/conciliadores/activos
+```
+
+La carga de consultas, estudiantes y conciliadores depende de permisos. Si el usuario no tiene permiso para ver alguno de esos recursos, la pantalla puede seguir mostrando conciliaciones, pero sin habilitar las acciones que dependen de esos catálogos operativos.
+
+El listado de conciliaciones se pagina y filtra en el cliente para facilitar la consulta visual.
+
+## 8. Endpoints consumidos por `ConciliacionesForm`
+
+### 8.1 Consultar conciliaciones
 
 ```text
 GET /api/conciliaciones
 ```
 
-Devuelve conciliaciones según el alcance del usuario. El frontend no filtra; el backend aplica las reglas de alcance.
+Carga el listado visible para el usuario autenticado. El alcance del listado corresponde al backend.
 
-### Detalle de conciliación
+### 8.2 Consultar detalle de conciliación
 
 ```text
 GET /api/conciliaciones/{id}
 ```
 
-Incluye el objeto `reunion` si la conciliación tiene una reunión programada.
+Permite cargar el detalle de una conciliación seleccionada. El detalle se usa para mostrar documentos, responsables, estado y reunión asociada cuando existe.
 
-### Crear conciliación
+### 8.3 Crear conciliación desde consulta
 
 ```text
-POST /api/conciliaciones
+POST /api/conciliaciones/consulta/{consultaId}
 Content-Type: multipart/form-data
 ```
 
-Envía el formulario con la solicitud PDF y los datos de la conciliación.
-
-### Asignar conciliador
+El frontend envía un `FormData` con el campo:
 
 ```text
-PATCH /api/conciliaciones/{id}/conciliador?conciliadorId={id}
+solicitud
 ```
 
-### Cambiar estado operativo
+El archivo de solicitud es obligatorio en la interfaz y debe ser PDF. La validación visual evita enviar extensiones distintas a `.pdf`.
+
+### 8.4 Asignar estudiante
 
 ```text
-PATCH /api/conciliaciones/{id}/estado
+PATCH /api/conciliaciones/{id}/estudiante?estudianteId={estudianteId}
 ```
 
-### Reemplazar solicitud PDF
+El estudiante se selecciona desde la lista de estudiantes activos habilitados para conciliación. La pantalla valida que exista selección antes de enviar la petición.
+
+### 8.5 Asignar conciliador
 
 ```text
-PATCH /api/conciliaciones/{id}/solicitud
+PATCH /api/conciliaciones/{id}/conciliador?conciliadorId={conciliadorId}
+```
+
+El conciliador se selecciona desde la lista de conciliadores activos. La pantalla valida la selección antes del envío.
+
+### 8.6 Cambiar estado operativo
+
+```text
+PATCH /api/conciliaciones/{id}/estado?estado={codigoEstado}
+```
+
+Esta acción se usa para estados no finales. La finalización formal se hace con un endpoint independiente porque requiere acta.
+
+### 8.7 Finalizar conciliación con acta
+
+```text
+POST /api/conciliaciones/{id}/finalizar
 Content-Type: multipart/form-data
 ```
 
-### Finalizar con acta PDF
+El frontend envía un `FormData` con:
 
 ```text
-PATCH /api/conciliaciones/{id}/finalizar
+estado
+acta
+```
+
+El campo `acta` debe ser un PDF. El uso de `POST` corresponde al código actual del frontend y al contrato backend vigente.
+
+### 8.8 Reemplazar solicitud PDF
+
+```text
+POST /api/conciliaciones/{id}/solicitud
 Content-Type: multipart/form-data
 ```
 
-### Desactivar conciliación
+Permite reemplazar el documento de solicitud de conciliación. La interfaz valida que el archivo seleccionado sea PDF.
+
+### 8.9 Desactivar conciliación
 
 ```text
 DELETE /api/conciliaciones/{id}
 ```
 
-### Programar reunión
+La pantalla pide confirmación antes de desactivar la conciliación. La desactivación se presenta como una operación distinta de la finalización, de modo que el usuario visualiza que no equivale a concluir el trámite con acta.
+
+### 8.10 Descargar documentos
 
 ```text
-POST /api/conciliaciones/{id}/reunion
+GET /files/download/{path}
 ```
 
-Ver `doc/frontend/modulos/reuniones-conciliacion.md` para la documentación completa.
+La descarga se realiza usando `FILE_STORAGE_API_URL_BASE`. El path se codifica para evitar problemas con caracteres especiales en rutas.
 
-### Reprogramar reunión
+## 9. Validación de archivos PDF
+
+El componente valida visualmente que los documentos cargados para solicitud o acta sean PDF. Esta validación se aplica antes de construir el `FormData`.
+
+Validaciones aplicadas por la interfaz:
+
+- la solicitud de creación debe existir y ser PDF;
+- el acta de finalización debe existir y ser PDF;
+- el reemplazo de solicitud debe ser PDF;
+- se limpian los inputs después de una operación exitosa.
+
+La validación frontend mejora la experiencia de usuario, mientras que la validación definitiva corresponde al backend.
+
+## 10. Gestión de mensajes y errores
+
+El componente usa estados internos de error y mensaje para informar el resultado de las operaciones. Además, captura errores de red, errores HTTP y mensajes del backend.
+
+El patrón general de ejecución es:
 
 ```text
-PUT /api/conciliaciones/{id}/reunion
+1. Limpiar mensajes anteriores.
+2. Activar estado de guardado.
+3. Ejecutar petición al backend.
+4. Refrescar listado y detalle si aplica.
+5. Mostrar mensaje de éxito o error.
+6. Finalizar estado de guardado.
 ```
 
-Ver `doc/frontend/modulos/reuniones-conciliacion.md` para la documentación completa.
+Las operaciones críticas como desactivar conciliación usan confirmación del usuario.
 
-## Estados de conciliación
+## 11. Relación con reuniones de conciliación
 
-El frontend usa `estadoCodigo` (no `estadoNombre`) para controlar la lógica de visibilidad de acciones.
+`ConciliacionesForm` carga y muestra información general de la conciliación, incluyendo datos de reunión cuando el backend los entrega en el detalle. La programación y reprogramación se gestionan en `ReunionesConciliacionForm`, que consume los endpoints de reunión.
 
-| Código | Etiqueta visible | Acciones disponibles |
-|---|---|---|
-| `EN_ESPERA` | En espera | Asignar conciliador si aplica |
-| `ESPERANDO_REUNION` | Esperando reunión | Programar reunión |
-| `REUNION_PROGRAMADA` | Reunión programada | Reprogramar reunión, finalizar |
-| `COMPLETO_CONCILIADO` | Completo - conciliado | Solo lectura |
-| `COMPLETO_NO_CONCILIADO` | Completo - no conciliado | Solo lectura |
+La separación por pestañas permite que el usuario trabaje con conciliaciones y reuniones dentro de la misma ruta sin mezclar responsabilidades en un solo formulario.
 
-Los estados `COMPLETO_CONCILIADO` y `COMPLETO_NO_CONCILIADO` son estados finalizados. El frontend bloquea las acciones de flujo sobre conciliaciones finalizadas.
+## 12. Alcance de la documentación
 
-## Visibilidad de acciones por rol
+Este documento describe la implementación frontend real del módulo de conciliaciones. La definición completa de reglas de negocio, estados, permisos backend y efectos sobre notificaciones se desarrolla en:
 
-| Acción | Administrador | Conciliador | Estudiante | Asesor/Monitor |
-|---|---|---|---|---|
-| Ver conciliaciones | Sí, según permisos | Sí, solo asignadas | Sí, según alcance | Sí, según alcance |
-| Crear conciliación | Sí | No | No | No |
-| Asignar conciliador | Sí | No | No | No |
-| Programar reunión | Sí | Sí, solo asignado | No | No |
-| Reprogramar reunión | Sí | Sí, solo asignado | No | No |
-| Finalizar | Sí | Sí, solo asignado | No | No |
-| Desactivar | Sí | No | No | No |
-
-La visibilidad en el frontend se basa en permisos y en la función `esConciliador(user)`. El alcance real lo valida el backend.
-
-## Alcance
-
-El conciliador solo puede actuar sobre conciliaciones donde está asignado. El frontend puede ocultar acciones basándose en si el `conciliadorId` de la conciliación coincide con el `perfilId` del usuario, pero el backend siempre valida el alcance real.
-
-## Documentos PDF
-
-La conciliación maneja dos documentos PDF:
-
-- **Solicitud PDF**: obligatoria al crear la conciliación. Se puede reemplazar después.
-- **Acta PDF**: se envía al finalizar la conciliación.
-
-El frontend usa `FILE_STORAGE_API_URL_BASE` para la descarga de documentos existentes y `API_URL_BASE` para la subida (a través de los endpoints de conciliación, no directamente al storage).
-
-## Feedback al usuario
-
-- Toast de éxito al crear, asignar, finalizar o desactivar.
-- Toast de error con el mensaje del backend en caso de fallo.
-- El listado se recarga automáticamente después de cada acción exitosa.
-- Las conciliaciones finalizadas muestran un indicador visual diferenciado.
+```text
+doc/backend/conciliaciones.md
+doc/api/conciliaciones.md
+doc/reglas/conciliaciones.md
+```

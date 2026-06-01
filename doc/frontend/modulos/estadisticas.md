@@ -1,73 +1,136 @@
-# Módulo: Estadísticas
+# Frontend - Módulo de estadísticas
 
-## Propósito
+## 1. Propósito del módulo
 
-Muestra estadísticas globales del consultorio jurídico para el administrador, y estadísticas filtradas por perfil en el panel de inicio de cada usuario.
+El módulo de estadísticas permite visualizar información agregada del consultorio jurídico a partir de los datos operativos del backend. La interfaz ofrece una pantalla principal para reportes globales y también integra estadísticas del semestre actual en el panel de inicio.
 
-Ver `doc/api/` para los endpoints del backend (módulo de estadísticas).
-
-## Pantallas y rutas
-
-| Ruta | Componente | Descripción |
-|---|---|---|
-| `/estadisticas` | `EstadisticasForm` | Dashboard completo solo para admin (permiso `Ver reportes`) |
-| `/inicio` | `InicioForm` | Panel de control con estadísticas y listas operativas por rol |
-
-## Componentes
+Componentes principales:
 
 ```text
 src/components/forms/estadisticas/EstadisticasForm.jsx
 src/components/forms/inicio/InicioForm.jsx
 ```
 
-## Permisos
+## 2. Rutas relacionadas
 
-| Permiso | Uso |
+| Ruta | Componente | Propósito |
+|---|---|---|
+| `/estadisticas` | `EstadisticasForm` | Consulta de estadísticas globales por semestre o rango de fechas y descarga de PDF. |
+| `/inicio` | `InicioForm` | Panel de inicio con tarjetas, gráficos y listas operativas según perfil. |
+
+La ruta `/estadisticas` exige permiso de reportes. La ruta `/inicio` utiliza el usuario autenticado para mostrar información operativa correspondiente a su perfil.
+
+## 3. Archivos relacionados
+
+```text
+src/app/(dashboard)/estadisticas/page.js
+src/app/(dashboard)/inicio/page.js
+src/components/forms/estadisticas/EstadisticasForm.jsx
+src/components/forms/inicio/InicioForm.jsx
+src/lib/config.js
+src/lib/permission.js
+src/lib/authz.js
+```
+
+## 4. Permisos usados
+
+| Permiso | Uso frontend |
 |---|---|
-| `Ver reportes` | Acceder a `/estadisticas` y ver estadísticas globales. |
-| `Ver consultas` | Ver estadísticas filtradas por perfil en `/inicio`. |
+| `Ver reportes` | Permite acceder a `/estadisticas` y consultar estadísticas globales. |
+| `Ver consultas` | Permite cargar estadísticas por perfil en el panel de inicio cuando aplica. |
 
-## Endpoints consumidos
+La navegación lateral muestra `Estadísticas` cuando el usuario tiene permiso `Ver reportes`.
 
-### Semestres disponibles
+## 5. Componente `EstadisticasForm`
+
+`EstadisticasForm` implementa la vista principal de reportes. Al iniciar:
+
+```text
+GET /api/auth/me
+GET /api/estadisticas/semestres
+```
+
+Si el usuario no tiene permiso `Ver reportes`, la pantalla redirige a `/inicio`.
+
+## 6. Modos de consulta en la pantalla de estadísticas
+
+La pantalla permite trabajar en dos modos:
+
+| Modo | Endpoint principal | Uso |
+|---|---|---|
+| Semestre | `GET /api/estadisticas/{año}/semestre/{semestre}` | Consulta datos agregados de un semestre seleccionado. |
+| Rango libre | `GET /api/estadisticas/reporte?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD` | Consulta datos agregados entre dos fechas. |
+
+El usuario puede descargar PDF para ambos modos.
+
+## 7. Endpoints consumidos por `EstadisticasForm`
+
+### 7.1 Semestres disponibles
 
 ```text
 GET /api/estadisticas/semestres
 ```
 
-Devuelve la lista de semestres desde 2024 hasta el semestre actual. Se usa para poblar el selector de semestre.
+Alimenta el selector de periodo.
 
-### Estadísticas globales por semestre (admin)
+### 7.2 Estadísticas por semestre
 
 ```text
 GET /api/estadisticas/{año}/semestre/{semestre}
 ```
 
-Permiso requerido: `Ver reportes`.
+Carga conteos y distribuciones del periodo seleccionado.
 
-### Estadísticas globales por rango libre (admin)
+### 7.3 Estadísticas por rango de fechas
 
 ```text
 GET /api/estadisticas/reporte?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD
 ```
 
-Permiso requerido: `Ver reportes`.
+Permite generar un reporte con fechas personalizadas.
 
-Cuando es rango libre, los campos `año` y `semestre` llegan `null` en la respuesta. El frontend usa `periodoInicio` y `periodoFin` para mostrar el rango.
-
-### PDF por semestre
+### 7.4 PDF por semestre
 
 ```text
 GET /api/estadisticas/{año}/semestre/{semestre}/pdf
 ```
 
-### PDF por rango libre
+La interfaz descarga el blob recibido y crea un enlace temporal para el archivo.
+
+### 7.5 PDF por rango
 
 ```text
 GET /api/estadisticas/reporte/pdf?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD
 ```
 
-### Estadísticas por perfil (inicio/dashboard)
+Genera el PDF correspondiente al rango seleccionado.
+
+## 8. Descarga de PDF
+
+La función de descarga construye la URL según el modo activo. Después:
+
+```text
+1. Ejecuta fetch con credentials: include.
+2. Verifica respuesta HTTP.
+3. Convierte la respuesta en Blob.
+4. Crea un objeto URL temporal.
+5. Simula clic de descarga.
+6. Libera el objeto URL.
+```
+
+Los nombres de archivo se generan según el periodo consultado.
+
+## 9. Componente `InicioForm`
+
+`InicioForm` presenta un panel inicial por rol. Calcula el semestre actual desde el navegador y carga estadísticas según el perfil del usuario.
+
+Para usuarios administrativos o con `Ver reportes`, usa:
+
+```text
+GET /api/estadisticas/{año}/semestre/{semestre}
+```
+
+Para perfiles operativos usa endpoints específicos:
 
 ```text
 GET /api/estadisticas/{año}/semestre/{semestre}/asesor/{perfilId}
@@ -75,76 +138,45 @@ GET /api/estadisticas/{año}/semestre/{semestre}/monitor/{perfilId}
 GET /api/estadisticas/{año}/semestre/{semestre}/estudiante/{perfilId}
 ```
 
-El `perfilId` se obtiene del campo `perfilId` del objeto de usuario en `/api/auth/me`.
+El `perfilId` proviene de la respuesta de `/api/auth/me`.
 
-## Cálculo del semestre actual en JavaScript
+## 10. Información operativa del panel de inicio
 
-```javascript
-const hoy = new Date();
-const año = hoy.getFullYear();
-const semestre = hoy.getMonth() >= 6 ? 2 : 1;
+Además de estadísticas, `InicioForm` carga listas operativas:
+
+```text
+GET /api/consultas
+GET /api/seguimientos/consulta/{consultaId}/visibles-estudiante
+GET /api/seguimientos/respuestas/pendientes
 ```
 
-## Selección de endpoint en el inicio por rol
+El objetivo de estas listas es mostrar al usuario información útil de trabajo: consultas pendientes, tareas visibles para estudiante y respuestas pendientes de calificación.
 
-```javascript
-if (tienePermiso(user, PERMISOS.VER_REPORTES) || esAdministrativo(user)) {
-  url = `/api/estadisticas/${año}/semestre/${semestre}`;
-} else if (esAsesor(user)) {
-  url = `/api/estadisticas/${año}/semestre/${semestre}/asesor/${user.perfilId}`;
-} else if (esMonitor(user)) {
-  url = `/api/estadisticas/${año}/semestre/${semestre}/monitor/${user.perfilId}`;
-} else if (esEstudiante(user)) {
-  url = `/api/estadisticas/${año}/semestre/${semestre}/estudiante/${user.perfilId}`;
-}
+## 11. Visualización
+
+El frontend usa componentes internos SVG y tarjetas para representar:
+
+- total de consultas;
+- consultas finalizadas;
+- consultas pendientes;
+- porcentaje de avance;
+- distribución por área;
+- listas operativas por perfil.
+
+La visualización se construye en el cliente a partir de los DTOs entregados por el backend.
+
+## 12. Manejo de errores
+
+El componente maneja errores de conexión, errores de permisos y errores de disponibilidad de PDF. Cuando una consulta no puede cargarse, se muestra mensaje sin comprometer el resto de la interfaz.
+
+## 13. Relación con backend
+
+La estructura y significado de los datos estadísticos se documenta en:
+
+```text
+doc/backend/estadisticas.md
+doc/api/estadisticas.md
+doc/reglas/estadisticas.md
 ```
 
-## Página de estadísticas (solo admin)
-
-`EstadisticasForm` tiene dos modos de consulta seleccionables mediante tabs:
-
-- **Por semestre**: selector de semestre + botón de actualizar.
-- **Rango personalizado**: inputs `fechaInicio` y `fechaFin` tipo date + botón "Consultar".
-
-### Validaciones del rango personalizado
-
-- `fechaInicio` no puede ser posterior a `fechaFin`.
-- Fecha mínima: 2024-01-01.
-- Fecha máxima: hoy.
-
-### Visualización
-
-Las estadísticas se presentan como tarjetas clicables. Al hacer clic en una tarjeta se expande un panel de detalle con gráficos específicos para esa categoría. Solo puede haber un panel abierto a la vez.
-
-| Tarjeta | Campo | Detalle al hacer clic |
-|---|---|---|
-| Consultas | `totalConsultas` | Donut finalizadas/pendientes, por estado, tipo violencia, bar chart áreas |
-| Personas atendidas | `totalPersonasAtendidas` | Por género, estrato, zona, grupo étnico, condición, municipio |
-| Conciliaciones | `totalConciliaciones` | Conciliaciones por estado |
-| Seguimientos | `totalSeguimientos` | Seguimientos por estado, procesos por estado |
-| Estudiantes activos | `totalEstudiantesActivos` | Total activos + habilitados para conciliación |
-
-### Exportar PDF
-
-El botón "Exportar PDF" detecta el modo activo (semestre o rango) y llama al endpoint correspondiente. El archivo se descarga directamente desde el blob de la respuesta.
-
-## Panel de inicio por rol (InicioForm)
-
-El inicio muestra estadísticas del semestre actual y listas operativas según el rol:
-
-| Rol | Estadísticas | Listas adicionales |
-|---|---|---|
-| Admin | Globales + bar chart de áreas | Consultas pendientes (10) + respuestas por calificar (10) |
-| Asesor / Monitor | Por perfil (sin áreas) | Consultas pendientes (10) + respuestas por calificar (10) |
-| Estudiante | Por perfil (sin áreas) | Consultas pendientes (10) + tareas pendientes (10) |
-
-### Listas operativas en el inicio
-
-**Consultas pendientes**: `GET /api/consultas` → filtra por estado activo/pendiente → primeras 10.
-
-**Tareas pendientes (estudiante)**: Para el estudiante no existe un endpoint de seguimientos plano. El flujo correcto es:
-1. `GET /api/consultas` → obtiene las consultas del estudiante.
-2. Por cada consulta (máximo 5): `GET /api/seguimientos/consulta/{id}/visibles-estudiante`.
-3. Filtra los seguimientos con estado `PENDIENTE` → primeras 10.
-
-**Respuestas por calificar (asesor/admin)**: `GET /api/seguimientos/respuestas/pendientes` → primeras 10.
+El frontend no calcula estadísticas de negocio principales; consume los agregados que entrega el backend y los presenta visualmente.

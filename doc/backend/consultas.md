@@ -1,8 +1,8 @@
 # Backend - Consultas jurídicas
 
-El módulo de consultas jurídicas administra el registro, consulta, actualización, cambio de estado, archivo y desarchivo de las consultas atendidas por el consultorio jurídico.
+El módulo de consultas jurídicas administra el registro, búsqueda, actualización, cambio de estado, archivo y desarchivo de las consultas atendidas por el consultorio jurídico. En el código fuente actual, la consulta funciona como entidad central del flujo operativo y se relaciona con personas, catálogos jurídicos, responsables internos, procesos, seguimientos, respuestas, notificaciones y conciliaciones.
 
-La consulta jurídica es uno de los ejes centrales del sistema, porque se relaciona con personas, catálogos, perfiles internos, seguimientos, procesos, conciliaciones y documentos asociados.
+Este documento describe la implementación backend vigente del módulo, tomando como referencia los controladores, DTOs, entidades, servicios, validadores, repositorios y pruebas unitarias existentes en el código fuente.
 
 ## Paquetes principales
 
@@ -20,461 +20,347 @@ business/service/consulta/consulta
 
 | Componente | Responsabilidad |
 |---|---|
-| `ConsultaController` | Expone endpoints HTTP del módulo de consultas. |
-| `ConsultaService` | Fachada del módulo; separa lectura y escritura. |
+| `ConsultaController` | Expone los endpoints HTTP del módulo bajo `/api/consultas`. |
+| `ConsultaService` | Fachada del módulo; delega lectura a `ConsultaQueryService` y escritura a `ConsultaCommandService`. |
 | `ConsultaCommandService` | Orquesta creación, actualización, cambio de estado, archivo y desarchivo. |
-| `ConsultaQueryService` | Orquesta búsquedas, listados y consulta por id según alcance del usuario. |
-| `ConsultaConstruccionService` | Aplica datos del DTO sobre la entidad y resuelve relaciones. |
-| `ConsultaRelacionService` | Centraliza búsqueda de entidades relacionadas activas. |
-| `ConsultaEstadoService` | Valida cambios de estado y pendientes operativos. |
-| `ConsultaValidator` | Centraliza reglas de negocio propias de consulta. |
-| `ConsultaMapper` | Convierte entidades a DTOs de respuesta. |
-| `ConsultaAccessService` | Valida permisos y alcance sobre consultas. |
-| `ConsultaRepository` | Acceso a datos y consultas especializadas. |
-
-## Permisos usados
-
-| Permiso | Uso |
-|---|---|
-| `Ver consultas` | Permite buscar y consultar consultas dentro del alcance del usuario. |
-| `Crear consultas` | Permite crear consultas. |
-| `Editar consultas` | Permite actualizar datos generales de consultas dentro del alcance. |
-| `Cambiar estado consultas` | Permite cambiar estado de consultas según reglas del módulo. |
-| `Archivar consultas` | Permite archivar, desarchivar y consultar archivadas con política administrativa. |
-| `Asignar responsables consulta` | Permite asignar o modificar asesor, monitor y estudiante responsable. |
-| `Gestionar consultas` | Permiso amplio conservado para operaciones generales del módulo. |
+| `ConsultaQueryService` | Gestiona búsquedas, listados, consulta por id y listados archivados según alcance del usuario. |
+| `ConsultaConstruccionService` | Aplica datos del DTO sobre la entidad y normaliza textos. |
+| `ConsultaRelacionService` | Resuelve personas, catálogos y perfiles activos asociados a la consulta. |
+| `ConsultaEstadoService` | Valida transiciones de estado, cierre, archivo, desarchivo y pendientes operativos. |
+| `ConsultaActividadService` | Determina si la consulta ya tiene procesos, seguimientos o conciliaciones activas asociadas. |
+| `ConsultaCambioEstructuralValidator` | Protege datos estructurales cuando la consulta ya tiene actividad asociada. |
+| `ConsultaValidator` | Centraliza reglas de negocio de campos, estado, coherencia de dominio y responsables. |
+| `ConsultaMapper` | Convierte `Consulta` a `ConsultaDTO` y `ConsultaBusquedaDTO`. |
+| `ConsultaAccessService` | Valida permisos y alcance de usuario sobre consultas. |
+| `ConsultaRepository` | Expone consultas JPA, búsquedas por alcance, destinatarios de notificación y consultas estadísticas. |
 
 ## Entidad principal
 
-### `Consulta`
-
-Tabla:
+La entidad principal es `Consulta`, persistida en la tabla:
 
 ```text
 consulta
 ```
 
-Campos principales:
+Campos principales implementados:
 
-| Campo | Uso |
-|---|---|
-| `id` | Identificador de la consulta. |
-| `fecha` | Fecha de la consulta. |
-| `descripcion` | Descripción breve. |
-| `hechos` | Relato de hechos. |
-| `pretensiones` | Pretensiones de la persona consultante. |
-| `conceptoJuridico` | Concepto jurídico asociado. |
-| `tramite` | Trámite o ruta de atención. |
-| `observaciones` | Observaciones internas. |
-| `tipoViolencia` | Clasificación adicional cuando aplica. |
-| `estado` | Estado operativo de la consulta. |
-| `resultado` | Resultado o clasificación de cierre cuando aplica. |
-| `persona` | Persona principal de la consulta. |
-| `partes` | Personas relacionadas como partes adicionales. |
-| `contrapartes` | Personas relacionadas como contrapartes. |
-| `sede` | Sede de recepción. |
-| `area` | Área jurídica. |
-| `tema` | Tema jurídico. |
-| `tipo` | Tipo jurídico asociado al tema. |
-| `asesor` | Asesor responsable. |
-| `monitor` | Monitor responsable. |
-| `estudiante` | Estudiante responsable. |
+| Campo | Tipo funcional | Uso |
+|---|---|---|
+| `id` | Identificador | Identificador interno de la consulta. |
+| `fecha` | Fecha | Fecha asociada a la consulta. |
+| `descripcion` | Texto corto | Descripción resumida de la consulta. |
+| `hechos` | Texto amplio | Relato de hechos. |
+| `pretensiones` | Texto amplio | Pretensiones de la persona consultante. |
+| `conceptoJuridico` | Texto amplio | Concepto jurídico registrado. |
+| `tramite` | Texto corto | Trámite o ruta de atención. |
+| `observaciones` | Texto amplio | Observaciones complementarias. |
+| `tipoViolencia` | Texto corto | Clasificación adicional cuando aplica. |
+| `estado` | Enum `EstadoConsulta` | Estado funcional de la consulta. |
+| `resultado` | Texto corto | Resultado o conclusión funcional de cierre. |
+| `lastUpdatedAt` | Fecha técnica | Fecha de última actualización usada también en consultas estadísticas. |
+| `persona` | Relación `ManyToOne` | Persona principal o solicitante. |
+| `partes` | Relación `ManyToMany` | Personas relacionadas como partes adicionales. |
+| `contrapartes` | Relación `ManyToMany` | Personas relacionadas como contrapartes. |
+| `sede` | Relación `ManyToOne` | Sede de recepción o atención. |
+| `area` | Relación `ManyToOne` | Área jurídica. |
+| `tema` | Relación `ManyToOne` | Tema jurídico asociado al área. |
+| `tipo` | Relación `ManyToOne` | Tipo jurídico asociado al tema. |
+| `asesor` | Relación `ManyToOne` | Asesor responsable. |
+| `monitor` | Relación `ManyToOne` | Monitor responsable. |
+| `estudiante` | Relación `ManyToOne` | Estudiante responsable. |
 
-## Relaciones principales
-
-```text
-Consulta -> Persona principal
-Consulta -> Partes
-Consulta -> Contrapartes
-Consulta -> Sede
-Consulta -> Área
-Consulta -> Tema
-Consulta -> Tipo
-Consulta -> Asesor
-Consulta -> Monitor
-Consulta -> Estudiante
-```
-
-Las partes y contrapartes se modelan mediante relaciones `ManyToMany`:
+Las relaciones de partes y contrapartes se almacenan mediante tablas intermedias:
 
 ```text
 consulta_parte
 consulta_contraparte
 ```
 
+El campo `lastUpdatedAt` se actualiza automáticamente mediante métodos `@PrePersist` y `@PreUpdate`.
+
 ## Estados de consulta
 
 La consulta usa el enum `EstadoConsulta`.
 
-Estados:
+```text
+PENDIENTE
+ACTIVO
+EN_PROCESO
+URGENTE
+CERRADO
+ARCHIVADO
+```
 
-| Estado | Uso |
+| Estado | Uso funcional |
 |---|---|
 | `PENDIENTE` | Estado inicial de toda consulta nueva. |
-| `ACTIVO` | Consulta en atención activa. |
-| `EN_PROCESO` | Consulta con gestión en proceso. |
-| `URGENTE` | Consulta priorizada por urgencia. |
-| `CERRADO` | Consulta cerrada operativamente. |
-| `ARCHIVADO` | Consulta archivada para consulta histórica. |
+| `ACTIVO` | Consulta habilitada para atención activa. |
+| `EN_PROCESO` | Consulta con gestión operativa en curso. |
+| `URGENTE` | Consulta priorizada dentro del flujo operativo. |
+| `CERRADO` | Consulta finalizada funcionalmente. |
+| `ARCHIVADO` | Consulta conservada para consulta histórica. |
 
-## DTOs
+## DTOs del módulo
 
 ### `ConsultaDTO`
 
-DTO principal de entrada y salida.
+DTO principal de entrada y salida para creación, edición, consulta por id y cambio de estado cuando retorna detalle.
 
-Campos principales:
+Campos implementados:
 
-| Campo | Uso |
+| Campo | Validación o uso |
 |---|---|
-| `id` | Identificador de consulta. |
-| `fecha` | Fecha de la consulta. |
-| `descripcion` | Descripción breve. |
-| `hechos` | Hechos relatados. |
-| `pretensiones` | Pretensiones. |
-| `conceptoJuridico` | Concepto jurídico. |
-| `tramite` | Trámite. |
-| `observaciones` | Observaciones. |
-| `tipoViolencia` | Tipo de violencia. |
-| `estado` | Estado de consulta. |
-| `resultado` | Resultado. |
-| `personaId` | Persona principal. |
-| `partesIds` | Partes adicionales. |
-| `contrapartesIds` | Contrapartes. |
-| `sedeId` | Sede. |
-| `areaId` | Área. |
-| `temaId` | Tema. |
-| `tipoId` | Tipo. |
-| `asesorId` | Asesor asignado. |
-| `monitorId` | Monitor asignado. |
-| `estudianteId` | Estudiante asignado. |
-
-Validaciones declaradas:
-
-- `fecha` obligatoria;
-- `descripcion` obligatoria y máximo 500 caracteres;
-- `hechos` obligatorios;
-- `pretensiones` obligatorias;
-- `conceptoJuridico` obligatorio;
-- `tramite` obligatorio y máximo 100 caracteres;
-- `tipoViolencia` máximo 100 caracteres;
-- `resultado` máximo 100 caracteres;
-- `personaId` obligatorio;
-- `sedeId` obligatorio;
-- `areaId` obligatorio;
-- `temaId` obligatorio.
+| `id` | No debe enviarse en creación; si se envía en actualización debe coincidir con la ruta. |
+| `fecha` | Obligatoria. |
+| `descripcion` | Obligatoria; máximo 500 caracteres. |
+| `hechos` | Obligatorio. |
+| `pretensiones` | Obligatorio. |
+| `conceptoJuridico` | Obligatorio. |
+| `tramite` | Obligatorio; máximo 100 caracteres. |
+| `observaciones` | Opcional. |
+| `tipoViolencia` | Opcional; máximo 100 caracteres. |
+| `estado` | No se modifica desde edición general. En creación, si se informa, debe ser `PENDIENTE`. |
+| `resultado` | Opcional durante la operación; obligatorio para cerrar la consulta. Máximo 100 caracteres. |
+| `personaId` | Obligatorio. |
+| `partesIds` | Lista opcional de personas adicionales. |
+| `contrapartesIds` | Lista opcional de contrapartes. |
+| `sedeId` | Obligatorio. |
+| `areaId` | Obligatorio. |
+| `temaId` | Obligatorio. |
+| `tipoId` | Opcional. |
+| `asesorId` | Opcional; su asignación depende de permiso específico. |
+| `monitorId` | Opcional; su asignación depende de permiso específico. |
+| `estudianteId` | Opcional; su asignación depende de permiso específico. |
 
 ### `ConsultaBusquedaDTO`
 
-DTO usado en búsquedas y listados resumidos.
-
-Campos:
+DTO resumido usado por el buscador de consultas.
 
 | Campo | Uso |
 |---|---|
 | `id` | Identificador de consulta. |
 | `consulta` | Descripción de la consulta. |
-| `fecha` | Fecha. |
-| `nombre` | Nombre de la persona principal. |
-| `apellido` | Apellido de la persona principal. |
+| `fecha` | Fecha de la consulta. |
+| `nombre` | Nombres de la persona principal. |
+| `apellido` | Apellidos de la persona principal. |
 | `cedula` | Número de documento de la persona principal. |
-| `estado` | Estado de consulta. |
+| `estado` | Estado actual de la consulta. |
 
-Este DTO está alineado con los datos que consume el frontend para la búsqueda de consultas.
+## Controlador HTTP
 
-## Endpoints principales
-
-Base path:
+El controlador `ConsultaController` expone endpoints bajo:
 
 ```text
 /api/consultas
 ```
 
-| Método | Ruta | Permiso | Uso |
-|---|---|---|---|
-| GET | `/api/consultas?search=` | `Ver consultas` o `Gestionar consultas` | Busca consultas según alcance del usuario. |
-| GET | `/api/consultas/{id}` | `Ver consultas` o `Gestionar consultas` | Consulta detalle por id. |
-| POST | `/api/consultas` | `Crear consultas` o `Gestionar consultas` | Crea consulta. |
-| PUT | `/api/consultas/{id}` | `Editar consultas` o `Gestionar consultas` | Actualiza datos generales. |
-| PATCH | `/api/consultas/{id}/estado?estado=` | `Cambiar estado consultas`, `Archivar consultas` o `Gestionar consultas` | Cambia estado. |
-| DELETE | `/api/consultas/{id}` | `Archivar consultas` | Archiva lógicamente. |
-| PATCH | `/api/consultas/{id}/archivar` | `Archivar consultas` | Archiva consulta. |
-| GET | `/api/consultas/archivadas` | `Archivar consultas` | Lista consultas archivadas. |
-| PATCH | `/api/consultas/{id}/desarchivar` | `Archivar consultas` | Devuelve consulta archivada a estado cerrado. |
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/api/consultas?search=` | Busca consultas según el alcance del usuario autenticado. |
+| `GET` | `/api/consultas/{id}` | Obtiene el detalle de una consulta. |
+| `POST` | `/api/consultas` | Crea una nueva consulta. |
+| `PUT` | `/api/consultas/{id}` | Actualiza datos generales de una consulta. |
+| `PATCH` | `/api/consultas/{id}/estado?estado=` | Cambia el estado funcional de una consulta. |
+| `DELETE` | `/api/consultas/{id}` | Conservado por compatibilidad; archiva lógicamente la consulta. |
+| `PATCH` | `/api/consultas/{id}/archivar` | Archiva una consulta cerrada. |
+| `GET` | `/api/consultas/archivadas` | Lista consultas archivadas. |
+| `PATCH` | `/api/consultas/{id}/desarchivar` | Retorna una consulta archivada al estado `CERRADO`. |
 
-## Búsqueda y alcance
+## Permisos usados
 
-La búsqueda principal se realiza con:
-
-```text
-GET /api/consultas?search=
-```
-
-El backend filtra por usuario autenticado.
-
-Reglas de búsqueda:
-
-| Perfil | Alcance |
+| Permiso | Uso en el módulo |
 |---|---|
-| Administrador | Consulta todas las consultas no archivadas. |
-| Estudiante | Consulta las consultas donde es estudiante asignado. |
-| Asesor | Consulta las consultas donde es asesor asignado o donde el estudiante asignado pertenece a su asesoría. |
-| Monitor | Consulta las consultas donde es monitor asignado. |
-| Conciliador | No recibe consultas desde el buscador general de consultas. |
+| `VER_CONSULTAS` | Buscar y consultar detalle dentro del alcance del usuario. |
+| `CREAR_CONSULTAS` | Crear consultas. |
+| `EDITAR_CONSULTAS` | Actualizar datos generales de consultas. |
+| `CAMBIAR_ESTADO_CONSULTAS` | Cambiar estado funcional. |
+| `ARCHIVAR_CONSULTAS` | Archivar, desarchivar y consultar consultas archivadas. |
+| `ASIGNAR_RESPONSABLES_CONSULTA` | Asignar o modificar asesor, estudiante o monitor. |
+| `GESTIONAR_CONSULTAS` | Permiso amplio aceptado para operaciones generales del módulo. |
 
-La búsqueda compara el término contra:
+## Alcance por perfil
 
-- descripción de consulta;
-- nombres de la persona principal;
-- apellidos de la persona principal;
-- número de documento de la persona principal.
+La búsqueda y la consulta por id se filtran desde backend. El frontend no define el alcance final de los datos.
 
-Las consultas archivadas se excluyen de la búsqueda general.
+| Perfil | Alcance implementado |
+|---|---|
+| Administrador | Accede a todas las consultas no archivadas según permisos. |
+| Estudiante | Accede a consultas donde está asignado como estudiante. |
+| Asesor | Accede a consultas donde está asignado directamente o donde el estudiante asignado pertenece a su asesoría. |
+| Monitor | Accede a consultas donde está asignado como monitor. |
+| Conciliador | No recibe resultados desde el buscador general de consultas. |
 
-## Consulta por id
-
-Para obtener una consulta por id:
-
-```text
-GET /api/consultas/{id}
-```
-
-El backend valida:
-
-- permiso de consulta;
-- existencia de la consulta;
-- alcance real del usuario sobre la consulta.
-
-El repository carga partes y contrapartes en consultas separadas porque Hibernate no permite hacer `JOIN FETCH` de dos colecciones al mismo tiempo.
+Las consultas en estado `ARCHIVADO` se excluyen del buscador general y se consultan mediante endpoint especializado.
 
 ## Creación de consulta
 
-Endpoint:
+El flujo de creación se implementa en `ConsultaCommandService.crear`.
 
-```text
-POST /api/consultas
-```
+Secuencia principal:
 
-Reglas principales:
+1. Valida permiso para crear consulta.
+2. Valida que el DTO no envíe `id`.
+3. Valida campos obligatorios.
+4. Valida que, si el DTO trae estado, sea `PENDIENTE`.
+5. Evalúa si el DTO solicita asignación de responsables.
+6. Valida permiso de asignación cuando aplica.
+7. Construye la entidad mediante `ConsultaConstruccionService`.
+8. Asigna estado inicial `PENDIENTE`.
+9. Valida coherencia de dominio.
+10. Guarda y retorna `ConsultaDTO`.
 
-- el usuario debe tener permiso para crear consulta;
-- no se permite enviar `id`;
-- los campos obligatorios deben estar presentes;
-- si se envía estado, debe ser `PENDIENTE`;
-- toda consulta nueva se guarda en estado `PENDIENTE`;
-- si el DTO solicita asignar responsables, se valida permiso de asignación;
-- se resuelven relaciones activas;
-- se normalizan textos;
-- se valida coherencia del dominio antes de guardar.
+Toda consulta nueva queda inicialmente en estado `PENDIENTE`.
 
 ## Actualización de consulta
 
-Endpoint:
+El flujo de actualización se implementa en `ConsultaCommandService.actualizar`.
 
-```text
-PUT /api/consultas/{id}
-```
+Reglas aplicadas:
 
-Reglas principales:
+- requiere permiso de edición;
+- valida alcance sobre la consulta;
+- no permite actualizar consultas cerradas o archivadas;
+- valida campos obligatorios;
+- si el DTO trae `id`, debe coincidir con el id de la ruta;
+- el estado no se cambia desde edición general;
+- si cambian responsables, se exige permiso `ASIGNAR_RESPONSABLES_CONSULTA`;
+- si la consulta tiene actividad asociada, se protegen los datos estructurales;
+- después de aplicar datos se valida la coherencia completa de dominio.
 
-- el usuario debe tener permiso de edición;
-- el usuario debe tener alcance sobre la consulta;
-- la consulta no puede estar archivada;
-- la consulta no puede estar cerrada;
-- no se permite cambiar el `id`;
-- la edición de datos generales no cambia el estado;
-- si se intenta cambiar estado desde el DTO, se rechaza;
-- si se modifican responsables, se valida permiso específico;
-- se valida coherencia del dominio después de aplicar cambios.
+## Protección de datos estructurales
 
-## Asignación de responsables
+El módulo implementa protección de trazabilidad mediante `ConsultaActividadService` y `ConsultaCambioEstructuralValidator`.
 
-Responsables posibles:
+Una consulta se considera con actividad asociada cuando existe al menos uno de estos elementos activos:
 
-- asesor;
-- monitor;
-- estudiante.
+- proceso asociado;
+- seguimiento asociado;
+- conciliación asociada.
 
-Reglas:
+Cuando la consulta ya tiene actividad asociada, se protegen los siguientes datos estructurales:
 
-- asignar o cambiar responsables requiere `Asignar responsables consulta`;
-- el estudiante no puede asignar responsables;
-- si se asigna estudiante sin asesor explícito, el backend toma el asesor activo asociado al estudiante;
-- el asesor asignado debe pertenecer al área de la consulta;
-- si hay estudiante y asesor, el estudiante debe pertenecer al asesor seleccionado;
-- el asesor del estudiante debe pertenecer al área de la consulta.
-
-## Cambio de estado
-
-Endpoint:
-
-```text
-PATCH /api/consultas/{id}/estado?estado=
-```
-
-Reglas principales:
-
-- el estado es obligatorio;
-- no se permite cambiar al mismo estado actual;
-- la consulta no puede estar archivada;
-- una consulta cerrada solo puede archivarse;
-- el estudiante no puede cambiar estado;
-- se valida permiso funcional;
-- se valida alcance;
-- se validan reglas de cierre y archivo;
-- para pasar a estados operativos de atención se exigen responsables mínimos.
-
-## Estados operativos que exigen responsables
-
-Para pasar a alguno de estos estados:
-
-- `ACTIVO`;
-- `EN_PROCESO`;
-- `URGENTE`;
-
-la consulta debe tener:
-
-- asesor asignado;
-- estudiante asignado.
-
-Además, se valida coherencia completa del dominio.
-
-## Cierre de consulta
-
-Para cerrar una consulta:
-
-```text
-estado=CERRADO
-```
-
-El backend valida que no existan pendientes operativos asociados.
-
-Bloquean el cierre:
-
-| Módulo | Condición |
-|---|---|
-| Procesos | Procesos activos en estado `PENDIENTE`. |
-| Seguimientos | Seguimientos activos en estado `PENDIENTE`. |
-| Respuestas de seguimiento | Respuestas activas en estado `PENDIENTE`. |
-| Notificaciones de seguimiento | Notificaciones activas no enviadas. |
-| Conciliaciones | Conciliaciones activas en estados no finalizados. |
-
-Estados de conciliación que bloquean cierre:
-
-- `EN_ESPERA`;
-- `ESPERANDO_REUNION`;
-- `REUNION_PROGRAMADA`.
-
-## Archivo de consulta
-
-La consulta se archiva en estado `ARCHIVADO`.
-
-Reglas:
-
-- solo se pueden archivar consultas cerradas;
-- solo administrador con permiso de archivo puede archivar;
-- antes de archivar se vuelven a validar pendientes operativos;
-- `DELETE /api/consultas/{id}` funciona como archivado lógico, no como eliminación física.
-
-## Desarchivo de consulta
-
-Endpoint:
-
-```text
-PATCH /api/consultas/{id}/desarchivar
-```
-
-Reglas:
-
-- solo se pueden desarchivar consultas archivadas;
-- usa la misma política de permisos que archivar;
-- al desarchivar, la consulta vuelve a `CERRADO`;
-- se validan pendientes operativos antes de desarchivar.
-
-## Coherencia de dominio
-
-`ConsultaValidator` valida reglas cruzadas:
-
-### Jerarquía de catálogos
-
-- el tema debe pertenecer al área;
-- si existe tipo, el tipo debe pertenecer al tema.
-
-### Responsables
-
-- el asesor debe pertenecer al área de la consulta;
-- si estudiante y asesor están asignados, el estudiante debe pertenecer al asesor;
-- el asesor del estudiante debe pertenecer al área de la consulta.
-
-### Personas
-
-- la persona principal no puede repetirse como parte adicional;
-- la persona principal no puede repetirse como contraparte;
-- una persona no puede estar al mismo tiempo como parte y contraparte;
-- no puede haber personas duplicadas en partes;
-- no puede haber personas duplicadas en contrapartes.
-
-## Relaciones activas
-
-`ConsultaRelacionService` resuelve únicamente relaciones activas para:
-
-- persona;
+- persona principal;
+- partes;
+- contrapartes;
 - sede;
 - área;
 - tema;
 - tipo;
 - asesor;
-- monitor;
-- estudiante.
+- estudiante;
+- monitor.
 
-Esto evita asociar consultas a entidades inactivas.
+Esta protección permite conservar la consistencia entre la consulta y las actuaciones posteriores registradas en el sistema.
 
-## Repositories y consultas especializadas
+## Coherencia de dominio
 
-`ConsultaRepository` incluye consultas para:
+`ConsultaValidator.validarCoherenciaDominio` valida:
 
-- cargar consulta con partes;
-- cargar consulta con contrapartes;
-- buscar consultas para administrador;
-- buscar consultas para estudiante;
-- buscar consultas para asesor;
-- buscar consultas para monitor;
-- buscar consultas filtradas;
-- obtener destinatario principal para notificaciones;
-- obtener destinatarios de partes;
-- obtener destinatarios de contrapartes;
-- obtener destinatario estudiante;
-- listar por estado.
+- el tema pertenece al área seleccionada;
+- el tipo pertenece al tema cuando se informa;
+- el asesor pertenece al área de la consulta;
+- el estudiante pertenece al asesor asignado cuando ambos existen;
+- el asesor del estudiante pertenece al área de la consulta;
+- la persona principal no se repite como parte ni contraparte;
+- una persona no aparece simultáneamente como parte y contraparte;
+- no existen duplicados dentro de partes ni contrapartes.
 
-## Destinatarios para seguimientos
+## Asignación de responsables
 
-El repository expone consultas para obtener destinatarios de notificaciones asociadas a una consulta:
+La consulta puede relacionarse con asesor, estudiante y monitor.
 
-- persona principal;
-- partes;
-- contrapartes;
-- estudiante asignado.
+Reglas implementadas:
 
-Solo se devuelven destinatarios con correo informado.
+- asignar o modificar responsables requiere permiso `ASIGNAR_RESPONSABLES_CONSULTA`;
+- el estudiante no puede asignar responsables;
+- los responsables deben existir y estar activos;
+- si se asigna estudiante sin asesor explícito, el backend toma el asesor activo asociado al estudiante;
+- si el asesor asociado al estudiante no existe o está inactivo, la operación se rechaza;
+- para pasar a `ACTIVO`, `EN_PROCESO` o `URGENTE`, la consulta debe tener asesor y estudiante asignados.
 
-## Mapper
+## Cambio de estado
 
-`ConsultaMapper` convierte:
+El cambio de estado se realiza por endpoint específico. La edición general no modifica `estado`.
 
-- `Consulta` a `ConsultaDTO`;
-- `Consulta` a `ConsultaBusquedaDTO`.
+Reglas implementadas:
 
-En el DTO de búsqueda se usan datos de la persona principal para nombre, apellido y cédula.
+- el estado destino es obligatorio;
+- no se permite cambiar al mismo estado actual;
+- una consulta archivada no se modifica como consulta operativa;
+- una consulta cerrada solo puede archivarse;
+- el estudiante no puede cambiar estado;
+- el cambio requiere permiso funcional y alcance;
+- los estados `ACTIVO`, `EN_PROCESO` y `URGENTE` requieren asesor y estudiante;
+- el cierre valida resultado y ausencia de pendientes operativos.
 
-## Consideraciones para frontend
+## Cierre de consulta
 
-- Usar el buscador general con `search`.
-- No filtrar consultas ajenas en frontend; el backend filtra por alcance.
-- En creación, no enviar `id`.
-- En creación, no enviar estado diferente de `PENDIENTE`.
-- Para cambiar estado, usar `PATCH /api/consultas/{id}/estado`.
-- No intentar cambiar estado desde `PUT`.
-- Para responsables, enviar ids solo cuando el usuario tenga permiso de asignación.
-- Para partes y contrapartes, evitar duplicados desde UI, aunque backend también valida.
-- Manejar errores de negocio al cerrar o archivar consultas con pendientes.
-- Usar `credentials: "include"` en peticiones protegidas.
+El cierre se valida en `ConsultaEstadoService` cuando el estado destino es `CERRADO`.
+
+Para cerrar una consulta se exige:
+
+- resultado o conclusión final registrada en `resultado`;
+- ausencia de procesos activos en estado `PENDIENTE`;
+- ausencia de seguimientos activos en estado `PENDIENTE`;
+- ausencia de respuestas activas de seguimiento en estado `PENDIENTE`;
+- ausencia de notificaciones activas de seguimiento sin enviar;
+- ausencia de conciliaciones activas en estados no finalizados.
+
+Los estados de conciliación que bloquean cierre son:
+
+```text
+EN_ESPERA
+ESPERANDO_REUNION
+REUNION_PROGRAMADA
+```
+
+## Archivo y desarchivo
+
+El archivado se implementa mediante:
+
+- `DELETE /api/consultas/{id}`;
+- `PATCH /api/consultas/{id}/archivar`.
+
+En ambos casos la operación lleva la consulta a `ARCHIVADO` y conserva la información histórica.
+
+Reglas de archivo:
+
+- solo se archivan consultas en estado `CERRADO`;
+- el usuario debe tener permiso `ARCHIVAR_CONSULTAS`;
+- la política de acceso exige rol administrador;
+- el sistema vuelve a validar pendientes operativos como defensa de consistencia.
+
+El desarchivo se implementa con:
+
+```text
+PATCH /api/consultas/{id}/desarchivar
+```
+
+El desarchivo retorna la consulta a `CERRADO`. No reabre la operación activa.
+
+## Búsqueda y carga de relaciones
+
+La búsqueda principal compara el término con:
+
+- descripción de la consulta;
+- nombres de la persona principal;
+- apellidos de la persona principal;
+- número de documento de la persona principal.
+
+Para consulta por id, `ConsultaRepository` carga partes y contrapartes en consultas separadas mediante `findByIdConPartes` y `findByIdConContrapartes`. Esta separación evita problemas de carga simultánea de múltiples colecciones en Hibernate.
+
+## Relación con estadísticas
+
+La entidad `Consulta` contiene el campo `lastUpdatedAt`, actualizado automáticamente en persistencia y actualización. El repositorio de consultas incluye consultas nativas usadas por el módulo de estadísticas para agrupar consultas por semestre, rango de fechas, estado, área, tipo de violencia y datos de personas atendidas.
+
+La documentación detallada del módulo de estadísticas se desarrolla en su bloque específico.
+
+## Pruebas relacionadas
+
+El código fuente incluye pruebas unitarias orientadas a reglas críticas del módulo:
+
+| Prueba | Cobertura principal |
+|---|---|
+| `ConsultaEstadoServiceTest` | Cierre con resultado, bloqueo por pendientes, archivo, desarchivo y operaciones sobre cerradas o archivadas. |
+| `ConsultaCambioEstructuralValidatorTest` | Protección de datos estructurales cuando hay actividad asociada. |
+| `ConsultaResponsableOperacionServiceTest` | Validación de responsables con consultas operativas vivas. |

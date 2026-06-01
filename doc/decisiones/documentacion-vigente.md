@@ -2,23 +2,13 @@
 
 ## Contexto
 
-El proyecto requiere documentación técnica, funcional y de API que acompañe el código.
-
-La documentación debe ayudar a:
-
-- comprender arquitectura;
-- integrar frontend y backend;
-- explicar reglas de negocio;
-- defender decisiones técnicas;
-- evitar análisis basados en información desactualizada.
+El proyecto requiere documentación técnica, funcional y de API que acompañe el código. La documentación debe servir para comprender arquitectura, integrar frontend y backend, explicar reglas de negocio, defender decisiones técnicas y evitar análisis basados en información desactualizada.
 
 ## Decisión
 
-La documentación oficial del repositorio debe describir el estado vigente del código fuente.
+La documentación oficial del repositorio describe el estado vigente del código fuente. No funciona como histórico informal de cambios ni como listado de críticas.
 
-No debe funcionar como histórico informal de cambios.
-
-Cuando una regla, endpoint, DTO, permiso, entidad o estado cambie, se deben actualizar los documentos afectados.
+Cuando una regla, endpoint, DTO, permiso, entidad o estado cambia, se actualizan los documentos afectados.
 
 ## Fuente de verdad
 
@@ -26,15 +16,13 @@ Orden de prioridad:
 
 1. Código fuente actual.
 2. Configuración actual.
-3. Base de datos actual cuando aplica.
-4. Decisiones técnicas documentadas.
+3. Entidades y modelos actuales.
+4. Tests existentes.
 5. Documentación vigente.
 
 La documentación no debe contradecir el código.
 
 ## Estructura documental
-
-La documentación se organiza por propósito:
 
 | Carpeta | Propósito |
 |---|---|
@@ -42,7 +30,9 @@ La documentación se organiza por propósito:
 | `doc/api` | Contratos de endpoints para frontend y pruebas. |
 | `doc/reglas` | Reglas de negocio vigentes. |
 | `doc/base-datos` | Entidades, relaciones, estados y catálogos. |
+| `doc/frontend` | Rutas, formularios, configuración y módulos frontend. |
 | `doc/decisiones` | Justificación de decisiones técnicas. |
+| `doc/mantenimiento` | Guías de actualización documental. |
 
 ## Qué se documenta
 
@@ -55,7 +45,9 @@ Se documenta:
 - reglas implementadas;
 - relaciones principales;
 - criterios de seguridad;
-- decisiones técnicas relevantes.
+- decisiones técnicas relevantes;
+- rutas y componentes frontend existentes;
+- pruebas existentes cuando corresponda.
 
 ## Qué no se documenta como estado vigente
 
@@ -63,67 +55,32 @@ No se documentan como si estuvieran implementados:
 
 - reglas futuras;
 - endpoints no implementados;
-- pantallas en desarrollo;
+- pantallas inexistentes;
 - cambios no integrados;
-- valores reales de configuración sensible.
+- valores reales de configuración sensible;
+- comportamientos inferidos sin respaldo del código.
 
-Cuando se requiera hablar de evolución o mantenimiento, se hace en documentos específicos de decisiones o mantenimiento, sin presentarlo como contrato operativo actual.
-
-## Documentación y cambios lógicos
-
-Cuando se implemente una corrección lógica, se actualiza solo la documentación afectada.
-
-Ejemplos:
+## Cambios y documentos a revisar
 
 | Cambio | Documentos a revisar |
 |---|---|
-| Cambio en regla de cierre de consulta | `backend/consultas.md`, `api/consultas.md`, `reglas/consultas.md`. |
+| Cambio en cierre de consulta | `backend/consultas.md`, `api/consultas.md`, `reglas/consultas.md`. |
 | Cambio en radicado de proceso | `backend/procesos.md`, `api/procesos.md`, `reglas/procesos.md`, `base-datos/entidades-principales.md`. |
-| Cambio en decisión de respuesta de seguimiento | `backend/seguimientos.md`, `api/seguimientos.md`, `reglas/seguimientos.md`. |
-| Cambio en estados de conciliación | `backend/conciliaciones.md`, `api/conciliaciones.md`, `reglas/conciliaciones.md`, `base-datos/estados-y-catalogos.md`, `decisiones/conciliacion.md`. |
-| Cambio en permisos | `04-permisos-roles-alcance.md`, `reglas/permisos.md`, `decisiones/permisos-y-alcance.md`, documentos API afectados. |
+| Cambio en seguimiento o respuesta | `backend/seguimientos.md`, `api/seguimientos.md`, `reglas/seguimientos.md`. |
+| Cambio en conciliación | `backend/conciliaciones.md`, `api/conciliaciones.md`, `reglas/conciliaciones.md`, `decisiones/conciliacion.md`. |
+| Cambio en perfil o Strategy | `backend/perfiles.md`, `api/perfiles.md`, `api/usuarios-roles-permisos.md`, `decisiones/estrategia-perfiles.md`. |
+| Cambio en estadísticas | `backend/estadisticas.md`, `api/estadisticas.md`, `reglas/estadisticas.md`, `frontend/modulos/estadisticas.md`. |
+| Cambio en frontend | `doc/frontend` y módulo específico. |
 
-## Documentación y frontend
+## Criterio de redacción
 
-Si el frontend está en refactorización, no se documenta su estructura interna como definitiva.
-
-Sí se documentan:
-
-- contratos API;
-- autenticación;
-- uso de `credentials: "include"`;
-- permisos;
-- reglas que el frontend debe respetar;
-- formatos de request y response.
-
-La documentación interna del frontend se crea o actualiza cuando su estructura esté estable.
-
-## Seguridad documental
-
-Toda documentación debe respetar:
-
-- no exponer secretos;
-- no exponer contraseñas;
-- no exponer tokens;
-- no exponer usuarios reales de prueba;
-- no exponer rutas privadas;
-- no exponer datos personales reales.
-
-## Criterios de revisión antes de commit
-
-Antes de commitear documentación, verificar:
-
-- no contradice el código;
-- no documenta endpoints inexistentes;
-- no usa datos reales sensibles;
-- no presenta reglas futuras como vigentes;
-- no duplica contenido de forma contradictoria;
-- tiene nombres de clases, endpoints y permisos consistentes;
-- usa lenguaje formal de proyecto real.
-
-## Regla final
+La documentación se redacta en tono profesional y descriptivo:
 
 ```text
-Si cambia el código, cambia la documentación afectada.
-Si la documentación contradice el código, se actualiza la documentación.
+El sistema implementa...
+El backend valida...
+El frontend consume...
+El módulo permite...
 ```
+
+No se redacta como lista de carencias.

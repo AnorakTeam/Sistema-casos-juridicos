@@ -1,158 +1,171 @@
 # Estructura del frontend
 
-## Árbol de carpetas
+El frontend está organizado como una aplicación Next.js con App Router. Las páginas se ubican en `src/app`, los componentes reutilizables en `src/components`, los hooks en `src/hooks` y las utilidades transversales en `src/lib`.
+
+## Árbol principal
 
 ```text
 frontend/
-├── src/
-│   ├── app/                              # Rutas de Next.js (App Router)
-│   │   ├── layout.js                     # Layout raíz: tema, fuentes, metadata
-│   │   ├── page.js                       # Página raíz: redirige a /inicio o muestra login
-│   │   ├── recuperar-password/
-│   │   │   └── page.js                   # Formulario de solicitud de recuperación
-│   │   ├── restablecer-password/
-│   │   │   └── page.js                   # Formulario de restablecimiento con token
-│   │   └── (dashboard)/                  # Grupo de rutas protegidas con layout compartido
-│   │       ├── layout.js                 # Layout del dashboard: sidebar, header, tema
-│   │       ├── inicio/page.js            # Panel de control con estadísticas por rol
-│   │       ├── recepcion/page.js         # Registro de personas nuevas
-│   │       ├── personas/page.js          # Listado y gestión de personas
-│   │       ├── nuevaconsulta/page.js     # Formulario de nueva consulta jurídica
-│   │       ├── consultasjuridicas/page.js # Listado de consultas jurídicas
-│   │       ├── tareas/page.js            # Seguimientos y tareas
-│   │       ├── nuevoproceso/page.js      # Formulario de nuevo proceso judicial
-│   │       ├── procesos/page.js          # Listado de procesos judiciales
-│   │       ├── conciliaciones/page.js    # Módulo de conciliaciones y reuniones
-│   │       ├── estudiantes/page.js       # Gestión de estudiantes
-│   │       ├── asesoresymonitores/page.js # Gestión de asesores y monitores
-│   │       ├── roles/page.js             # Creación de usuarios del sistema
-│   │       ├── admin/page.js             # Catálogos, permisos de roles y auditoría
-│   │       ├── estadisticas/page.js      # Estadísticas globales (solo admin)
-│   │       └── eliminacion/page.js       # Desactivación y reactivación de registros
-│   │
-│   ├── components/
-│   │   ├── app-sidebar.jsx               # Barra lateral de navegación con usuario y logout
-│   │   ├── Calendar.js                   # Componente de calendario de seguimientos
-│   │   ├── CalendarModal.jsx             # Modal del calendario accesible desde el header
-│   │   ├── theme-provider.jsx            # Proveedor de tema claro/oscuro
-│   │   │
-│   │   ├── auth/
-│   │   │   ├── LoginForm.jsx             # Formulario de inicio de sesión
-│   │   │   ├── RecuperarPasswordForm.jsx # Formulario de solicitud de recuperación
-│   │   │   └── RestablecerPasswordForm.jsx # Formulario de restablecimiento con token
-│   │   │
-│   │   ├── navigation/
-│   │   │   └── PermissionSidebar.jsx     # Sidebar con ítems filtrados por permisos reales
-│   │   │
-│   │   ├── forms/
-│   │   │   ├── EliminacionForm.jsx       # Desactivación/reactivación de registros
-│   │   │   │
-│   │   │   ├── AdminUsuarios/
-│   │   │   │   ├── AuditLogsTable.jsx    # Tabla de logs de auditoría
-│   │   │   │   ├── CambiarRolUsuarioForm.jsx # Cambio de rol de usuario
-│   │   │   │   ├── RolePermissionsForm.jsx   # Asignación de permisos a roles
-│   │   │   │   └── UsuarioSistemaForm.jsx    # Creación de usuarios del sistema
-│   │   │   │
-│   │   │   ├── catalogos/
-│   │   │   │   ├── AreaForm.jsx          # CRUD de áreas jurídicas
-│   │   │   │   ├── TemaForm.jsx          # CRUD de temas por área
-│   │   │   │   └── TipoForm.jsx          # CRUD de tipos por tema
-│   │   │   │
-│   │   │   ├── conciliacion/
-│   │   │   │   ├── ConciliacionesForm.jsx      # Listado y gestión de conciliaciones
-│   │   │   │   └── ReunionesConciliacionForm.jsx # Programación y reprogramación de reuniones
-│   │   │   │
-│   │   │   ├── consulta/
-│   │   │   │   ├── ConsultasJuridicasForm.jsx  # Listado y gestión de consultas
-│   │   │   │   ├── NuevaConsultaForm.jsx       # Creación de consulta jurídica
-│   │   │   │   └── SeguimientosForm.jsx        # Seguimientos y respuestas
-│   │   │   │
-│   │   │   ├── estadisticas/
-│   │   │   │   └── EstadisticasForm.jsx  # Dashboard de estadísticas del semestre
-│   │   │   │
-│   │   │   ├── inicio/
-│   │   │   │   └── InicioForm.jsx        # Panel de control con estadísticas y listas operativas
-│   │   │   │
-│   │   │   ├── parts/                    # Componentes reutilizables de formulario
-│   │   │   │   ├── ArchivoForm.jsx       # Carga de archivo individual
-│   │   │   │   ├── ArchivosConsultaForm.jsx # Carga de documentos adicionales de consulta
-│   │   │   │   ├── FormCheckbox.jsx      # Campo checkbox integrado con react-hook-form
-│   │   │   │   ├── FormFileUpload.jsx    # Campo de carga de archivos con validación
-│   │   │   │   ├── FormInput.jsx         # Campo de texto integrado con react-hook-form
-│   │   │   │   ├── FormMultiSelect.jsx   # Selección múltiple integrada
-│   │   │   │   ├── FormSelect.jsx        # Campo select integrado con react-hook-form
-│   │   │   │   └── PersonaMultiSelect.jsx # Selector múltiple de personas
-│   │   │   │
-│   │   │   ├── persona/
-│   │   │   │   ├── PersonaForm.jsx       # Registro/edición de persona (formulario por pasos)
-│   │   │   │   └── PersonasForm.jsx      # Listado de personas con búsqueda y paginación
-│   │   │   │
-│   │   │   ├── procesos/
-│   │   │   │   ├── NuevoProcesosForm.jsx # Creación de proceso judicial
-│   │   │   │   └── ProcesosForm.jsx      # Listado de procesos judiciales
-│   │   │   │
-│   │   │   └── usuarios/
-│   │   │       ├── AsesoresYMonitoresForm.jsx  # Gestión de asesores y monitores
-│   │   │       ├── ConciliadorForm.jsx         # Registro de conciliadores
-│   │   │       ├── EstudiantesForm.jsx         # Gestión de estudiantes
-│   │   │       └── ImportarEstudiantesForm.jsx # Cargue masivo de estudiantes desde Excel
-│   │   │
-│   │   └── ui/                           # Componentes base de shadcn/ui + dos componentes custom
-│   │       ├── ConfirmActionDialog.jsx   # Diálogo de confirmación reutilizable (custom)
-│   │       ├── Pagination.jsx            # Paginación con selector de tamaño de página (custom)
-│   │       └── ...                       # Button, Card, Dialog, Select, Tabs, etc. (shadcn/ui)
-│   │
-│   ├── hooks/
-│   │   ├── useApiForm.js                 # Hook para envíos de formulario al backend
-│   │   └── use-mobile.js                 # Detecta si el viewport es móvil
-│   │
-│   └── lib/
-│       ├── api.js                        # Helpers para leer y normalizar respuestas HTTP
-│       ├── apiClient.js                  # Cliente HTTP centralizado (wrapper de fetch)
-│       ├── authz.js                      # Funciones de autorización (tienePermiso, esAsesor…)
-│       ├── config.js                     # URLs del backend desde variables de entorno
-│       ├── form-validation.js            # Reglas reutilizables para react-hook-form
-│       ├── list-utils.js                 # Ordenamiento y paginación de listas
-│       ├── permission.js                 # Constantes de permisos del sistema
-│       └── utils.js                      # Helper cn() para combinar clases Tailwind
-│
+├── package.json
+├── playwright.config.js
 ├── public/
-│   └── logo.png                          # Logotipo del consultorio jurídico
-│
-├── .env.example                          # Plantilla de variables de entorno
-├── next.config.mjs                       # Configuración de Next.js
-├── tailwind.config.js                    # Configuración de Tailwind CSS
-└── package.json
+│   └── logo.png y recursos estáticos
+└── src/
+    ├── app/
+    │   ├── layout.js
+    │   ├── page.js
+    │   ├── recuperar-password/page.js
+    │   ├── restablecer-password/page.js
+    │   └── (dashboard)/
+    │       ├── layout.js
+    │       ├── inicio/page.js
+    │       ├── recepcion/page.js
+    │       ├── personas/page.js
+    │       ├── nuevaconsulta/page.js
+    │       ├── consultasjuridicas/page.js
+    │       ├── tareas/page.js
+    │       ├── nuevoproceso/page.js
+    │       ├── procesos/page.js
+    │       ├── conciliaciones/page.js
+    │       ├── estudiantes/page.js
+    │       ├── asesoresymonitores/page.js
+    │       ├── roles/page.js
+    │       ├── admin/page.js
+    │       ├── estadisticas/page.js
+    │       └── eliminacion/page.js
+    ├── components/
+    │   ├── auth/
+    │   ├── navigation/
+    │   ├── forms/
+    │   ├── ui/
+    │   ├── Calendar.js
+    │   ├── CalendarModal.jsx
+    │   ├── app-sidebar.jsx
+    │   └── theme-provider.jsx
+    ├── hooks/
+    └── lib/
 ```
 
-## Responsabilidades por carpeta
+## Layout raíz
 
-| Carpeta | Responsabilidad |
-|---|---|
-| `src/app/` | Rutas, páginas y layouts de Next.js. Cada `page.js` importa y renderiza el form correspondiente. No contiene lógica de negocio. |
-| `src/app/(dashboard)/` | Rutas protegidas con sidebar y header. El layout verifica visualmente que el usuario esté autenticado. La verificación real se hace en cada form. |
-| `src/components/auth/` | Formularios de autenticación: login, recuperación y restablecimiento. |
-| `src/components/navigation/` | Sidebar con ítems filtrados dinámicamente por permisos del usuario autenticado. |
-| `src/components/forms/` | Un directorio por módulo. Cada form es responsable de verificar sesión, permisos, cargar datos y comunicarse con el backend. |
-| `src/components/forms/parts/` | Componentes de formulario reutilizables integrados con react-hook-form. No contienen lógica de negocio. |
-| `src/components/ui/` | Componentes base de shadcn/ui (no modificar) más `ConfirmActionDialog` y `Pagination` que son componentes custom del proyecto. |
-| `src/hooks/` | Hooks de React compartidos entre formularios. |
-| `src/lib/` | Utilidades puras sin estado: configuración, autorización, validación, helpers HTTP. |
+`src/app/layout.js` define el layout global de la aplicación. En este nivel se configura:
 
-## Convenciones de nombres
+- metadata del sistema;
+- fuente global;
+- `ThemeProvider`;
+- estilos globales;
+- estructura base de HTML.
 
-| Tipo | Convención | Ejemplo |
+El metadata identifica el sistema como **Consultorio Jurídico** y describe su propósito como sistema de gestión de casos jurídicos del consultorio.
+
+## Rutas públicas
+
+Las rutas públicas no usan el layout del dashboard. Están orientadas al acceso y recuperación de contraseña.
+
+| Archivo | Ruta | Componente principal |
 |---|---|---|
-| Páginas | `page.js` en carpeta con nombre de ruta | `app/(dashboard)/consultas/page.js` |
-| Layouts | `layout.js` | `app/(dashboard)/layout.js` |
-| Formularios | `NombreMóduloForm.jsx` | `NuevaConsultaForm.jsx` |
-| Partes de formulario | `FormNombre.jsx` | `FormInput.jsx`, `FormFileUpload.jsx` |
-| Hooks | `useNombre.js` | `useApiForm.js` |
-| Utilidades | nombre descriptivo en camelCase | `authz.js`, `list-utils.js` |
-| Constantes | `MAYUSCULAS_CON_GUION` en archivo `.js` | `PERMISOS.VER_CONSULTAS` |
+| `src/app/page.js` | `/` | `LoginForm` |
+| `src/app/recuperar-password/page.js` | `/recuperar-password` | `RecuperarPasswordForm` |
+| `src/app/restablecer-password/page.js` | `/restablecer-password` | `RestablecerPasswordForm` |
 
-## Carpetas que no deben contener lógica de negocio
+Estas páginas incorporan selector de tema claro/oscuro/sistema y diseño visual propio de autenticación.
 
-- `src/components/ui/`: solo presentación.
-- `src/app/*/page.js`: solo importar y renderizar el form.
-- `src/lib/utils.js`: solo el helper `cn()`.
+## Grupo de rutas protegidas `(dashboard)`
+
+Las páginas funcionales se agrupan bajo `src/app/(dashboard)`. Este grupo usa `src/app/(dashboard)/layout.js`, que configura:
+
+- `SidebarProvider`;
+- `PermissionSidebar`;
+- encabezado persistente;
+- `CalendarModal`;
+- selector de tema;
+- `Toaster` de Sonner;
+- contenedor principal de contenido.
+
+El layout del dashboard muestra un título y breadcrumb según la ruta. Para rutas no mapeadas usa un fallback general.
+
+## Páginas del dashboard
+
+| Página | Componente renderizado | Propósito |
+|---|---|---|
+| `/inicio` | `InicioForm` | Panel inicial con información operativa. |
+| `/recepcion` | `PersonaForm` | Registro de una persona. |
+| `/personas` | `PersonasForm` | Listado y gestión de personas. |
+| `/nuevaconsulta` | `NuevaConsultaForm` | Registro de nueva consulta jurídica. |
+| `/consultasjuridicas` | `ConsultasJuridicasForm` | Gestión de consultas existentes. |
+| `/tareas` | `SeguimientosForm` | Seguimientos, respuestas y tareas. |
+| `/nuevoproceso` | `NuevoProcesosForm` | Registro de proceso asociado a una consulta. |
+| `/procesos` | `ProcesosForm` | Gestión de procesos. |
+| `/conciliaciones` | `ConciliacionesForm` y `ReunionesConciliacionForm` | Gestión de conciliaciones y reuniones. |
+| `/estudiantes` | `EstudiantesForm` / `ImportarEstudiantesForm` | Gestión e importación de estudiantes. |
+| `/asesoresymonitores` | `AsesoresYMonitoresForm` / `ConciliadorForm` | Gestión de asesores, monitores y conciliadores. |
+| `/roles` | `UsuarioSistemaForm` | Creación y gestión de usuarios del sistema. |
+| `/admin` | Catálogos, `RolePermissionsForm`, `AuditLogsTable` | Administración de parámetros, permisos y auditoría. |
+| `/estadisticas` | `EstadisticasForm` | Consulta de estadísticas y reportes. |
+| `/eliminacion` | `EliminacionForm` | Registros desactivados y reactivación. |
+
+## Componentes de autenticación
+
+La carpeta `src/components/auth` contiene:
+
+| Componente | Función |
+|---|---|
+| `LoginForm.jsx` | Envía credenciales a `/auth/login` y redirige a `/inicio` al autenticar. |
+| `RecuperarPasswordForm.jsx` | Envía solicitud de recuperación a `/auth/solicitar-recuperacion`. |
+| `RestablecerPasswordForm.jsx` | Envía token y nueva contraseña a `/auth/restablecer-password`. |
+
+## Componentes de navegación
+
+La navegación se compone de:
+
+| Archivo | Función |
+|---|---|
+| `PermissionSidebar.jsx` | Consulta `/auth/me`, filtra páginas por permisos y entrega los ítems a la barra lateral. |
+| `app-sidebar.jsx` | Renderiza menú lateral, estado activo, datos del usuario y cierre de sesión. |
+
+## Componentes de formulario
+
+La carpeta `src/components/forms` agrupa formularios por dominio:
+
+| Carpeta | Módulos |
+|---|---|
+| `AdminUsuarios` | Usuarios, roles, permisos, cambio de rol y auditoría. |
+| `catalogos` | Áreas, temas y tipos. |
+| `conciliacion` | Conciliaciones y reuniones. |
+| `consulta` | Consultas jurídicas y seguimientos. |
+| `estadisticas` | Estadísticas y reportes. |
+| `inicio` | Panel inicial. |
+| `parts` | Componentes reutilizables de formulario. |
+| `persona` | Persona individual y listado de personas. |
+| `procesos` | Nuevo proceso y gestión de procesos. |
+| `usuarios` | Estudiantes, asesores, monitores, conciliadores e importación. |
+
+## Componentes reutilizables de UI
+
+La carpeta `src/components/ui` contiene componentes de interfaz reutilizables: botones, tarjetas, diálogos, inputs, selects, tabs, tooltips, sidebar, badges, paginación y confirmación de acciones.
+
+El componente `ConfirmActionDialog.jsx` se usa para operaciones sensibles que requieren confirmación visual del usuario antes de ejecutar la acción.
+
+## Hooks y utilidades
+
+| Archivo | Propósito |
+|---|---|
+| `src/hooks/useApiForm.js` | Hook para enviar formularios con toasts, estado de envío y manejo de 401. |
+| `src/hooks/use-mobile.js` | Hook para comportamiento responsive. |
+| `src/lib/config.js` | URL base de API y archivos. |
+| `src/lib/api.js` | Lectura y normalización de respuestas y errores. |
+| `src/lib/apiClient.js` | Cliente HTTP centralizado. |
+| `src/lib/authz.js` | Helpers de permisos, roles y perfil. |
+| `src/lib/permission.js` | Constantes de permisos. |
+| `src/lib/form-validation.js` | Reglas reutilizables de validación. |
+| `src/lib/list-utils.js` | Utilidades para listados. |
+| `src/lib/utils.js` | Utilidad de clases CSS `cn`. |
+
+## Convenciones de organización
+
+- Las páginas de `src/app` deben ser delgadas y delegar la lógica al componente de formulario correspondiente.
+- Los componentes de formulario encapsulan carga de datos, validaciones y operaciones de API.
+- Las constantes de permisos se centralizan en `src/lib/permission.js`.
+- Las reglas de autorización visual se centralizan en `src/lib/authz.js`.
+- Las URLs del backend se centralizan en `src/lib/config.js`.
+- Los formularios deben reutilizar componentes de `forms/parts` cuando el patrón sea común.

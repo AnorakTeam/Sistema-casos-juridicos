@@ -1,44 +1,171 @@
-# Módulo: Eliminación y reactivación
+# Frontend - Módulo de eliminación y reactivación
 
-## Propósito
+## 1. Propósito del módulo
 
-Permite desactivar y reactivar registros del sistema desde una pantalla centralizada: personas, usuarios, estudiantes, consultas y archivar/desarchivar consultas.
+El módulo de eliminación centraliza la consulta de registros inactivos o archivados y permite reactivarlos cuando el usuario tiene permisos suficientes. En el frontend, esta pantalla funciona como un panel administrativo de recuperación de registros.
 
-## Pantalla y ruta
+Ruta:
 
-| Ruta | Componente | Descripción |
-|---|---|---|
-| `/eliminacion` | `EliminacionForm` | Gestión centralizada de estado activo de registros |
+```text
+/eliminacion
+```
 
-## Componente
+Componente principal:
 
 ```text
 src/components/forms/EliminacionForm.jsx
 ```
 
-## Permisos
+## 2. Ruta y composición
 
-| Permiso | Uso |
-|---|---|
-| `Acceder eliminación` | Mostrar el ítem en el menú lateral y acceder a la pantalla. |
-| `Cambiar estado personas` | Desactivar/reactivar personas. |
-| `Cambiar estado usuarios` | Desactivar/reactivar usuarios del sistema. |
-| `Cambiar estado estudiantes` | Desactivar estudiantes. |
-| `Cambiar estado consultas` | Cambiar estado de consultas. |
-| `Archivar consultas` | Archivar y desarchivar consultas. |
-
-## Endpoints consumidos
-
-Los endpoints de esta pantalla corresponden a los de cada módulo:
+La página se define en:
 
 ```text
-PATCH /api/personas/{id}/desactivar
+src/app/(dashboard)/eliminacion/page.js
+```
+
+Renderiza `EliminacionForm` dentro de una vista con encabezado e iconografía de recuperación.
+
+## 3. Secciones gestionadas
+
+El componente define internamente las secciones disponibles:
+
+| Sección | Endpoint de carga | Tipo de recuperación |
+|---|---|---|
+| Personas | `/personas` | Reactivación por endpoint específico. |
+| Consultas | `/consultas/archivadas` | Desarchivo de consulta. |
+| Usuarios del sistema | `/usuarios-sistema` | Cambio `activo=true`. |
+| Administrativos | `/administrativos` | Cambio `activo=true`. |
+| Asesores | `/asesores` | Cambio `activo=true`. |
+| Estudiantes | `/estudiantes` | Cambio `activo=true`. |
+| Monitores | `/monitores` | Cambio `activo=true`. |
+| Conciliadores | `/conciliadores` | Cambio `activo=true`. |
+
+El componente carga todas las secciones y luego filtra en cliente los elementos inactivos o archivados según corresponda.
+
+## 4. Permisos usados
+
+Antes de cargar la pantalla, el componente valida sesión con:
+
+```text
+GET /api/auth/me
+```
+
+Para ingresar exige un conjunto de permisos relacionados con cambio de estado y archivo:
+
+```text
+Cambiar estado personas
+Cambiar estado usuarios
+Cambiar estado estudiantes
+Cambiar estado consultas
+Archivar consultas
+```
+
+La navegación lateral muestra la ruta cuando el usuario cuenta con `Acceder eliminación`.
+
+## 5. Endpoints de carga
+
+El componente obtiene los datos con:
+
+```text
+GET /api/personas
+GET /api/consultas/archivadas
+GET /api/usuarios-sistema
+GET /api/administrativos
+GET /api/asesores
+GET /api/estudiantes
+GET /api/monitores
+GET /api/conciliadores
+```
+
+Cuando un endpoint responde 403, la sección se deja vacía sin interrumpir la carga del resto de la pantalla. Esta decisión permite que el panel funcione según alcance efectivo del usuario.
+
+## 6. Endpoints de reactivación
+
+### 6.1 Personas
+
+```text
 PATCH /api/personas/{id}/reactivar
-PATCH /api/usuarios/{id}/activo?activo=false
-PATCH /api/usuarios/{id}/activo?activo=true
-PATCH /api/estudiantes/{id}/activo?activo=false
-PATCH /api/consultas/{id}/archivar
+```
+
+### 6.2 Consultas archivadas
+
+```text
 PATCH /api/consultas/{id}/desarchivar
 ```
 
-La pantalla verifica los permisos del usuario antes de mostrar cada sección. Si el usuario no tiene el permiso para una categoría, esa sección no aparece.
+### 6.3 Usuarios y perfiles
+
+Para usuarios y perfiles se usa:
+
+```text
+PATCH /api/{endpoint}/{id}/activo?activo=true
+```
+
+Ejemplos:
+
+```text
+PATCH /api/usuarios-sistema/{id}/activo?activo=true
+PATCH /api/administrativos/{id}/activo?activo=true
+PATCH /api/asesores/{id}/activo?activo=true
+PATCH /api/estudiantes/{id}/activo?activo=true
+PATCH /api/monitores/{id}/activo?activo=true
+PATCH /api/conciliadores/{id}/activo?activo=true
+```
+
+## 7. Filtros y visualización
+
+La pantalla permite buscar registros por:
+
+- identificador;
+- nombre visible;
+- documento;
+- texto de consulta;
+- detalle de perfil;
+- estado.
+
+También usa paginación cliente mediante utilidades de lista:
+
+```text
+getTotalPages
+paginateItems
+sortByIdAsc
+DEFAULT_PAGE_SIZE_OPTIONS
+```
+
+## 8. Confirmación de reactivación
+
+Antes de reactivar un registro, el componente abre un diálogo de confirmación. Al confirmar, ejecuta la petición correspondiente y recarga todas las secciones.
+
+Este patrón evita cambios accidentales y mantiene la pantalla actualizada después de cada operación.
+
+## 9. Diferencia entre inactivo y archivado
+
+El componente diferencia:
+
+| Caso | Criterio visual |
+|---|---|
+| Registro inactivo | `activo === false` o estado textual `INACTIVO`. |
+| Consulta archivada | Estado `ARCHIVADO` o `ARCHIVADA`. |
+
+Las consultas no se reactivan con `activo=true`; se desarchivan mediante endpoint específico.
+
+## 10. Manejo de errores
+
+El componente maneja:
+
+- sesión expirada;
+- permisos insuficientes;
+- errores de carga por sección;
+- errores del backend al reactivar;
+- respuestas JSON o texto plano.
+
+Las notificaciones se muestran mediante `toast`.
+
+## 11. Relación con reglas backend
+
+La pantalla presenta y solicita reactivaciones, pero las reglas definitivas permanecen en backend. Por ejemplo, el backend decide si un perfil puede reactivarse y aplica las validaciones asociadas a usuarios, perfiles y consultas.
+
+## 12. Alcance de la documentación
+
+Este documento describe la pantalla frontend de eliminación/reactivación. No documenta eliminación física, porque el flujo visible trabaja con estados, archivo y reactivación lógica.

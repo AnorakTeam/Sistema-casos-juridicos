@@ -1,235 +1,151 @@
 # Formularios y validaciones
 
-El frontend usa `react-hook-form` como librería de formularios en todos los módulos que lo requieren.
+El frontend usa `react-hook-form` en sus formularios principales y componentes reutilizables ubicados en `src/components/forms/parts`. Las validaciones de frontend sirven para mejorar experiencia de usuario; las reglas definitivas se validan en backend.
 
-## Patrón de formulario estándar
+## Patrón general
 
-Cada formulario principal sigue este patrón:
+Los formularios del sistema siguen un patrón común:
 
-1. Verificar sesión y permisos al montar el componente.
-2. Cargar catálogos y datos necesarios.
-3. Mostrar el formulario con campos validados.
-4. Al enviar, construir el payload y llamar al backend.
-5. Mostrar toast de éxito o error según la respuesta.
+1. inicializar estado y `react-hook-form`;
+2. cargar usuario, permisos, catálogos o datos iniciales;
+3. renderizar campos con componentes reutilizables;
+4. validar campos obligatorios o formatos simples;
+5. construir payload compatible con DTO del backend;
+6. enviar petición con `fetch`, `apiClient` o `useApiForm`;
+7. mostrar toast o mensaje local;
+8. actualizar listado, limpiar formulario o cerrar modal.
 
-```javascript
-// Patrón básico con react-hook-form
-const { register, handleSubmit, reset, formState: { errors } } = useForm({
-  defaultValues: { nombre: "" },
-});
+## Componentes reutilizables
 
-const onSubmit = async (data) => {
-  const res = await fetch(`${API_URL_BASE}/areas`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  // manejo de respuesta...
-};
-```
+### `FormInput`
 
-## Componentes de formulario reutilizables
+`FormInput.jsx` renderiza un input integrado con `register`. Muestra etiqueta, asterisco para campos requeridos, estado `aria-invalid`, `aria-required` y mensaje de error.
 
-Ubicados en `src/components/forms/parts/`.
+Propiedades principales:
 
-### FormInput
-
-Campo de texto integrado con react-hook-form. Muestra el mensaje de error automáticamente.
-
-```javascript
-<FormInput
-  name="nombre"
-  label="Nombre del área"
-  register={register}
-  errors={errors}
-  rules={{ required: "El nombre es obligatorio" }}
-/>
-```
-
-### FormSelect
-
-Campo select con lista de opciones `{ value, label }`.
-
-```javascript
-<FormSelect
-  name="sedeId"
-  label="Sede"
-  options={sedes}
-  register={register}
-  errors={errors}
-  rules={{ required: REQUIRED, valueAsNumber: true }}
-/>
-```
-
-### FormCheckbox
-
-Campo checkbox.
-
-```javascript
-<FormCheckbox name="activo" label="Activo" register={register} errors={errors} />
-```
-
-### FormFileUpload
-
-Campo de carga de archivos con validación de tipo MIME y tamaño.
-
-```javascript
-<FormFileUpload
-  name="archivos"
-  label="Documentos a subir"
-  multiple={true}
-  setValue={setValue}
-  value={archivos}
-  errors={errors}
-  tiposPermitidos={["application/pdf", "image/jpeg"]}  // opcional
-  maxTamanoByte={10 * 1024 * 1024}                     // opcional, 10 MB por defecto
-/>
-```
-
-Tipos permitidos por defecto: PDF, JPEG, PNG, WebP, Word y Excel. Tamaño máximo por defecto: 10 MB. Los archivos que no cumplen se rechazan con un toast antes de agregarse a la lista.
-
-## Reglas de validación reutilizables
-
-`src/lib/form-validation.js` exporta reglas comunes:
-
-```javascript
-import { requiredEmailRule, optionalEmailRule, nonNegativeNumberRule, maxNumberRule } from "@/lib/form-validation";
-
-// Email obligatorio con formato válido
-rules={requiredEmailRule()}
-
-// Email opcional que valida formato solo si tiene valor
-rules={optionalEmailRule()}
-
-// Número no negativo
-rules={{ required: REQUIRED, ...nonNegativeNumberRule() }}
-
-// Número con máximo
-rules={{ ...maxNumberRule(7, "El estrato máximo es 7") }}
-```
-
-## Formulario de persona por pasos (wizard)
-
-`PersonaForm` implementa un formulario de múltiples pasos para el registro de personas.
-
-### Pasos
-
-| Paso | Sección | Campos principales |
-|---|---|---|
-| 0 | Identificación | Tipo persona, tipo documento, número, fechas, nombres, apellidos |
-| 1 | Identidad | Pronombre, sexo, género, orientación sexual, etnia |
-| 2 | Contacto | Teléfono, correo (al menos uno obligatorio) |
-| 3 | Vivienda | Departamento, municipio, barrio, dirección, estrato, zona |
-| 4 | Economía | Ocupación, empresa, salario, personas a cargo |
-| 5 | Acudiente | Solo si la persona es menor de edad |
-| 6 | Servicio | Cómo se enteró, relación con la universidad |
-
-### Validación al avanzar de paso
-
-Al pulsar "Siguiente", se llama `trigger(campos)` de react-hook-form para validar los campos del paso actual. Si alguno falla, no se avanza.
-
-### Validación cruzada de contacto
-
-Al enviar, se verifica que exista al menos teléfono o correo. Si ambos están vacíos, se muestra un toast y se navega al paso "Contacto".
-
-## Formulario de nueva consulta jurídica
-
-`NuevaConsultaForm` gestiona el estado del formulario con `useState` en lugar de react-hook-form, debido a la complejidad de los selectores de personas con modales.
-
-### Validación antes de enviar
-
-`validarFormularioConsulta()` verifica explícitamente antes del fetch:
-- Fecha, estado, trámite, sede, área, tema, tipo.
-- **Parte principal**: verificación explícita de `form.personaId` para evitar enviar `NaN` al backend.
-- Descripción, hechos, pretensiones, concepto jurídico.
-
-### Límites de caracteres en campos de texto libre
-
-| Campo | maxLength |
+| Propiedad | Descripción |
 |---|---|
-| Descripción | 2000 |
-| Hechos | 2000 |
-| Pretensiones | 2000 |
-| Concepto jurídico | 2000 |
-| Observaciones | 500 |
+| `name` | Nombre del campo. |
+| `label` | Etiqueta visible. |
+| `type` | Tipo de input, por defecto `text`. |
+| `register` | Función de `react-hook-form`. |
+| `errors` | Objeto de errores. |
+| `rules` | Reglas de validación. |
 
-### Conversión segura de IDs
+### `FormSelect`
 
-Los IDs de personas y catálogos se convierten con `numberOrNull()` antes de enviar, lo que devuelve `null` si el valor está vacío o no es un número válido, evitando enviar `NaN` al backend.
+`FormSelect.jsx` renderiza un select compatible con `react-hook-form`. Usa lista de opciones `{ value, label }`, muestra etiqueta y error.
 
-## Formulario de permisos de roles
+Se usa para catálogos, responsables, estados y opciones controladas.
 
-`RolePermissionsForm` gestiona qué páginas puede ver un rol y actualiza los permisos asociados automáticamente.
+### `FormCheckbox`
 
-### Algoritmo de diff de permisos
+`FormCheckbox.jsx` renderiza checkboxes controlados por `react-hook-form`. Se usa para valores booleanos como activación de opciones o flags de formulario.
 
-Al guardar, el formulario calcula:
-- `agregar`: permisos en el objetivo que no tiene el rol actualmente.
-- `quitar`: permisos gestionados por este form que el rol tiene pero no están en el objetivo.
+### `FormMultiSelect`
 
-El cálculo usa `objetivo = unión de permisos de todas las páginas seleccionadas`. Si la página B comparte el permiso `Ver catálogos` con la página A, y se desmarca A pero B sigue seleccionada, el permiso no se quita porque sigue en el objetivo.
+`FormMultiSelect.jsx` permite seleccionar múltiples elementos desde una lista de opciones. Es útil para relaciones múltiples o selección de permisos.
 
-### Protección de acceso propio
+### `PersonaMultiSelect`
 
-El formulario no permite quitarle al propio rol del usuario el acceso a la página de Administración, mostrando un mensaje de error en la UI antes de aplicar el cambio.
+`PersonaMultiSelect.jsx` permite buscar y seleccionar personas en modo simple o múltiple. Se usa en consultas para persona principal, partes y contrapartes.
 
-## Cargue masivo de estudiantes
+Características:
 
-`ImportarEstudiantesForm` permite subir un archivo Excel con el formato requerido por el endpoint `POST /api/estudiantes/importar`.
+- búsqueda por nombres, apellidos o número de documento;
+- selección única o múltiple;
+- visualización de tags seleccionados;
+- botón para quitar selección;
+- soporte para `required` en modo simple;
+- soporte para `disabled`.
 
-El botón "Descargar plantilla" genera un CSV con los encabezados correctos y una fila de ejemplo, descargado directamente desde el navegador sin necesidad de un endpoint del backend.
+### `FormFileUpload`
 
-La validación del archivo en el frontend verifica únicamente que sea `.xlsx` o `.xls`. Las validaciones de negocio (duplicados, campos faltantes) las ejecuta el backend fila por fila.
+`FormFileUpload.jsx` permite cargar archivos con validación visual. Se usa para documentos adjuntos o archivos de soporte.
 
-## Componentes de UI reutilizables
+### `ArchivoForm` y `ArchivosConsultaForm`
 
-### ConfirmActionDialog
+Estos componentes envuelven patrones de carga de archivo individual o múltiples archivos asociados a consulta. Usan `FormFileUpload` y preparan datos para envío al backend.
 
-Diálogo de confirmación usado antes de acciones destructivas o irreversibles (desactivar, archivar, etc.).
+## Reglas reutilizables de validación
 
-```javascript
-import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
+`src/lib/form-validation.js` define reglas compatibles con `register`.
 
-<ConfirmActionDialog
-  open={Boolean(confirmDialog)}
-  title="Desactivar área"
-  description="¿Deseas desactivar esta área?"
-  confirmText="Desactivar"
-  cancelText="Cancelar"
-  loading={confirmLoading}
-  variant="destructive"     // opcional, controla el color del botón de confirmación
-  onClose={() => setConfirmDialog(null)}
-  onConfirm={confirmarDesactivar}
-/>
-```
+| Función | Uso |
+|---|---|
+| `isBlank(value)` | Verifica valores vacíos o solo espacios. |
+| `optionalEmailRule()` | Valida email si el campo tiene valor. |
+| `requiredEmailRule()` | Exige email y formato válido. |
+| `nonNegativeNumberRule()` | Exige número mayor o igual a cero. |
+| `maxNumberRule(max)` | Exige valor máximo. |
+| `requiredSelectRule()` | Exige selección en campos select. |
 
-### Pagination
+Constantes:
 
-Control de paginación con selector de tamaño de página. Se usa en todos los listados paginados.
+| Constante | Descripción |
+|---|---|
+| `REQUIRED_MESSAGE` | Mensaje estándar de campo obligatorio. |
+| `EMAIL_PATTERN` | Expresión regular para correo electrónico. |
 
-```javascript
-import Pagination from "@/components/ui/Pagination";
-import { DEFAULT_PAGE_SIZE_OPTIONS, getTotalPages, paginateItems } from "@/lib/list-utils";
+## Validaciones por tipo de campo
 
-<Pagination
-  currentPage={paginaActual}
-  totalPages={totalPaginas}
-  onPageChange={setPaginaActual}
-  pageSize={registrosPorPagina}
-  onPageSizeChange={(value) => { setRegistrosPorPagina(value); setPaginaActual(1); }}
-  pageSizeOptions={DEFAULT_PAGE_SIZE_OPTIONS}   // [5, 10, 20, 50]
-  totalItems={items.length}
-/>
-```
+| Campo | Validación frontend típica |
+|---|---|
+| Correo | Formato con `requiredEmailRule` u `optionalEmailRule`. |
+| Contraseña | Obligatoria; en restablecimiento exige mínimo 8 caracteres. |
+| Confirmación de contraseña | Debe coincidir con nueva contraseña. |
+| Select | Debe tener opción seleccionada cuando sea obligatorio. |
+| Número | No negativo o máximo según regla aplicable. |
+| Archivo | Validación de tipo y tamaño según componente. |
+| Personas | Selección simple o múltiple según formulario. |
 
-Las utilidades `getTotalPages` y `paginateItems` de `src/lib/list-utils.js` calculan el total de páginas y extraen el subconjunto de items de la página actual.
+## Validaciones específicas observadas
 
-## Qué NO hace la validación frontend
+### Login
 
-- No cambia el estado de recursos en el backend directamente.
-- No construye rutas internas del backend.
-- No asume que el usuario tiene permisos porque pasó la validación visual.
-- No reemplaza la validación backend de reglas de negocio.
+`LoginForm` exige correo y contraseña. El correo usa `requiredEmailRule`. La autenticación real se valida en backend.
 
-La validación backend es siempre la fuente de verdad.
+### Recuperación de contraseña
+
+`RecuperarPasswordForm` exige correo válido y envía `username` al backend.
+
+### Restablecimiento de contraseña
+
+`RestablecerPasswordForm` exige:
+
+- nueva contraseña obligatoria;
+- mínimo 8 caracteres;
+- confirmación obligatoria;
+- coincidencia entre contraseña y confirmación.
+
+### Procesos
+
+Los formularios de procesos reflejan la regla backend vigente:
+
+- radicado opcional mientras el proceso está pendiente;
+- si se informa radicado, se valida longitud de 23 caracteres;
+- para estados finales, la interfaz evita finalizar sin radicado.
+
+### Consultas
+
+Los formularios de consulta manejan catálogos, responsables, persona principal, partes y contrapartes. El backend conserva las reglas definitivas: coherencia área-tema-tipo, responsables válidos, duplicados de personas y bloqueo de cambios estructurales con actividad asociada.
+
+### Seguimientos
+
+La interfaz permite configurar fecha de entrega, días de notificación, notificación a estudiante, notificación a partes y alerta disciplinaria. El backend valida la regla definitiva de estudiante activo cuando `notificarEstudiante` es verdadero.
+
+### Conciliación
+
+La carga de solicitud y acta se realiza con archivos. La programación de reunión exige datos de programación y el backend valida fecha, sede, responsables y estado funcional.
+
+## Relación con backend
+
+El frontend no duplica todas las validaciones de negocio. Su responsabilidad es:
+
+- evitar errores evidentes antes de enviar;
+- mostrar mensajes claros;
+- enviar payloads completos y consistentes;
+- respetar permisos visuales;
+- reflejar reglas principales en la interfaz.
+
+El backend conserva la validación definitiva de permisos, alcance, estados, relaciones, integridad y reglas jurídicas.

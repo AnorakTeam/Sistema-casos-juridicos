@@ -2,15 +2,16 @@
 
 ## Contexto
 
-El sistema maneja distintos tipos de usuarios internos: administrador, asesor, estudiante, monitor y conciliador.
+El sistema maneja distintos tipos de usuarios internos: administrativos, asesores, estudiantes, monitores y conciliadores.
 
 Cada perfil puede tener permisos funcionales, pero no todos los usuarios con un permiso deben poder operar todos los recursos del sistema.
 
-Ejemplo:
+Ejemplos:
 
-- un asesor puede ver consultas, pero solo las relacionadas con su alcance;
-- un estudiante puede ver ciertos recursos, pero no gestionarlos;
-- un conciliador puede concluir conciliaciones, pero solo aquellas donde está asignado.
+- un asesor puede ver consultas dentro de su alcance;
+- un estudiante accede a recursos relacionados con sus consultas;
+- un conciliador opera conciliaciones asignadas;
+- un administrativo con permisos puede operar de forma global según su rol.
 
 ## Decisión
 
@@ -21,193 +22,105 @@ permiso funcional
 alcance real
 ```
 
-Un permiso habilita la acción general.  
-El alcance determina si el usuario puede ejecutar esa acción sobre un recurso específico.
+Un permiso habilita la acción general. El alcance determina si el usuario puede ejecutar esa acción sobre un recurso específico.
 
 Regla central:
 
 ```text
-autenticación + permiso funcional + alcance real + regla de negocio
+autenticación + permiso funcional + perfil activo + alcance real + regla de negocio
 ```
 
 ## Justificación
 
-La separación evita que un permiso amplio otorgue acceso global indebido.
+La separación evita que un permiso amplio otorgue acceso global indebido. También permite que el sistema refleje reglas reales del consultorio jurídico:
 
-También permite implementar reglas cercanas al mundo real del consultorio jurídico:
+- asesor opera recursos relacionados con su área, sus consultas o sus estudiantes;
+- estudiante opera únicamente recursos que le corresponden;
+- monitor opera recursos asignados;
+- conciliador opera conciliaciones asignadas;
+- administrativo opera según permisos asignados a su rol.
 
-- cada asesor opera sus consultas o las relacionadas con sus estudiantes;
-- cada monitor opera sus consultas;
-- cada estudiante solo accede a recursos relacionados;
-- cada conciliador opera conciliaciones asignadas;
-- el administrador opera globalmente según permisos.
+## Componentes relacionados
+
+| Componente | Propósito |
+|---|---|
+| `UsuarioSistema` | Identidad autenticada. |
+| `Rol` | Agrupa permisos. |
+| `Permiso` | Habilita acciones y navegación. |
+| `AccessService` | Valida permisos y alcance en backend. |
+| `UsuarioActualService` | Obtiene usuario y perfil actual. |
+| `PerfilUsuarioResolverService` | Resuelve perfil activo mediante Strategy. |
+| `PermissionSidebar` | Filtra navegación en frontend con permisos visibles. |
 
 ## Permisos funcionales
 
-Los permisos se centralizan en:
+Los permisos se centralizan como nombres funcionales. El backend usa constantes y validaciones para proteger endpoints. El frontend utiliza permisos para mostrar u ocultar opciones de navegación y acciones.
 
-```text
-PermisoNombre
-```
+Ejemplos de permisos documentados en módulos:
 
-Ejemplos:
+- ver consultas;
+- crear consultas;
+- editar consultas;
+- cambiar estado de consultas;
+- ver procesos;
+- gestionar procesos;
+- ver seguimientos;
+- responder seguimientos;
+- ver conciliaciones;
+- gestionar conciliaciones;
+- concluir conciliaciones;
+- ver reportes;
+- ver auditoría;
+- gestionar usuarios, roles y permisos.
 
-- `Ver consultas`;
-- `Crear consultas`;
-- `Editar consultas`;
-- `Cambiar estado consultas`;
-- `Ver seguimientos`;
-- `Responder seguimientos`;
-- `Ver procesos`;
-- `Gestionar procesos`;
-- `Ver conciliaciones`;
-- `Gestionar conciliaciones`;
-- `Concluir conciliaciones`.
+## Alcance por perfil
 
-## Permisos de navegación
+| Perfil | Alcance operativo general |
+|---|---|
+| Administrativo | Opera según permisos del rol asignado. |
+| Asesor | Opera consultas y recursos dentro de su relación funcional. |
+| Estudiante | Accede a consultas, seguimientos y recursos que le correspondan. |
+| Monitor | Opera consultas asignadas según permisos. |
+| Conciliador | Opera conciliaciones asignadas y sus reuniones. |
 
-También existen permisos de navegación.
+## Aplicación por módulo
 
-Ejemplos:
+### Consultas
 
-- `Acceder inicio`;
-- `Acceder consultas jurídicas`;
-- `Acceder personas`;
-- `Acceder conciliaciones`;
-- `Acceder procesos`.
+El acceso se valida con `ConsultaAccessService`. El alcance se aplica para crear, editar, cambiar estado, archivar, desarchivar y asignar responsables.
 
-Estos permisos ayudan al frontend a mostrar u ocultar secciones.
+### Procesos
 
-No reemplazan la seguridad del backend.
+El acceso se valida con `ProcesoAccessService`. El alcance depende de la consulta asociada y de la capacidad de gestionar procesos.
 
-## Alcance
+### Seguimientos
 
-El alcance se valida en services especializados.
+El acceso se valida con `SeguimientoAccessService` y `SeguimientoRespuestaAccessService`. El estudiante puede responder seguimientos visibles cuando están asociados a su consulta.
 
-Ejemplos de services:
+### Conciliación
 
-- `ConsultaAccessService`;
-- `ConsultaAlcanceService`;
-- `ConciliacionAccessService`;
-- `ConciliacionAlcanceService`;
-- services equivalentes de otros módulos.
+El acceso se valida con `ConciliacionAccessService` y alcance específico de conciliación. El conciliador opera conciliaciones asignadas.
 
-## Regla por perfil
+### Estadísticas
 
-### Administrador
-
-Puede acceder globalmente según permisos asignados.
-
-### Asesor
-
-Accede a recursos relacionados con:
-
-- consultas donde es asesor asignado;
-- consultas donde el estudiante asignado pertenece a su asesoría;
-- recursos derivados de esas consultas según módulo.
-
-### Monitor
-
-Accede a recursos relacionados con consultas donde es monitor asignado.
-
-### Estudiante
-
-Accede a recursos donde participa directamente o donde el módulo lo relaciona.
-
-Ejemplos:
-
-- consultas donde es estudiante asignado;
-- seguimientos visibles para estudiante;
-- conciliaciones donde es estudiante de consulta o estudiante asignado.
-
-### Conciliador
-
-Accede a conciliaciones donde está asignado como conciliador.
-
-## Impacto en backend
-
-El backend aplica seguridad en dos niveles:
-
-### 1. Anotaciones de autorización
-
-Ejemplo conceptual:
-
-```text
-@PreAuthorize("hasAuthority('Permiso')")
-```
-
-### 2. Services de acceso y alcance
-
-Estos validan:
-
-- permiso funcional;
-- relación del usuario con el recurso;
-- reglas especiales del perfil;
-- restricciones del caso de uso.
+El módulo usa permisos como `VER_REPORTES` para reportes generales y `VER_CONSULTAS` para vistas relacionadas con alcance operativo.
 
 ## Impacto en frontend
 
-El frontend puede:
+La navegación no reemplaza las validaciones del backend. El frontend usa permisos para mejorar experiencia:
 
-- ocultar menús;
-- ocultar botones;
-- filtrar acciones visibles;
-- guiar la experiencia del usuario.
+- mostrar módulos disponibles;
+- ocultar rutas o acciones no aplicables;
+- ajustar formularios según permisos;
+- evitar llamadas innecesarias.
 
-Pero siempre debe manejar:
-
-- `401 Unauthorized`;
-- `403 Forbidden`;
-- errores de negocio.
-
-La UI no debe asumir que mostrar un botón garantiza autorización final.
-
-## Decisión en conciliación
-
-El rol conciliador no requiere permiso administrativo amplio para operar el flujo asignado.
-
-La decisión es:
-
-- `Gestionar conciliaciones`: acciones administrativas o amplias del módulo;
-- `Concluir conciliaciones`: acciones operativas del conciliador asignado;
-- alcance: solo conciliaciones donde el conciliador está asignado.
-
-Esto evita que el conciliador gestione globalmente conciliaciones ajenas.
-
-## Decisión en estudiante
-
-El estudiante puede consultar recursos relacionados, pero no debe gestionar acciones críticas como:
-
-- crear conciliaciones;
-- asignarse a conciliaciones;
-- cambiar estado de conciliación;
-- finalizar conciliación;
-- asignar responsables de consulta;
-- cambiar estado de consulta.
-
-## Ventajas
-
-- reduce riesgo de acceso indebido;
-- permite frontend flexible sin sacrificar seguridad;
-- facilita pruebas por rol;
-- mantiene reglas de negocio centralizadas en backend;
-- evita depender únicamente de la interfaz.
+El backend conserva la validación final.
 
 ## Criterios de mantenimiento
 
-Cuando se agregue un permiso nuevo:
+Cuando se agregue un endpoint o acción:
 
-1. Agregarlo en `PermisoNombre`.
-2. Verificar creación por inicializador de seguridad.
-3. Asignarlo a roles correspondientes en base de datos.
-4. Actualizar documentación de permisos.
-5. Revisar frontend si afecta navegación.
-6. Revisar endpoints si afecta `@PreAuthorize`.
-7. Revisar access services si requiere alcance.
-
-Cuando se agregue un nuevo perfil o regla de alcance:
-
-1. Actualizar services de alcance.
-2. Actualizar DTOs de usuario si cambia perfil.
-3. Actualizar documentación de permisos y reglas.
-4. Validar frontend de navegación.
+1. Definir permiso funcional.
+2. Validar alcance real en backend si el recurso pertenece a un usuario, perfil o consulta.
+3. Ajustar navegación frontend si corresponde.
+4. Documentar API, backend, reglas y frontend.

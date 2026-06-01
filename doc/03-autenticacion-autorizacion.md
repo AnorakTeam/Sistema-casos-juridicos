@@ -1,179 +1,186 @@
 # Autenticación y autorización
 
-El sistema usa autenticación basada en JWT y cookie de sesión.
+## Autenticación
 
-La autorización combina permisos funcionales con reglas de alcance sobre recursos específicos.
+La autenticación se implementa en backend mediante `AuthController` y `AuthService`. El flujo de login valida credenciales, verifica que el usuario pueda autenticarse, genera un JWT y lo entrega al navegador en una cookie HTTP-only.
 
-## Componentes principales
-
-Backend:
+Endpoint principal:
 
 ```text
-AuthController
-AuthService
-PasswordResetService
-JwtService
-JwtAuthenticationFilter
-SecurityConfig
-SecurityExceptionHandler
-UsuarioActualService
-SecurityDataInitializer
-PermisoNombre
+POST /api/auth/login
 ```
 
-Frontend:
-
-```text
-LoginForm
-src/lib/config.js
-src/lib/authz.js
-src/lib/permission.js
-PermissionSidebar
-```
-
-## Endpoints de autenticación
-
-Base path:
-
-```text
-/api/auth
-```
-
-Endpoints principales:
-
-| Método | Ruta | Uso |
-|---|---|---|
-| POST | `/api/auth/login` | Inicia sesión. |
-| GET | `/api/auth/me` | Consulta usuario autenticado. |
-| POST | `/api/auth/logout` | Cierra sesión. |
-| PATCH | `/api/auth/cambiar-password` | Cambia contraseña de usuario autenticado. |
-| POST | `/api/auth/solicitar-recuperacion` | Solicita recuperación de contraseña. |
-| POST | `/api/auth/restablecer-password` | Restablece contraseña con token válido. |
-
-## Login
-
-El login valida credenciales y estado del usuario.
-
-El backend verifica:
-
-- usuario existente;
-- usuario activo;
-- rol activo;
-- perfil asociado activo;
-- contraseña correcta.
-
-Cuando el login es exitoso, el backend genera un token y lo entrega en cookie.
+El cuerpo esperado corresponde a `LoginRequestDTO`, con usuario y contraseña.
 
 ## Cookie de sesión
 
-La cookie usada por el backend se llama:
+Después del login exitoso, el backend crea la cookie:
 
 ```text
 access_token
 ```
 
-Características:
-
-- `HttpOnly`;
-- `path=/`;
-- `Secure` configurable;
-- `SameSite` configurable;
-- tiempo máximo alineado con expiración configurada.
-
-## Validación de sesión
-
-El frontend consulta:
-
-```text
-GET /api/auth/me
-```
-
-para obtener el usuario actual y sus permisos.
-
-Las peticiones protegidas deben usar:
+La cookie contiene el JWT y se configura como HTTP-only. El frontend no manipula manualmente el token; simplemente envía peticiones autenticadas con:
 
 ```javascript
 credentials: "include"
 ```
 
-## Logout
+## Sesión actual
 
-El cierre de sesión reemplaza la cookie por una cookie vacía con expiración inmediata.
-
-## Filtro JWT
-
-`JwtAuthenticationFilter` lee el token desde la cookie.
-
-Si el token es válido:
-
-- obtiene username;
-- carga usuario con rol, permisos y perfil;
-- valida usuario activo;
-- valida rol activo;
-- valida perfil activo;
-- registra permisos activos como authorities en Spring Security.
-
-Si el token no es válido, el contexto de seguridad se limpia y la petición continúa sin autenticación.
-
-## Configuración de seguridad
-
-`SecurityConfig` define:
-
-- CORS;
-- CSRF deshabilitado para API stateless;
-- sesión stateless;
-- deshabilitación de form login y HTTP Basic;
-- endpoints públicos de autenticación;
-- endpoints autenticados;
-- filtro JWT antes del filtro estándar de usuario/contraseña.
-
-## Errores de seguridad
-
-`SecurityExceptionHandler` devuelve errores JSON para:
-
-| Estado | Significado |
-|---|---|
-| 401 | Usuario no autenticado o sesión no válida. |
-| 403 | Usuario autenticado sin permisos suficientes. |
-
-## Permisos
-
-Los permisos se centralizan en:
+El endpoint:
 
 ```text
-PermisoNombre
+GET /api/auth/me
 ```
 
-`SecurityDataInitializer` crea permisos declarados en código cuando no existen, y crea roles base si faltan.
+permite consultar el usuario autenticado a partir del token recibido en la cookie. El backend valida que exista sesión activa y que el usuario pueda autenticarse.
 
-El inicializador no sobrescribe la matriz `rol_permiso`.
+## Logout
 
-## Alcance
+El endpoint:
 
-Además del permiso funcional, algunos módulos validan alcance real del usuario sobre el recurso.
+```text
+POST /api/auth/logout
+```
 
-Ejemplos de alcance:
+responde eliminando la cookie de autenticación mediante `maxAge=0`.
 
-- asesor sobre consultas donde es asesor directo;
-- monitor sobre consultas donde es monitor directo;
-- estudiante sobre consultas asignadas o relacionadas;
-- conciliador sobre conciliaciones donde está asignado.
+## Cambio de contraseña
+
+El endpoint:
+
+```text
+PATCH /api/auth/cambiar-password
+```
+
+requiere sesión activa y valida:
+
+- datos obligatorios;
+- contraseña actual correcta;
+- contraseña nueva diferente de la actual.
+
+## Recuperación de contraseña
+
+El backend expone:
+
+```text
+POST /api/auth/solicitar-recuperacion
+POST /api/auth/restablecer-password
+```
+
+La solicitud de recuperación devuelve un mensaje genérico para no revelar si el correo existe. El restablecimiento valida el token y actualiza la contraseña cuando la solicitud es válida.
+
+## Seguridad HTTP
+
+`SecurityConfig` configura:
+
+- CORS;
+- CSRF deshabilitado por tratarse de API stateless con JWT;
+- `SessionCreationPolicy.STATELESS`;
+- form login y HTTP Basic deshabilitados;
+- manejo JSON de 401 y 403;
+- `JwtAuthenticationFilter` antes de `UsernamePasswordAuthenticationFilter`;
+- endpoints públicos de autenticación y Swagger/OpenAPI;
+- autenticación obligatoria para el resto de endpoints.
+
+## Autorización por permisos
+
+Los controllers usan `@PreAuthorize` con permisos definidos en `PermisoNombre`. Ejemplos de grupos de permisos:
+
+- navegación: `Acceder inicio`, `Acceder recepción`, `Acceder tareas`, etc.;
+- consultas: `Ver consultas`, `Crear consultas`, `Editar consultas`, `Cambiar estado consultas`, `Archivar consultas`;
+- seguimientos: `Ver seguimientos`, `Crear seguimientos`, `Editar seguimientos`, `Responder seguimientos`, `Aprobar respuestas de seguimiento`;
+- procesos: `Ver procesos`, `Gestionar procesos`;
+- conciliaciones: `Ver conciliaciones`, `Gestionar conciliaciones`, `Programar reuniones de conciliación`, `Concluir conciliaciones`;
+- usuarios, roles y permisos;
+- reportes: `Ver reportes`.
+
+## Servicios de acceso
+
+Además de `@PreAuthorize`, el backend contiene servicios de acceso por módulo. Estos servicios verifican alcance funcional sobre recursos específicos, por ejemplo:
+
+- acceso a consultas;
+- acceso a procesos;
+- acceso a seguimientos;
+- acceso a respuestas de seguimiento;
+- acceso a conciliaciones;
+- acceso a perfiles.
+
+Esto permite combinar permisos generales con reglas de pertenencia o asignación.
+
+## Resolución de perfil activo
+
+El usuario autenticado tiene un tipo de perfil actual. Para resolver el perfil activo asociado se usa Strategy:
+
+```text
+PerfilUsuarioActivoResolver
+PerfilUsuarioActivoResolverRegistry
+```
+
+Resolvers implementados:
+
+- `AdministrativoPerfilUsuarioActivoResolver`;
+- `AsesorPerfilUsuarioActivoResolver`;
+- `ConciliadorPerfilUsuarioActivoResolver`;
+- `EstudiantePerfilUsuarioActivoResolver`;
+- `MonitorPerfilUsuarioActivoResolver`.
+
+Cada resolver consulta el repositorio correspondiente y exige que el perfil esté activo.
+
+## Cambio de perfil
+
+El cambio de perfil usa estrategias para crear o actualizar el perfil destino:
+
+```text
+PerfilCambioHandler
+PerfilCambioHandlerRegistry
+```
+
+Handlers implementados:
+
+- `CambiarAAdministrativoHandler`;
+- `CambiarAAsesorHandler`;
+- `CambiarAConciliadorHandler`;
+- `CambiarAEstudianteHandler`;
+- `CambiarAMonitorHandler`.
+
+Para desactivar el perfil anterior también se usa Strategy:
+
+```text
+PerfilEstadoHandler
+PerfilEstadoHandlerRegistry
+```
+
+Handlers implementados:
+
+- `AdministrativoPerfilEstadoHandler`;
+- `AsesorPerfilEstadoHandler`;
+- `ConciliadorPerfilEstadoHandler`;
+- `EstudiantePerfilEstadoHandler`;
+- `MonitorPerfilEstadoHandler`.
+
+Los handlers de asesor, estudiante y monitor validan consultas operativas antes de desactivar el perfil anterior.
+
+## Sincronización entre perfil y UsuarioSistema
+
+El servicio `UsuarioSistemaPerfilEstadoService` mantiene sincronizado el estado del perfil con el estado del usuario de acceso cuando un perfil se desactiva o reactiva desde los command services de perfiles.
+
+Esto aplica a:
+
+- Administrativo;
+- Asesor;
+- Conciliador;
+- Estudiante;
+- Monitor.
 
 ## Frontend
 
-El frontend usa helpers de autorización para evaluar permisos, roles y perfiles:
+El frontend implementa:
 
-```text
-src/lib/authz.js
-```
-
-Funciones principales:
-
-- normalización de nombres;
-- obtención de permisos;
-- validación de un permiso;
-- validación de alguno o todos los permisos;
-- validación de perfil;
-- validación de rol.
-
-La navegación se filtra según permisos, pero la seguridad final se valida en backend.
+- `LoginForm` para login;
+- `RecuperarPasswordForm` para solicitud de recuperación;
+- `RestablecerPasswordForm` para restablecimiento;
+- `PermissionSidebar` para navegación por permisos;
+- consumo de `/auth/me` para sesión actual;
+- envío de cookies con `credentials: "include"`.

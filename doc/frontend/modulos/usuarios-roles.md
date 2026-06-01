@@ -1,21 +1,28 @@
-# Módulo: Usuarios y roles
+# Frontend - Módulo de usuarios, roles, permisos y perfiles
 
-## Propósito
+## 1. Propósito del módulo
 
-Permite crear usuarios del sistema, cambiar roles, gestionar permisos por rol, consultar logs de auditoría, y administrar estudiantes, asesores, monitores y conciliadores.
+Este módulo reúne las pantallas frontend relacionadas con creación de usuarios, administración de roles y permisos, cambio de perfil, auditoría administrativa y gestión visual de perfiles internos del consultorio jurídico.
 
-Ver `doc/api/usuarios-roles-permisos.md` y `doc/api/perfiles.md` para la especificación completa del backend.
+El frontend separa estas funcionalidades en varias rutas y componentes:
 
-## Pantallas y rutas
+```text
+/roles
+/admin
+/estudiantes
+/asesoresymonitores
+```
 
-| Ruta | Componente | Descripción |
+## 2. Rutas y componentes
+
+| Ruta | Componente principal | Propósito |
 |---|---|---|
-| `/roles` | `UsuarioSistemaForm` | Creación de usuarios del sistema |
-| `/admin` | `RolePermissionsForm` + `CambiarRolUsuarioForm` + `AuditLogsTable` | Gestión de permisos, roles y auditoría (tabs) |
-| `/estudiantes` | `EstudiantesForm` + `ImportarEstudiantesForm` | Gestión de estudiantes con cargue masivo |
-| `/asesoresymonitores` | `AsesoresYMonitoresForm` | Gestión de asesores y monitores |
+| `/roles` | `UsuarioSistemaForm` | Creación de usuarios del sistema y perfiles asociados. |
+| `/admin` | `RolePermissionsForm`, `CambiarRolUsuarioForm`, `AuditLogsTable`, catálogos | Administración de permisos, cambio de rol/perfil y auditoría. |
+| `/estudiantes` | `EstudiantesForm` | Consulta y cambio de estado de estudiantes visibles por alcance. |
+| `/asesoresymonitores` | `AsesoresYMonitoresForm` | Consulta y cambio de estado de asesores y monitores. |
 
-## Componentes
+## 3. Archivos relacionados
 
 ```text
 src/components/forms/AdminUsuarios/UsuarioSistemaForm.jsx
@@ -26,140 +33,220 @@ src/components/forms/usuarios/EstudiantesForm.jsx
 src/components/forms/usuarios/ImportarEstudiantesForm.jsx
 src/components/forms/usuarios/AsesoresYMonitoresForm.jsx
 src/components/forms/usuarios/ConciliadorForm.jsx
+src/app/(dashboard)/roles/page.js
+src/app/(dashboard)/admin/page.js
+src/app/(dashboard)/estudiantes/page.js
+src/app/(dashboard)/asesoresymonitores/page.js
+src/lib/permission.js
+src/lib/authz.js
 ```
 
-## Permisos
+## 4. Permisos usados
 
-| Permiso | Uso |
+| Permiso | Uso frontend |
 |---|---|
-| `Acceder roles` | Acceder a `/roles`. |
-| `Ver usuarios` | Consultar lista de usuarios. |
-| `Crear usuarios` | Crear nuevos usuarios del sistema. |
-| `Editar usuarios` | Editar datos de usuarios. |
-| `Cambiar estado usuarios` | Desactivar/reactivar usuarios. |
-| `Asignar rol usuarios` | Cambiar el rol de un usuario. |
-| `Ver roles` | Consultar roles existentes. |
-| `Crear roles` / `Editar roles` | Crear o editar roles. |
-| `Asignar permisos a roles` | Gestionar los permisos de un rol. |
-| `Acceder estudiantes` | Acceder a `/estudiantes`. |
-| `Ver estudiantes` | Listar estudiantes. |
-| `Cambiar estado estudiantes` | Desactivar estudiantes. |
-| `Acceder asesores y monitores` | Acceder a `/asesoresymonitores`. |
-| `Ver asesores y monitores` | Listar asesores y monitores. |
+| `Acceder roles` | Permite entrar a `/roles`. |
+| `Crear usuarios` | Permite crear usuarios/perfiles desde `UsuarioSistemaForm`. |
+| `Ver usuarios` | Permite consultar usuarios en componentes administrativos. |
+| `Asignar rol usuarios` | Permite cambiar rol o perfil en `CambiarRolUsuarioForm`. |
+| `Ver roles` | Permite listar roles. |
+| `Asignar permisos a roles` | Permite guardar cambios de permisos por rol. |
+| `Acceder administración` | Permite entrar a `/admin`. |
+| `Acceder estudiantes` | Permite entrar a `/estudiantes`. |
+| `Ver estudiantes` | Permite cargar estudiantes. |
+| `Cambiar estado estudiantes` | Permite desactivar estudiantes desde la vista. |
+| `Acceder asesores y monitores` | Permite entrar a `/asesoresymonitores`. |
+| `Ver asesores y monitores` | Permite listar asesores y monitores. |
+| `Gestionar asesores y monitores` | Permite desactivar asesores o monitores. |
+| `Gestionar administradores` | Habilita acciones reservadas para gestión de administrativos. |
 
-## Endpoints consumidos
+## 5. Creación de usuarios del sistema
 
-### Usuarios
+La ruta `/roles` renderiza `UsuarioSistemaForm`. Este formulario permite crear perfiles de tipo:
 
 ```text
-GET   /api/{rol}               ← donde {rol} es el tipo: asesores, monitores, etc.
-POST  /api/{rol}               ← creación del usuario según tipo
+administrativo
+asesor
+estudiante
+monitor
+conciliador
 ```
 
-### Importación masiva de estudiantes
+El formulario carga datos auxiliares según el tipo de perfil:
 
 ```text
-POST /api/estudiantes/importar   multipart/form-data (campo: archivo)
+GET /api/tipos-documento/activos
+GET /api/sedes
+GET /api/areas
+GET /api/asesores/activos
 ```
 
-Devuelve un resumen `{ exitosos, fallidos, totalFilas, errores[] }`. Los errores de formato devuelven 400 con texto plano.
-
-### Roles y permisos
+El endpoint de creación varía según el tipo seleccionado:
 
 ```text
-GET  /api/roles/activos
-GET  /api/permisos/activos
-GET  /api/permisos
-POST /api/permisos                       ← crear permiso nuevo si no existe
-GET  /api/roles/{id}                     ← permisos actuales del rol
-POST /api/roles/{rolId}/permisos/{permisoId}    ← agregar permiso
-DELETE /api/roles/{rolId}/permisos/{permisoId}  ← quitar permiso
+POST /api/administrativo
+POST /api/asesor
+POST /api/estudiante
+POST /api/monitor
+POST /api/conciliador
 ```
 
-### Cambio de rol y perfil (CambiarRolUsuarioForm)
+El componente usa un solo formulario base y muestra campos adicionales según el perfil seleccionado.
 
-`CambiarRolUsuarioForm` es un flujo complejo que permite cambiar el rol y el tipo de perfil de un usuario existente. Carga usuarios, roles, tipos de documento, sedes y asesores para construir el formulario.
+## 6. Importación masiva de estudiantes
+
+Cuando el tipo seleccionado es estudiante, el formulario permite alternar entre creación individual y cargue masivo mediante `ImportarEstudiantesForm`.
+
+Endpoint consumido:
 
 ```text
-GET  /api/usuarios-sistema/activos          ← lista usuarios activos
-GET  /api/roles/activos
-GET  /api/tipos-documento/activos
-GET  /api/sedes
-GET  /api/asesores/activos
-GET  /api/areas
-GET  /api/{perfilActual.endpointActual}/{perfilId}   ← obtiene el perfil actual del usuario
-PUT  /api/usuarios-sistema/{id}/perfil/{perfilDestino.endpoint}  ← cambia rol y perfil
+POST /api/estudiantes/importar
+Content-Type: multipart/form-data
 ```
 
-El endpoint de cambio de perfil varía según el tipo de perfil de destino (asesor, estudiante, monitor, administrativo).
-
-### Auditoría
+El campo enviado es:
 
 ```text
-GET /api/audit
-GET /api/audit?page=0&size=20&...  ← soporta filtros por fecha, usuario, acción
+archivo
 ```
 
-### Estudiantes
+El componente valida que el archivo sea Excel (`.xlsx` o `.xls`) y muestra resultado de importación con conteos de exitosos, fallidos y errores por fila cuando el backend los entrega.
+
+## 7. Gestión de roles y permisos
+
+`RolePermissionsForm` se encuentra en `/admin`, dentro de la pestaña `Permisos`.
+
+Endpoints usados:
 
 ```text
-GET   /api/estudiantes
+GET /api/roles/activos
+GET /api/permisos/activos
+GET /api/permisos
+POST /api/permisos
+GET /api/roles/{id}
+PATCH /api/roles/{rolId}/permisos/{permisoId}
+DELETE /api/roles/{rolId}/permisos/{permisoId}
+```
+
+El formulario organiza permisos por páginas del sistema. Al marcar una página, calcula los permisos necesarios para navegación y operación. También conserva permisos no gestionados por el formulario para no sobrescribir asignaciones externas.
+
+## 8. Cambio de rol y perfil
+
+`CambiarRolUsuarioForm` permite seleccionar un usuario, revisar su perfil actual y cambiarlo a otro tipo de perfil.
+
+Carga inicial:
+
+```text
+GET /api/usuarios-sistema/activos
+GET /api/roles/activos
+GET /api/tipos-documento/activos
+GET /api/sedes
+GET /api/asesores/activos
+GET /api/areas
+```
+
+Para consultar datos actuales del perfil, usa endpoints de perfiles según el tipo:
+
+```text
+GET /api/administrativos/{perfilId}
+GET /api/asesores/{perfilId}
+GET /api/estudiantes/{perfilId}
+GET /api/monitores/{perfilId}
+GET /api/conciliadores/{perfilId}
+```
+
+Para cambiar de perfil, usa:
+
+```text
+PATCH /api/usuarios-sistema/{usuarioId}/perfil/{perfilDestino}
+```
+
+El perfil destino corresponde a:
+
+```text
+administrativo
+asesor
+estudiante
+monitor
+conciliador
+```
+
+La lógica de cambio de perfil se valida en backend. El frontend reúne la información necesaria y presenta el formulario correspondiente.
+
+## 9. Auditoría administrativa
+
+`AuditLogsTable` se muestra en `/admin`, pestaña `Auditoría`.
+
+Endpoint usado:
+
+```text
+GET /api/audit?page={page}&size={size}&action={action}&entityName={entityName}&actorUsername={actorUsername}
+```
+
+La tabla permite consultar registros de auditoría con filtros y paginación.
+
+## 10. Vista de estudiantes
+
+`EstudiantesForm` se muestra en la ruta:
+
+```text
+/estudiantes
+```
+
+Carga usuario actual con `/api/auth/me` y luego consulta estudiantes según perfil:
+
+```text
+GET /api/estudiantes/activos
+GET /api/estudiantes/activos/asesor/{perfilId}
+```
+
+El segundo endpoint se usa cuando el usuario autenticado es asesor y debe ver estudiantes asociados a su alcance.
+
+La desactivación usa:
+
+```text
 PATCH /api/estudiantes/{id}/activo?activo=false
 ```
 
-### Conciliadores (ConciliadorForm)
+## 11. Vista de asesores y monitores
 
-`ConciliadorForm` registra conciliadores usando `useApiForm` con el endpoint de personas, ya que los conciliadores son personas del sistema con un rol específico.
-
-```text
-POST /api/personas    ← crea la persona base del conciliador
-```
-
-### Asesores y monitores
+`AsesoresYMonitoresForm` se muestra en:
 
 ```text
-GET /api/asesores
-GET /api/monitores
+/asesoresymonitores
 ```
 
-## Creación de usuarios por tipo
-
-`UsuarioSistemaForm` adapta los campos mostrados según el tipo de perfil seleccionado:
-
-| Tipo | Campos adicionales |
-|---|---|
-| Estudiante | Código estudiantil, asesor asignado. Modo "Cargue masivo" disponible como tab. |
-| Asesor / Monitor | Campos de perfil de asesor o monitor. |
-| Conciliador | Campos específicos de conciliador. |
-| Administrativo | Sin campos adicionales de perfil. |
-
-## Cargue masivo de estudiantes
-
-Cuando se selecciona el tipo "Estudiante", el formulario muestra dos tabs:
-
-- **Crear uno**: formulario individual estándar.
-- **Cargue masivo**: `ImportarEstudiantesForm` con drag & drop de archivo `.xlsx`.
-
-El botón "Descargar plantilla" genera un CSV con encabezados y fila de ejemplo directamente en el navegador, sin llamar al backend.
-
-### Formato del archivo Excel
-
-Los encabezados deben ser exactamente en este orden:
+Carga:
 
 ```text
-nombre | tipoDocumentoId | documento | email | telefono | usuario | sedeId | codigo | asesorId | activo | conciliacion
+GET /api/asesores/activos
+GET /api/monitores/activos
 ```
 
-Los campos numéricos (`documento`, `telefono`, `codigo`) deben estar en formato número entero, no notación científica.
+La desactivación usa el endpoint correspondiente al tipo:
 
-## Gestión de permisos de roles (RolePermissionsForm)
+```text
+PATCH /api/asesores/{id}/activo?activo=false
+PATCH /api/monitores/{id}/activo?activo=false
+```
 
-Ver `doc/frontend/formularios-validaciones.md` para la descripción del algoritmo de diff.
+## 12. Relación con backend
 
-### Protección de acceso propio
+El frontend aplica controles visuales de permisos y formularios, pero las reglas centrales se aplican en backend. Entre ellas:
 
-El formulario no permite quitarle al propio rol del usuario el acceso a la página Administración. Si se intenta, muestra un mensaje de error en la UI.
+- creación de usuario asociado al perfil;
+- sincronización entre perfil y usuario del sistema;
+- cambio de perfil mediante Strategy;
+- bloqueo de desactivación de responsables con consultas operativas;
+- validación de roles y permisos.
 
-### Permisos compartidos entre páginas
+## 13. Alcance de la documentación
 
-Si dos páginas comparten un permiso (ej: `Ver catálogos` en Recepción y Nueva Consulta), al desmarcar una página el permiso no se quita si la otra página sigue marcada.
+Este documento describe la implementación frontend actual de usuarios, roles, permisos y perfiles. La especificación backend se documenta en:
+
+```text
+doc/backend/perfiles.md
+doc/api/perfiles.md
+doc/api/usuarios-roles-permisos.md
+doc/reglas/permisos.md
+```

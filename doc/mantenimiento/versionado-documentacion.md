@@ -1,148 +1,64 @@
 # Versionado de documentación
 
-Este documento define cómo versionar documentación dentro del repositorio.
+Este documento define criterios para versionar y actualizar la documentación técnica del sistema.
 
-## Principio
+## Principio general
 
-La documentación debe evolucionar junto con el código.
+La documentación debe evolucionar junto con el código fuente. Cada cambio funcional, contractual o estructural debe reflejarse en los documentos correspondientes.
 
-No se busca mantener documentos históricos dentro del mismo archivo. La documentación vigente describe el estado actual del sistema.
+## Tipos de actualización
 
-El historial de Git conserva versiones anteriores cuando sea necesario consultarlas.
+| Tipo | Descripción | Ejemplo |
+|---|---|---|
+| Corrección técnica | Ajuste de un dato documental para alinearlo con el código. | Método HTTP de un endpoint. |
+| Ampliación funcional | Documentación de comportamiento ya implementado. | Nuevo módulo de estadísticas. |
+| Actualización de contrato | Cambio en request, response, query param o path. | Nuevo campo en DTO. |
+| Actualización de regla | Cambio en validación de negocio. | Regla de cierre de consulta. |
+| Actualización de estructura | Cambio en carpetas, rutas o componentes. | Nueva ruta frontend. |
+| Decisión técnica | Registro de criterio de diseño transversal. | Strategy de perfiles. |
 
-## Tipos de cambios documentales
+## Recomendaciones de commits
 
-| Tipo | Ejemplo de commit |
-|---|---|
-| Documentación general | `docs: actualizar documentacion del sistema` |
-| API | `docs(api): actualizar contrato de consultas` |
-| Backend | `docs(backend): actualizar modulo de seguimientos` |
-| Reglas | `docs(reglas): actualizar reglas de conciliaciones` |
-| Base de datos | `docs(db): actualizar entidades y estados` |
-| Decisiones | `docs(decisiones): documentar permisos y alcance` |
-| Mantenimiento | `docs(mantenimiento): actualizar matriz documental` |
+Para cambios documentales generales:
 
-## Commits separados o conjuntos
-
-### Cambio pequeño
-
-Si un cambio funcional altera una única regla o endpoint, puede ir en el mismo commit que la documentación asociada.
-
-Ejemplo:
-
-```text
-fix(procesos): validar radicado en estados finales
-docs(api): actualizar contrato de procesos
+```bash
+git add doc
+git commit -m "docs: actualizar documentacion tecnica"
 ```
 
-También puede hacerse en dos commits consecutivos.
+Para cambios de un módulo específico:
 
-### Cambio grande
-
-Si el cambio afecta varios módulos, es preferible separar:
-
-1. commit de código;
-2. commit de documentación impactada;
-3. commit de pruebas si aplica.
-
-## Cuándo actualizar documentación
-
-Actualizar documentación cuando cambie:
-
-- endpoint;
-- DTO;
-- permiso;
-- alcance;
-- estado;
-- entidad;
-- relación;
-- validación;
-- regla de negocio;
-- formato de error;
-- archivo o ruta de documento;
-- configuración relevante;
-- decisión técnica.
-
-## Qué no versionar
-
-No versionar:
-
-- archivos generados;
-- reportes locales;
-- resultados de pruebas;
-- `.env` con valores reales;
-- configuraciones privadas de IDE;
-- archivos subidos por usuarios;
-- builds;
-- carpetas `target`;
-- carpetas `.next`.
-
-Estos elementos se controlan mediante `.gitignore`.
-
-## Documentos vigentes
-
-La documentación vigente está en:
-
-```text
-doc/
+```bash
+git add doc/backend/consultas.md doc/api/consultas.md doc/reglas/consultas.md
+git commit -m "docs: actualizar documentacion de consultas"
 ```
 
-Estructura principal:
+Para cambios de frontend:
 
-```text
-doc/backend
-doc/api
-doc/reglas
-doc/base-datos
-doc/decisiones
-doc/mantenimiento
+```bash
+git add doc/frontend
+git commit -m "docs: actualizar documentacion frontend"
 ```
 
-## Documentos reservados
+## Trazabilidad documental
 
-La documentación interna detallada del frontend se realiza cuando la estructura del frontend esté estable.
+Cada actualización debe mantener coherencia entre:
 
-Mientras tanto, la documentación vigente cubre:
+- backend;
+- API;
+- reglas de negocio;
+- frontend;
+- base de datos;
+- decisiones técnicas;
+- mantenimiento.
 
-- contratos API;
-- reglas que el frontend debe respetar;
-- autenticación;
-- permisos;
-- configuración general;
-- recomendaciones de consumo.
+## Revisión previa a entrega
 
-## Relación con DeepWiki u otras herramientas
+Antes de entregar una versión documental:
 
-Las herramientas automáticas deben analizar documentación vigente y código fuente.
-
-Para evitar resultados desactualizados:
-
-- no mantener documentos antiguos contradictorios;
-- no versionar reportes generados;
-- no mantener ejemplos con credenciales;
-- no documentar reglas futuras como vigentes;
-- actualizar documentos afectados cuando cambie el código.
-
-## Control de obsolescencia
-
-Un documento se considera obsoleto cuando:
-
-- contradice endpoints reales;
-- menciona configuración ya no usada;
-- expone valores sensibles;
-- describe funcionalidades no implementadas como vigentes;
-- omite cambios de contrato relevantes;
-- conserva reglas reemplazadas.
-
-Cuando un documento quede obsoleto, debe actualizarse o eliminarse.
-
-## Revisión antes de entrega
-
-Antes de una entrega formal:
-
-1. Revisar que `doc/` no tenga información sensible.
-2. Revisar que API coincida con controllers.
-3. Revisar que reglas coincidan con validators y services.
-4. Revisar que base de datos coincida con entidades.
-5. Revisar que decisiones no contradigan comportamiento implementado.
-6. Revisar que frontend no esté documentado como definitivo si está en refactorización.
+- confirmar que los documentos nuevos están enlazados en los índices;
+- confirmar que no hay referencias a archivos inexistentes;
+- confirmar que los endpoints documentados existen en controllers;
+- confirmar que los DTOs documentados existen o coinciden con código;
+- confirmar que no se exponen secretos o datos reales;
+- confirmar que la documentación describe el sistema implementado.

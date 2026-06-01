@@ -1,153 +1,348 @@
-# Módulo: Consultas jurídicas
+# Frontend - Módulo de consultas jurídicas
 
-## Propósito
+## 1. Propósito del módulo
 
-Permite crear, consultar, editar y gestionar el estado de consultas jurídicas. Incluye asignación de responsables, partes y contrapartes, y archivos adjuntos.
+El módulo de consultas jurídicas permite registrar, consultar, editar, asignar responsables, cambiar estado, archivar y visualizar consultas jurídicas desde la interfaz web del sistema. En el frontend actual se implementa mediante dos formularios principales:
 
-Ver `doc/api/consultas.md` y `doc/reglas/consultas.md` para la especificación completa del backend.
+- `NuevaConsultaForm.jsx`, usado para crear una consulta nueva.
+- `ConsultasJuridicasForm.jsx`, usado para listar, filtrar, abrir, editar, cambiar estado, archivar y consultar archivos de una consulta.
 
-## Pantallas y rutas
+Las rutas del dashboard asociadas son:
 
-| Ruta | Componente principal | Descripción |
+| Ruta | Componente de página | Formulario principal |
 |---|---|---|
-| `/nuevaconsulta` | `NuevaConsultaForm` | Formulario de creación de consulta |
-| `/consultasjuridicas` | `ConsultasJuridicasForm` | Listado y gestión de consultas |
+| `/nuevaconsulta` | `src/app/(dashboard)/nuevaconsulta/page.js` | `NuevaConsultaForm` |
+| `/consultasjuridicas` | `src/app/(dashboard)/consultasjuridicas/page.js` | `ConsultasJuridicasForm` |
 
-## Componentes
+El módulo consume directamente endpoints del backend mediante `API_URL_BASE` y maneja archivos con `FILE_STORAGE_API_URL_BASE` cuando se cargan o descargan soportes asociados a la consulta.
+
+## 2. Archivos fuente validados
+
+La documentación de este módulo se basa en los siguientes archivos del código fuente:
 
 ```text
-src/components/forms/consulta/NuevaConsultaForm.jsx
-src/components/forms/consulta/ConsultasJuridicasForm.jsx
-src/components/forms/parts/ArchivosConsultaForm.jsx
+frontend/src/app/(dashboard)/nuevaconsulta/page.js
+frontend/src/app/(dashboard)/consultasjuridicas/page.js
+frontend/src/components/forms/consulta/NuevaConsultaForm.jsx
+frontend/src/components/forms/consulta/ConsultasJuridicasForm.jsx
+frontend/src/components/forms/parts/ArchivoForm.jsx
+frontend/src/components/forms/parts/ArchivosConsultaForm.jsx
+frontend/src/components/forms/parts/PersonaMultiSelect.jsx
+frontend/src/components/ui/ConfirmActionDialog.jsx
+frontend/src/components/ui/Pagination.jsx
+frontend/src/lib/config.js
+frontend/src/lib/api.js
+frontend/src/lib/authz.js
+frontend/src/lib/permission.js
+frontend/src/lib/list-utils.js
+frontend/src/lib/form-validation.js
 ```
 
-## Permisos
+## 3. Vista de nueva consulta
 
-| Permiso | Uso |
+La página `/nuevaconsulta` presenta el encabezado "Nueva Consulta" y renderiza el formulario `NuevaConsultaForm`. Este formulario concentra el registro inicial de una consulta jurídica.
+
+### 3.1 Carga de sesión y permisos
+
+Antes de permitir la operación, el formulario consulta:
+
+```text
+GET /api/auth/me
+```
+
+A partir del usuario autenticado verifica permisos de acceso y operación. La vista usa permisos definidos en `lib/permission.js`, especialmente:
+
+| Permiso | Uso en frontend |
 |---|---|
-| `Acceder nueva consulta` | Mostrar el ítem en el menú lateral. |
-| `Acceder consultas jurídicas` | Mostrar el ítem en el menú lateral. |
-| `Crear consultas` | Acceder al formulario de nueva consulta. |
-| `Ver consultas` | Cargar el listado de consultas. |
-| `Editar consultas` | Mostrar botones de edición. |
-| `Cambiar estado consultas` | Mostrar acciones de cambio de estado. |
-| `Archivar consultas` | Mostrar botón de archivar. |
-| `Asignar responsables consulta` | Mostrar selectores de asesor, monitor y estudiante. |
+| `Acceder nueva consulta` | Permite entrar a la ruta de creación. |
+| `Crear consultas` | Permite enviar el formulario de creación. |
+| `Asignar responsables consulta` | Permite seleccionar asesor, estudiante y monitor desde el formulario. |
 
-## Endpoints consumidos
+Cuando el usuario no cuenta con acceso suficiente, la interfaz muestra un mensaje con `toast.error` y redirecciona a una ruta segura del dashboard.
 
-### Listado de consultas
+### 3.2 Catálogos consumidos
+
+El formulario de creación carga listas activas desde backend. Los catálogos se consumen según el contexto y los permisos del usuario:
+
+| Recurso | Endpoint usado |
+|---|---|
+| Personas activas | `GET /api/personas/activos` |
+| Sedes | `GET /api/sedes` |
+| Áreas | `GET /api/areas` |
+| Temas por área | `GET /api/temas/area/{areaId}` |
+| Tipos por tema | `GET /api/tipos/tema/{temaId}` |
+| Asesores activos | `GET /api/asesores/activos` |
+| Monitores activos | `GET /api/monitores/activos` |
+| Estudiantes activos | `GET /api/estudiantes/activos` |
+
+Los responsables solo se cargan y muestran cuando el usuario tiene permiso para asignarlos.
+
+### 3.3 Campos de la consulta
+
+El estado inicial del formulario incluye campos narrativos, catálogos, persona principal, partes, contrapartes y responsables internos. Entre los campos usados por el frontend están:
 
 ```text
-GET /api/consultas
-GET /api/consultas?search=texto&estado=ACTIVO&areaId=1
+fecha
+descripcion
+hechos
+pretensiones
+conceptoJuridico
+tramite
+observaciones
+tipoViolencia
+resultado
+personaId
+sedeId
+areaId
+temaId
+tipoId
+asesorId
+monitorId
+estudianteId
+partesIds
+contrapartesIds
 ```
 
-### Detalle de consulta
+El frontend normaliza valores de texto vacíos a `null`, convierte identificadores a número cuando corresponde y envía listas de identificadores para partes y contrapartes.
 
-```text
-GET /api/consultas/{id}
-```
+### 3.4 Selección de personas y responsables
 
-### Crear consulta
+El formulario usa modales de selección para facilitar la búsqueda de:
+
+- persona principal;
+- partes adicionales;
+- contrapartes;
+- asesor;
+- monitor;
+- estudiante.
+
+La interfaz evita seleccionar una misma persona simultáneamente como persona principal, parte adicional o contraparte. Esta validación visual acompaña las reglas del backend y mejora la consistencia del registro.
+
+### 3.5 Relación área, tema y tipo
+
+El formulario aplica dependencias entre catálogos:
+
+1. Al seleccionar área, carga temas de esa área.
+2. Al seleccionar tema, carga tipos asociados a ese tema.
+3. Si se cambia el área, se reinician tema y tipo.
+4. Si se cambia el tema, se reinicia el tipo.
+
+Esta interacción refleja la jerarquía de catálogos usada por backend.
+
+### 3.6 Envío de nueva consulta
+
+La creación se realiza mediante:
 
 ```text
 POST /api/consultas
 ```
 
-### Editar consulta
+El formulario envía JSON con los datos de la consulta. Después de crear la consulta, si el usuario adjuntó archivos, el frontend sube los documentos asociados con:
+
+```text
+POST /api/files/upload-multiple
+```
+
+Cuando la consulta se crea correctamente, la interfaz muestra confirmación y redirige a `/consultasjuridicas` con un parámetro de refresco.
+
+### 3.7 Manejo de archivos en creación
+
+`NuevaConsultaForm` permite seleccionar archivos de soporte. La carga se realiza después de que backend devuelve la consulta creada, porque la asociación documental requiere el identificador de la consulta.
+
+El frontend diferencia dos situaciones:
+
+- si la consulta se crea y los archivos suben correctamente, muestra confirmación completa;
+- si la consulta se crea pero falla la subida de archivos, muestra advertencia sin revertir la consulta creada.
+
+Este comportamiento conserva la operación principal y comunica al usuario el estado de los soportes.
+
+## 4. Vista de consultas jurídicas
+
+La página `/consultasjuridicas` renderiza `ConsultasJuridicasForm`. Esta vista permite administrar las consultas según los permisos del usuario autenticado.
+
+### 4.1 Carga de usuario y acceso
+
+Al iniciar, la vista consulta:
+
+```text
+GET /api/auth/me
+```
+
+Con la información del usuario determina si puede ingresar, ver, editar, cambiar estado, archivar o asignar responsables.
+
+Permisos usados:
+
+| Permiso | Uso |
+|---|---|
+| `Acceder consultas jurídicas` | Entrada a la ruta. |
+| `Ver consultas` | Carga del listado. |
+| `Editar consultas` | Apertura del modal de edición. |
+| `Cambiar estado consultas` | Apertura y envío de cambio de estado. |
+| `Archivar consultas` | Acción de archivo lógico. |
+| `Asignar responsables consulta` | Edición de asesor, estudiante y monitor. |
+
+### 4.2 Listado y búsqueda
+
+El listado se carga desde:
+
+```text
+GET /api/consultas
+GET /api/consultas?search={texto}
+```
+
+El componente normaliza las respuestas para soportar diferentes envoltorios de datos, como `content`, `data`, `items`, `rows`, `consultas`, `resultado`, `result` o `payload`. Después ordena las consultas por `id` ascendente y aplica paginación en frontend mediante `Pagination` y utilidades de `list-utils.js`.
+
+La vista permite buscar por texto y filtrar visualmente por estado y área.
+
+### 4.3 Estados disponibles
+
+La vista reconoce los siguientes estados de consulta:
+
+```text
+ACTIVO
+EN_PROCESO
+PENDIENTE
+URGENTE
+CERRADO
+ARCHIVADO
+```
+
+Estos estados se muestran en la tabla y se usan para habilitar o restringir acciones de interfaz.
+
+### 4.4 Apertura y edición de una consulta
+
+Para abrir una consulta en edición, el frontend consulta:
+
+```text
+GET /api/consultas/{id}
+```
+
+También carga temas y tipos relacionados con el área y tema de la consulta. La actualización se realiza mediante:
 
 ```text
 PUT /api/consultas/{id}
 ```
 
-### Cambiar estado
+La edición no cambia el estado funcional de la consulta; el cambio de estado se gestiona desde una acción separada.
+
+### 4.5 Responsables internos
+
+Cuando el usuario tiene permiso de asignación, la vista permite seleccionar o modificar:
+
+- asesor;
+- monitor;
+- estudiante.
+
+La interfaz filtra responsables para facilitar coherencia operativa:
+
+- asesores disponibles según área;
+- estudiantes disponibles según asesor o área;
+- monitores desde la lista de monitores activos.
+
+Cuando el usuario no tiene permiso para asignar responsables, la interfaz conserva la información y muestra un mensaje indicando que esos responsables no pueden cambiarse con sus permisos actuales.
+
+### 4.6 Cambio de estado
+
+El cambio de estado se realiza mediante:
 
 ```text
-PATCH /api/consultas/{id}/estado?estado=CODIGO
+PATCH /api/consultas/{id}/estado?estado={estado}
 ```
 
-### Archivar
+El frontend bloquea visualmente cambios inválidos y evita usar el cambio de estado para archivar. Para archivar existe acción específica.
+
+Antes de cerrar una consulta, el frontend valida que exista `resultado` o conclusión final guardada. Si el resultado fue escrito en el modal pero aún no se guardó, se pide guardar primero la consulta antes de intentar cerrar.
+
+Esta validación de interfaz acompaña la validación del backend.
+
+### 4.7 Archivo lógico
+
+El archivo de una consulta se ejecuta mediante:
 
 ```text
 PATCH /api/consultas/{id}/archivar
 ```
 
-### Desarchivar
+La acción se presenta mediante confirmación antes de enviarse. Después de archivar, el listado se refresca.
+
+### 4.8 Consulta de archivos
+
+Desde `ConsultasJuridicasForm` se pueden consultar archivos asociados a una consulta usando:
 
 ```text
-PATCH /api/consultas/{id}/desarchivar
+GET /api/files/list/{consultaId}
 ```
 
-### Catálogos necesarios para el formulario
+Y descargar archivos mediante:
 
 ```text
-GET /api/personas/activos
-GET /api/sedes
-GET /api/areas
-GET /api/temas/area/{areaId}      ← se carga al seleccionar área
-GET /api/tipos/tema/{temaId}      ← se carga al seleccionar tema
-GET /api/asesores/activos         ← solo si tiene permiso ASIGNAR_RESPONSABLES_CONSULTA
-GET /api/monitores/activos        ← solo si tiene permiso ASIGNAR_RESPONSABLES_CONSULTA
-GET /api/estudiantes/activos      ← solo si tiene permiso ASIGNAR_RESPONSABLES_CONSULTA
+GET /api/files/download/{consultaId}/{fileName}
 ```
 
-### Archivos adjuntos
+La base de URL para archivos se toma de `FILE_STORAGE_API_URL_BASE`.
 
-```text
-GET  /files/list/{consultaId}                          ← lista archivos existentes
-GET  /files/download/{consultaId}/{fileName}           ← descarga archivo
-POST /files/upload-multiple   multipart/form-data      ← sube archivos tras crear consulta
-```
+## 5. Validaciones de interfaz
 
-Los endpoints de archivos usan `FILE_STORAGE_API_URL_BASE`.
+El frontend valida condiciones básicas antes de enviar datos:
 
-## Formulario de nueva consulta
+- selección de persona principal;
+- selección de sede, área y tema;
+- coherencia de tema y tipo según catálogos cargados;
+- existencia de resultado antes de cerrar;
+- permisos de edición, estado, archivo y asignación;
+- datos mínimos del formulario;
+- exclusión visual de personas repetidas en parte principal, partes adicionales y contrapartes.
 
-El formulario usa `useState` en lugar de `react-hook-form` por la complejidad de los selectores de personas con modales.
+Las validaciones del frontend no sustituyen las reglas del backend; funcionan como apoyo para mejorar experiencia y reducir errores de captura.
 
-### Campos obligatorios
+## 6. Relación con backend
 
-fecha, estado, trámite, sede, área, tema, tipo, parte principal, descripción, hechos, pretensiones, concepto jurídico.
+El módulo de consultas del frontend está alineado con las reglas del backend:
 
-### Validación antes de enviar
-
-`validarFormularioConsulta()` verifica todos los campos obligatorios antes del `fetch`. El campo `personaId` se verifica explícitamente para evitar enviar `NaN` al backend.
-
-### Conversión segura de IDs
-
-```javascript
-personaId: numberOrNull(form.personaId)   // devuelve null si está vacío, no NaN
-sedeId:    numberOrNull(form.sedeId)
-areaId:    numberOrNull(form.areaId)
-```
-
-### Límites de texto
-
-| Campo | maxLength |
+| Regla backend | Reflejo en frontend |
 |---|---|
-| Descripción | 2000 |
-| Hechos | 2000 |
-| Pretensiones | 2000 |
-| Concepto jurídico | 2000 |
-| Observaciones | 500 |
+| Consulta nueva inicia en `PENDIENTE`. | El formulario de creación no envía un estado operativo arbitrario. |
+| Cambio de estado usa endpoint específico. | La edición general no modifica estado. |
+| Cierre exige resultado. | El frontend pide guardar resultado antes de cerrar. |
+| Archivo es acción independiente. | La vista usa botón y endpoint de archivo. |
+| Responsables requieren permiso. | La UI muestra/oculta controles según permisos. |
+| Consultas cerradas o archivadas limitan operación. | La vista reduce acciones y muestra avisos de solo visualización cuando aplica. |
 
-### Archivos adjuntos
+## 7. Manejo de errores
 
-Los archivos se suben en una segunda petición después de crear la consulta exitosamente. Si la subida falla, se muestra un `toast.warning` indicando que la consulta se creó pero los archivos no se pudieron subir.
+Los errores del backend se procesan mediante utilidades de `lib/api.js`, especialmente `getApiErrorMessages`, `getApiErrorTitle`, `getApiErrorDescription` y lectura segura del cuerpo de respuesta.
 
-## Selección de personas (modales)
+La interfaz usa `toast.error`, `toast.success` y `toast.warning` para comunicar:
 
-La selección de parte principal, partes adicionales y contrapartes se hace mediante modales de búsqueda:
+- falta de permisos;
+- errores de carga;
+- errores de validación;
+- éxito al crear o actualizar;
+- éxito al cambiar estado;
+- éxito al archivar;
+- advertencias de carga de archivos.
 
-- **Parte principal**: selección única. El modal filtra personas que no estén ya en partes adicionales ni contrapartes.
-- **Partes adicionales**: selección múltiple. Filtra personas que no sean la parte principal ni contrapartes.
-- **Contrapartes**: selección múltiple. Filtra personas que no sean la parte principal ni partes adicionales.
+## 8. Componentes relacionados
 
-## Cascade de catálogos
+| Componente | Función |
+|---|---|
+| `NuevaConsultaForm` | Registro inicial de consulta. |
+| `ConsultasJuridicasForm` | Listado, edición, archivo y cambio de estado. |
+| `ArchivoForm` | Selección de archivos. |
+| `ArchivosConsultaForm` | Gestión visual de soportes asociados. |
+| `PersonaMultiSelect` | Selección múltiple de personas. |
+| `ConfirmActionDialog` | Confirmación de acciones sensibles. |
+| `Pagination` | Paginación de listados. |
 
-El formulario carga temas y tipos de forma encadenada:
-- Al seleccionar un área → se cargan los temas de esa área.
-- Al seleccionar un tema → se cargan los tipos de ese tema.
-- Si cambia el área → se resetea el tema y el tipo seleccionados.
-- Si cambia el tema → se resetea el tipo seleccionado.
+## 9. Consideraciones de mantenimiento
+
+Al modificar este módulo debe verificarse:
+
+1. Que las constantes de permisos sigan coincidiendo con backend.
+2. Que los endpoints usados existan en controllers actuales.
+3. Que el cierre de consulta conserve la validación de resultado.
+4. Que la edición general no cambie el estado funcional.
+5. Que el archivo siga usando endpoint específico.
+6. Que las dependencias área-tema-tipo se mantengan sincronizadas.
+7. Que el manejo de archivos use `FILE_STORAGE_API_URL_BASE`.
+8. Que las restricciones de responsables se mantengan coherentes con el backend.

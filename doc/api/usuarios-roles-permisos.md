@@ -1,833 +1,170 @@
-# API - Usuarios, roles y permisos
+# API - Usuarios del sistema, roles, permisos y cambio de perfil
 
-Este documento describe los endpoints de administración de usuarios del sistema, roles y permisos.
+> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
 
-La administración de usuarios del sistema se relaciona con perfiles reales del negocio:
 
-- Administrativo.
-- Asesor.
-- Estudiante.
-- Monitor.
-- Conciliador.
+## 1. Propósito
 
-Los usuarios del sistema almacenan la información de acceso, rol asignado, estado activo y tipo de perfil actual.
+Esta sección documenta los endpoints relacionados con cuentas de acceso, roles, permisos y cambio de perfil. El sistema separa las operaciones de seguridad en tres grupos:
 
-## Base paths
+- usuarios del sistema;
+- roles;
+- permisos.
 
-| Recurso | Base path |
-|---|---|
-| Usuarios del sistema | `/api/usuarios-sistema` |
-| Roles | `/api/roles` |
-| Permisos | `/api/permisos` |
+Además, implementa endpoints específicos para cambiar el perfil activo de un usuario y actualizar su rol asociado.
 
-## Autenticación
+---
 
-Todos los endpoints documentados requieren sesión válida.
+## 2. Usuarios del sistema
 
-El frontend debe enviar:
+Ruta base:
 
-```javascript
-credentials: "include"
-```
-
-## DTOs principales
-
-### `UsuarioSistemaDTO`
-
-Respuesta usada por endpoints de usuarios del sistema.
-
-```json
-{
-  "id": 1,
-  "username": "<correo-del-usuario>",
-  "activo": true,
-  "rolId": 1,
-  "rolNombre": "Nombre del rol",
-  "perfilId": 1,
-  "tipoPerfil": "TIPO_PERFIL",
-  "permisos": [
-    "Nombre del permiso"
-  ]
-}
-```
-
-Campos:
-
-| Campo | Uso |
-|---|---|
-| `id` | Identificador del usuario del sistema. |
-| `username` | Usuario de acceso. En el sistema corresponde al correo. |
-| `activo` | Estado activo/inactivo del usuario. |
-| `rolId` | Identificador del rol asignado. |
-| `rolNombre` | Nombre del rol asignado. |
-| `perfilId` | Identificador del perfil real activo. |
-| `tipoPerfil` | Tipo de perfil real actual. |
-| `permisos` | Lista de permisos activos del rol. |
-
-### `RolDTO`
-
-DTO usado para administración de roles.
-
-```json
-{
-  "id": 1,
-  "nombre": "Nombre del rol",
-  "descripcion": "Descripción del rol",
-  "activo": true,
-  "permisoIds": [1, 2, 3],
-  "permisos": [
-    {
-      "id": 1,
-      "nombre": "Nombre del permiso",
-      "descripcion": "Descripción del permiso",
-      "activo": true
-    }
-  ]
-}
-```
-
-Campos:
-
-| Campo | Uso |
-|---|---|
-| `id` | Identificador del rol. |
-| `nombre` | Nombre del rol. |
-| `descripcion` | Descripción funcional. |
-| `activo` | Estado activo/inactivo. |
-| `permisoIds` | Lista de ids de permisos para crear o actualizar asignaciones. |
-| `permisos` | Lista completa de permisos en respuestas. |
-
-Validaciones:
-
-| Campo | Regla |
-|---|---|
-| `nombre` | Obligatorio. Máximo 50 caracteres. |
-| `descripcion` | Opcional. Máximo 255 caracteres. |
-
-### `PermisoDTO`
-
-DTO usado para administración de permisos.
-
-```json
-{
-  "id": 1,
-  "nombre": "Nombre del permiso",
-  "descripcion": "Descripción del permiso",
-  "activo": true
-}
-```
-
-Validaciones:
-
-| Campo | Regla |
-|---|---|
-| `nombre` | Obligatorio. Máximo 100 caracteres. |
-| `descripcion` | Opcional. Máximo 255 caracteres. |
-
-## Usuarios del sistema
-
-Base path:
-
-```text
+```http
 /api/usuarios-sistema
 ```
 
-### Resumen de endpoints
-
-| Método | Ruta | Permiso | Uso |
+| Método | Endpoint | Descripción | Permisos principales |
 |---|---|---|---|
-| GET | `/api/usuarios-sistema` | `Ver usuarios` o `Gestionar usuarios` | Lista usuarios del sistema. |
-| GET | `/api/usuarios-sistema/activos` | `Ver usuarios` o `Gestionar usuarios` | Lista usuarios activos. |
-| GET | `/api/usuarios-sistema/{id}` | `Ver usuarios` o `Gestionar usuarios` | Consulta usuario por id. |
-| PATCH | `/api/usuarios-sistema/{id}/activo?activo=` | `Cambiar estado usuarios` o `Gestionar usuarios` | Cambia estado activo del usuario. |
-| PATCH | `/api/usuarios-sistema/{id}/perfil/administrativo` | `Asignar rol usuarios` o `Gestionar usuarios` | Cambia perfil real a administrativo. |
-| PATCH | `/api/usuarios-sistema/{id}/perfil/estudiante` | `Asignar rol usuarios` o `Gestionar usuarios` | Cambia perfil real a estudiante. |
-| PATCH | `/api/usuarios-sistema/{id}/perfil/asesor` | `Asignar rol usuarios` o `Gestionar usuarios` | Cambia perfil real a asesor. |
-| PATCH | `/api/usuarios-sistema/{id}/perfil/monitor` | `Asignar rol usuarios` o `Gestionar usuarios` | Cambia perfil real a monitor. |
-| PATCH | `/api/usuarios-sistema/{id}/perfil/conciliador` | `Asignar rol usuarios` o `Gestionar usuarios` | Cambia perfil real a conciliador. |
+| GET | `/api/usuarios-sistema` | Lista usuarios del sistema | `VER_USUARIOS`, `GESTIONAR_USUARIOS` |
+| GET | `/api/usuarios-sistema/activos` | Lista usuarios activos | `VER_USUARIOS`, `GESTIONAR_USUARIOS` |
+| GET | `/api/usuarios-sistema/{id}` | Obtiene usuario por id | `VER_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/activo?activo=true|false` | Cambia estado activo | `CAMBIAR_ESTADO_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/perfil/administrativo` | Cambia perfil a administrativo | `ASIGNAR_ROL_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/perfil/estudiante` | Cambia perfil a estudiante | `ASIGNAR_ROL_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/perfil/asesor` | Cambia perfil a asesor | `ASIGNAR_ROL_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/perfil/monitor` | Cambia perfil a monitor | `ASIGNAR_ROL_USUARIOS`, `GESTIONAR_USUARIOS` |
+| PATCH | `/api/usuarios-sistema/{id}/perfil/conciliador` | Cambia perfil a conciliador | `ASIGNAR_ROL_USUARIOS`, `GESTIONAR_USUARIOS` |
 
-### GET `/api/usuarios-sistema`
-
-Lista usuarios del sistema.
-
-#### Response `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "username": "<correo-del-usuario>",
-    "activo": true,
-    "rolId": 1,
-    "rolNombre": "Nombre del rol",
-    "perfilId": 1,
-    "tipoPerfil": "TIPO_PERFIL",
-    "permisos": [
-      "Nombre del permiso"
-    ]
-  }
-]
-```
-
-### GET `/api/usuarios-sistema/activos`
-
-Lista usuarios activos.
-
-#### Response `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "username": "<correo-del-usuario>",
-    "activo": true,
-    "rolId": 1,
-    "rolNombre": "Nombre del rol",
-    "perfilId": 1,
-    "tipoPerfil": "TIPO_PERFIL",
-    "permisos": [
-      "Nombre del permiso"
-    ]
-  }
-]
-```
-
-### GET `/api/usuarios-sistema/{id}`
-
-Consulta un usuario por id.
-
-#### Parámetros de ruta
-
-| Parámetro | Tipo | Uso |
-|---|---|---|
-| `id` | Long | Identificador del usuario del sistema. |
-
-#### Response `200 OK`
+### UsuarioSistemaDTO
 
 ```json
 {
   "id": 1,
-  "username": "<correo-del-usuario>",
+  "username": "usuario",
   "activo": true,
-  "rolId": 1,
-  "rolNombre": "Nombre del rol",
-  "perfilId": 1,
-  "tipoPerfil": "TIPO_PERFIL",
-  "permisos": [
-    "Nombre del permiso"
-  ]
+  "rolId": 2,
+  "rolNombre": "ASESOR",
+  "perfilId": 10,
+  "tipoPerfil": "ASESOR",
+  "permisos": ["VER_CONSULTAS", "EDITAR_CONSULTAS"]
 }
 ```
 
-#### Errores esperados
+---
 
-| Estado | Causa |
-|---|---|
-| `400 Bad Request` | Id obligatorio o usuario no encontrado. |
-| `403 Forbidden` | Usuario sin permiso. |
+## 3. Cambio de perfil
 
-### PATCH `/api/usuarios-sistema/{id}/activo`
+Los endpoints de cambio de perfil reciben un DTO específico según el perfil destino. Todos usan `PATCH` y son gestionados por `UsuarioCambioPerfilService`.
 
-Cambia el estado activo del usuario del sistema.
+El flujo implementado es:
 
-#### Parámetros
+1. validar usuario destino;
+2. validar que el usuario esté activo;
+3. validar que el rol actual esté activo;
+4. validar que el perfil destino sea diferente al actual;
+5. validar que el rol destino corresponda al tipo de perfil destino;
+6. normalizar datos básicos;
+7. crear o reactivar el perfil destino mediante Strategy;
+8. desactivar el perfil anterior mediante Strategy;
+9. actualizar rol y tipo de perfil actual del usuario;
+10. registrar historial del cambio.
 
-| Parámetro | Tipo | Ubicación | Uso |
-|---|---|---|---|
-| `id` | Long | Path | Identificador del usuario. |
-| `activo` | Boolean | Query | Nuevo estado activo. |
+### Campos transversales del cambio
 
-Ejemplo de ruta:
+Los DTOs de cambio de perfil extienden `CambiarPerfilBaseDTO` y comparten datos básicos como:
 
-```text
-PATCH /api/usuarios-sistema/1/activo?activo=false
-```
+- nombre;
+- tipo de documento;
+- documento;
+- correo;
+- teléfono;
+- usuario;
+- código;
+- sede;
+- rol destino;
+- motivo del cambio.
 
-#### Reglas
+Los perfiles especializados agregan campos propios, por ejemplo:
 
-- `activo` es obligatorio.
-- No se permite cambiar al mismo estado actual.
-- El usuario debe existir.
+- asesor: `areaId`;
+- estudiante: `asesorId`;
+- conciliador: `tipoConciliador`;
+- administrativo: `directora` cuando aplique.
 
-#### Response `200 OK`
+---
 
-```json
-{
-  "id": 1,
-  "username": "<correo-del-usuario>",
-  "activo": false,
-  "rolId": 1,
-  "rolNombre": "Nombre del rol",
-  "perfilId": 1,
-  "tipoPerfil": "TIPO_PERFIL",
-  "permisos": [
-    "Nombre del permiso"
-  ]
-}
-```
+## 4. Roles
 
-## Cambio de perfil real
+Ruta base:
 
-Los endpoints de cambio de perfil actualizan el perfil real activo del usuario y registran historial del cambio.
-
-Base común:
-
-```text
-PATCH /api/usuarios-sistema/{id}/perfil/{tipo}
-```
-
-Permiso:
-
-```text
-Asignar rol usuarios
-```
-
-o
-
-```text
-Gestionar usuarios
-```
-
-### Campos comunes
-
-Todos los cambios de perfil usan campos base.
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre del perfil",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1
-}
-```
-
-Campos comunes:
-
-| Campo | Validación/Uso |
-|---|---|
-| `rolId` | Obligatorio. Rol destino del usuario. |
-| `motivo` | Obligatorio. Máximo 255 caracteres. Se guarda en historial. |
-| `nombre` | Obligatorio. Máximo 120 caracteres. |
-| `tipoDocumentoId` | Requerido por los handlers de perfil cuando aplica. |
-| `documento` | Máximo 30 caracteres. Requerido por los handlers de perfil cuando aplica. |
-| `telefono` | Obligatorio. Máximo 30 caracteres. |
-| `usuario` | Obligatorio. Máximo 100 caracteres. |
-| `codigo` | Obligatorio. Máximo 30 caracteres. |
-| `sedeId` | Requerido por los handlers de perfil cuando aplica. |
-
-### PATCH `/api/usuarios-sistema/{id}/perfil/administrativo`
-
-Cambia el perfil real a administrativo.
-
-#### Body
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre administrativo",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1,
-  "directora": false
-}
-```
-
-Campo específico:
-
-| Campo | Uso |
-|---|---|
-| `directora` | Indica si el administrativo queda marcado como directora. |
-
-#### Response `200 OK`
-
-Retorna `UsuarioSistemaDTO`.
-
-### PATCH `/api/usuarios-sistema/{id}/perfil/estudiante`
-
-Cambia el perfil real a estudiante.
-
-#### Body
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre estudiante",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1,
-  "asesorId": 1,
-  "conciliacion": true
-}
-```
-
-Campos específicos:
-
-| Campo | Validación/Uso |
-|---|---|
-| `asesorId` | Obligatorio. Asesor activo asociado al estudiante. |
-| `conciliacion` | Indica si el estudiante queda habilitado para conciliación. |
-
-#### Response `200 OK`
-
-Retorna `UsuarioSistemaDTO`.
-
-### PATCH `/api/usuarios-sistema/{id}/perfil/asesor`
-
-Cambia el perfil real a asesor.
-
-#### Body
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre asesor",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1,
-  "areaId": 1
-}
-```
-
-Campo específico:
-
-| Campo | Validación/Uso |
-|---|---|
-| `areaId` | Obligatorio. Área activa asociada al asesor. |
-
-#### Response `200 OK`
-
-Retorna `UsuarioSistemaDTO`.
-
-### PATCH `/api/usuarios-sistema/{id}/perfil/monitor`
-
-Cambia el perfil real a monitor.
-
-#### Body
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre monitor",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1
-}
-```
-
-#### Response `200 OK`
-
-Retorna `UsuarioSistemaDTO`.
-
-### PATCH `/api/usuarios-sistema/{id}/perfil/conciliador`
-
-Cambia el perfil real a conciliador.
-
-#### Body
-
-```json
-{
-  "rolId": 1,
-  "motivo": "Motivo del cambio",
-  "nombre": "Nombre conciliador",
-  "tipoDocumentoId": 1,
-  "documento": "<documento>",
-  "telefono": "<telefono>",
-  "usuario": "<nombre-de-usuario>",
-  "codigo": "<codigo-interno>",
-  "sedeId": 1,
-  "tipoConciliador": "TIPO_CONCILIADOR"
-}
-```
-
-Campo específico:
-
-| Campo | Validación/Uso |
-|---|---|
-| `tipoConciliador` | Obligatorio. Tipo de conciliador permitido por el dominio. |
-
-#### Response `200 OK`
-
-Retorna `UsuarioSistemaDTO`.
-
-### Reglas generales de cambio de perfil
-
-El backend:
-
-- valida datos obligatorios;
-- valida usuario del sistema existente;
-- resuelve perfil actual;
-- desactiva el perfil anterior;
-- crea o activa el perfil destino;
-- actualiza `tipoPerfilActual`;
-- actualiza el rol del usuario;
-- registra historial de cambio;
-- retorna el usuario actualizado.
-
-### Errores esperados en cambio de perfil
-
-| Estado | Causa |
-|---|---|
-| `400 Bad Request` | Datos obligatorios ausentes. |
-| `400 Bad Request` | Rol destino inexistente o incompatible. |
-| `400 Bad Request` | Relaciones requeridas inexistentes o inactivas. |
-| `400 Bad Request` | Duplicados de documento, email, teléfono, usuario o código. |
-| `403 Forbidden` | Usuario sin permiso para asignar rol o gestionar usuarios. |
-
-## Roles
-
-Base path:
-
-```text
+```http
 /api/roles
 ```
 
-### Resumen de endpoints
-
-| Método | Ruta | Permiso | Uso |
+| Método | Endpoint | Descripción | Permisos principales |
 |---|---|---|---|
-| GET | `/api/roles` | `Gestionar roles` o `Ver roles` | Lista roles. |
-| GET | `/api/roles/activos` | `Gestionar roles` o `Ver roles` | Lista roles activos. |
-| GET | `/api/roles/{id}` | `Gestionar roles` o `Ver roles` | Consulta rol por id. |
-| POST | `/api/roles` | `Gestionar roles` o `Crear roles` | Crea rol. |
-| PUT | `/api/roles/{id}` | `Gestionar roles` o `Editar roles` | Actualiza rol. |
-| PATCH | `/api/roles/{id}/activo?activo=` | `Gestionar roles` o `Editar roles` | Cambia estado activo del rol. |
-| PATCH | `/api/roles/{rolId}/permisos/{permisoId}` | `Gestionar roles` o `Asignar permisos a roles` | Asigna un permiso al rol. |
-| DELETE | `/api/roles/{rolId}/permisos/{permisoId}` | `Gestionar roles` o `Asignar permisos a roles` | Quita un permiso del rol. |
+| GET | `/api/roles` | Lista roles | `GESTIONAR_ROLES`, `VER_ROLES` |
+| GET | `/api/roles/activos` | Lista roles activos | `GESTIONAR_ROLES`, `VER_ROLES` |
+| GET | `/api/roles/{id}` | Obtiene rol | `GESTIONAR_ROLES`, `VER_ROLES` |
+| POST | `/api/roles` | Crea rol | `GESTIONAR_ROLES`, `CREAR_ROLES` |
+| PUT | `/api/roles/{id}` | Actualiza rol | `GESTIONAR_ROLES`, `EDITAR_ROLES` |
+| PATCH | `/api/roles/{id}/activo?activo=true|false` | Cambia estado activo | `GESTIONAR_ROLES`, `EDITAR_ROLES` |
+| PATCH | `/api/roles/{rolId}/permisos/{permisoId}` | Asigna permiso al rol | `GESTIONAR_ROLES`, `ASIGNAR_PERMISOS_A_ROLES` |
+| DELETE | `/api/roles/{rolId}/permisos/{permisoId}` | Quita permiso del rol | `GESTIONAR_ROLES`, `ASIGNAR_PERMISOS_A_ROLES` |
 
-### GET `/api/roles`
-
-Lista roles.
-
-#### Response `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "nombre": "Nombre del rol",
-    "descripcion": "Descripción del rol",
-    "activo": true,
-    "permisoIds": [1, 2],
-    "permisos": [
-      {
-        "id": 1,
-        "nombre": "Nombre del permiso",
-        "descripcion": "Descripción del permiso",
-        "activo": true
-      }
-    ]
-  }
-]
-```
-
-### GET `/api/roles/activos`
-
-Lista roles activos.
-
-#### Response `200 OK`
-
-Retorna lista de `RolDTO`.
-
-### GET `/api/roles/{id}`
-
-Consulta rol por id.
-
-#### Parámetros
-
-| Parámetro | Tipo | Ubicación |
-|---|---|---|
-| `id` | Long | Path |
-
-#### Response `200 OK`
-
-Retorna `RolDTO`.
-
-### POST `/api/roles`
-
-Crea rol.
-
-#### Body
-
-```json
-{
-  "nombre": "Nombre del rol",
-  "descripcion": "Descripción del rol",
-  "activo": true,
-  "permisoIds": [1, 2, 3]
-}
-```
-
-#### Reglas
-
-- no se debe enviar `id`;
-- `nombre` es obligatorio;
-- el nombre se normaliza;
-- el nombre debe ser único ignorando mayúsculas/minúsculas;
-- si se envían permisos, deben existir y estar activos;
-- si no se envía `activo`, se asume `true`.
-
-#### Response `201 Created`
-
-Retorna `RolDTO`.
-
-### PUT `/api/roles/{id}`
-
-Actualiza rol.
-
-#### Body
+### RolDTO
 
 ```json
 {
   "id": 1,
-  "nombre": "Nombre actualizado",
-  "descripcion": "Descripción actualizada",
+  "nombre": "ASESOR",
+  "descripcion": "Rol de asesor jurídico",
   "activo": true,
-  "permisoIds": [1, 2, 3]
+  "permisoIds": [1, 2, 3],
+  "permisos": [
+    { "id": 1, "nombre": "VER_CONSULTAS", "descripcion": "...", "activo": true }
+  ]
 }
 ```
 
-#### Reglas
+---
 
-- si se envía `id`, debe coincidir con la ruta;
-- el nombre debe ser único excluyendo el mismo rol;
-- si se envían `permisoIds`, reemplazan la lista actual;
-- si no se envían `permisoIds`, se conservan los permisos actuales;
-- debe existir al menos un cambio real.
+## 5. Permisos
 
-#### Response `200 OK`
+Ruta base:
 
-Retorna `RolDTO`.
-
-### PATCH `/api/roles/{id}/activo`
-
-Cambia estado activo del rol.
-
-#### Parámetros
-
-| Parámetro | Tipo | Ubicación |
-|---|---|---|
-| `id` | Long | Path |
-| `activo` | Boolean | Query |
-
-#### Reglas
-
-- `activo` es obligatorio;
-- no se permite cambiar al mismo estado actual.
-
-#### Response `200 OK`
-
-Retorna `RolDTO`.
-
-### PATCH `/api/roles/{rolId}/permisos/{permisoId}`
-
-Asigna permiso activo a rol.
-
-#### Parámetros
-
-| Parámetro | Tipo | Ubicación |
-|---|---|---|
-| `rolId` | Long | Path |
-| `permisoId` | Long | Path |
-
-#### Reglas
-
-- el rol debe existir;
-- el permiso debe existir y estar activo;
-- el permiso no debe estar ya asignado al rol.
-
-#### Response `200 OK`
-
-Retorna `RolDTO`.
-
-### DELETE `/api/roles/{rolId}/permisos/{permisoId}`
-
-Quita permiso de rol.
-
-#### Parámetros
-
-| Parámetro | Tipo | Ubicación |
-|---|---|---|
-| `rolId` | Long | Path |
-| `permisoId` | Long | Path |
-
-#### Reglas
-
-- el rol debe existir;
-- el permiso debe estar asignado al rol.
-
-#### Response `200 OK`
-
-Retorna `RolDTO`.
-
-## Permisos
-
-Base path:
-
-```text
+```http
 /api/permisos
 ```
 
-### Resumen de endpoints
-
-| Método | Ruta | Permiso | Uso |
+| Método | Endpoint | Descripción | Permisos principales |
 |---|---|---|---|
-| GET | `/api/permisos` | `Gestionar permisos` o `Asignar permisos a roles` | Lista permisos. |
-| GET | `/api/permisos/activos` | `Gestionar permisos` o `Asignar permisos a roles` | Lista permisos activos. |
-| GET | `/api/permisos/{id}` | `Gestionar permisos` o `Asignar permisos a roles` | Consulta permiso por id. |
-| POST | `/api/permisos` | `Gestionar permisos` | Crea permiso. |
-| PUT | `/api/permisos/{id}` | `Gestionar permisos` | Actualiza permiso. |
-| PATCH | `/api/permisos/{id}/activo?activo=` | `Gestionar permisos` | Cambia estado activo del permiso. |
+| GET | `/api/permisos` | Lista permisos | `GESTIONAR_PERMISOS`, `ASIGNAR_PERMISOS_A_ROLES` |
+| GET | `/api/permisos/activos` | Lista permisos activos | `GESTIONAR_PERMISOS`, `ASIGNAR_PERMISOS_A_ROLES` |
+| GET | `/api/permisos/{id}` | Obtiene permiso | `GESTIONAR_PERMISOS`, `ASIGNAR_PERMISOS_A_ROLES` |
+| POST | `/api/permisos` | Crea permiso | `GESTIONAR_PERMISOS` |
+| PUT | `/api/permisos/{id}` | Actualiza permiso | `GESTIONAR_PERMISOS` |
+| PATCH | `/api/permisos/{id}/activo?activo=true|false` | Cambia estado activo | `GESTIONAR_PERMISOS` |
 
-### GET `/api/permisos`
-
-Lista permisos.
-
-#### Response `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "nombre": "Nombre del permiso",
-    "descripcion": "Descripción del permiso",
-    "activo": true
-  }
-]
-```
-
-### GET `/api/permisos/activos`
-
-Lista permisos activos.
-
-#### Response `200 OK`
-
-Retorna lista de `PermisoDTO`.
-
-### GET `/api/permisos/{id}`
-
-Consulta permiso por id.
-
-#### Response `200 OK`
-
-Retorna `PermisoDTO`.
-
-### POST `/api/permisos`
-
-Crea permiso.
-
-#### Body
-
-```json
-{
-  "nombre": "Nombre del permiso",
-  "descripcion": "Descripción del permiso",
-  "activo": true
-}
-```
-
-#### Reglas
-
-- no se debe enviar `id`;
-- `nombre` es obligatorio;
-- el nombre se normaliza;
-- el nombre debe ser único ignorando mayúsculas/minúsculas;
-- si no se envía `activo`, se asume `true`.
-
-#### Response `201 Created`
-
-Retorna `PermisoDTO`.
-
-### PUT `/api/permisos/{id}`
-
-Actualiza permiso.
-
-#### Body
+### PermisoDTO
 
 ```json
 {
   "id": 1,
-  "nombre": "Nombre actualizado",
-  "descripcion": "Descripción actualizada",
+  "nombre": "VER_CONSULTAS",
+  "descripcion": "Permite consultar casos jurídicos",
   "activo": true
 }
 ```
 
-#### Reglas
+---
 
-- si se envía `id`, debe coincidir con la ruta;
-- el nombre debe ser único excluyendo el mismo permiso;
-- debe existir al menos un cambio real.
+## 6. Reglas implementadas
 
-#### Response `200 OK`
-
-Retorna `PermisoDTO`.
-
-### PATCH `/api/permisos/{id}/activo`
-
-Cambia estado activo del permiso.
-
-#### Parámetros
-
-| Parámetro | Tipo | Ubicación |
-|---|---|---|
-| `id` | Long | Path |
-| `activo` | Boolean | Query |
-
-#### Reglas
-
-- `activo` es obligatorio;
-- no se permite cambiar al mismo estado actual.
-
-#### Response `200 OK`
-
-Retorna `PermisoDTO`.
-
-## Errores comunes
-
-| Estado | Causa |
-|---|---|
-| `400 Bad Request` | Id obligatorio ausente. |
-| `400 Bad Request` | DTO obligatorio ausente. |
-| `400 Bad Request` | Nombre obligatorio ausente. |
-| `400 Bad Request` | Nombre duplicado. |
-| `400 Bad Request` | Intento de cambiar id. |
-| `400 Bad Request` | Cambio al mismo estado. |
-| `400 Bad Request` | Sin cambios para actualizar. |
-| `400 Bad Request` | Permiso inexistente o inactivo al asignar a rol. |
-| `400 Bad Request` | Permiso ya asignado al rol. |
-| `400 Bad Request` | Permiso no asignado al rol al intentar quitarlo. |
-| `401 Unauthorized` | Sesión no válida. |
-| `403 Forbidden` | Usuario sin permiso suficiente. |
-
-## Notas para frontend
-
-- Para formularios de roles, usar `GET /api/permisos/activos` como catálogo de permisos disponibles.
-- Para pantallas administrativas, `GET /api/permisos` y `GET /api/roles` permiten ver activos e inactivos.
-- Para asignación masiva de permisos en un rol, enviar `permisoIds` en `POST` o `PUT /api/roles`.
-- Para asignar o quitar un permiso específico, usar los endpoints `PATCH` y `DELETE` de permisos de rol.
-- Para cambiar perfil real de usuario, usar el endpoint específico del tipo de perfil destino.
-- Para cambiar estado de usuario, usar `PATCH /api/usuarios-sistema/{id}/activo`.
-- Usar `credentials: "include"` en todas las peticiones protegidas.
-- Manejar `403` como falta de permiso.
-- Manejar mensajes de negocio para duplicados y cambios sin efecto.
+- Los roles y permisos tienen estado lógico `activo`.
+- La asignación de permisos a roles se realiza por endpoint explícito.
+- El cambio de perfil requiere rol destino coherente con el tipo de perfil destino.
+- El cambio de perfil registra historial con motivo obligatorio.
+- El perfil anterior se desactiva usando Strategy.
+- El perfil activo se resuelve usando Strategy.
+- La cuenta de usuario conserva su identidad de acceso y actualiza el perfil operativo vigente.

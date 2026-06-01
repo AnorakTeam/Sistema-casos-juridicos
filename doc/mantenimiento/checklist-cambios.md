@@ -1,196 +1,81 @@
-# Checklist de cambios
+# Checklist de actualización documental
 
-Este checklist debe usarse antes de commitear cambios funcionales, técnicos o documentales.
+Este checklist se usa cuando se modifica código fuente y se requiere mantener la documentación técnica alineada.
 
-## 1. Identificación del cambio
+## Revisión inicial
 
-Antes de actualizar documentación, identificar el tipo de cambio:
+- Identificar el módulo modificado.
+- Revisar si cambió un controller o endpoint.
+- Revisar si cambió un DTO de entrada o salida.
+- Revisar si cambió una entidad, relación o estado.
+- Revisar si cambió una regla de negocio.
+- Revisar si cambió un permiso, rol o regla de alcance.
+- Revisar si cambió una ruta, componente o formulario frontend.
+- Revisar si cambió una decisión transversal del diseño.
 
-- endpoint;
-- DTO;
-- entidad;
-- repository;
-- service;
-- validator;
-- mapper;
-- permiso;
-- alcance;
-- estado;
-- configuración;
-- frontend;
-- base de datos;
-- archivo;
-- decisión técnica.
+## Backend
 
-## 2. Checklist general
+Cuando cambie backend, revisar:
 
-Antes de hacer commit:
+- `doc/backend/<modulo>.md`;
+- `doc/api/<modulo>.md`;
+- `doc/reglas/<modulo>.md`;
+- `doc/base-datos/*` si hay cambios de entidad o relación;
+- `doc/decisiones/*` si hay cambios de diseño transversal.
 
-- [ ] El código compila o fue validado según el alcance del cambio.
-- [ ] La documentación afectada fue revisada.
-- [ ] No se documentaron valores sensibles.
-- [ ] No se agregaron archivos generados.
-- [ ] No se agregaron rutas privadas locales.
-- [ ] No se agregaron usuarios reales de prueba.
-- [ ] No se documentaron endpoints inexistentes.
-- [ ] No se documentaron reglas futuras como vigentes.
-- [ ] Los ejemplos usan datos genéricos.
-- [ ] Los permisos documentados coinciden con el código.
-- [ ] Los estados documentados coinciden con enums o catálogos reales.
-- [ ] Los request/response coinciden con DTOs actuales.
+## API
 
-## 3. Checklist para endpoints
+Cuando cambie un endpoint, revisar:
 
-Cuando se crea, modifica o elimina un endpoint:
+- ruta exacta;
+- método HTTP;
+- permisos;
+- parámetros de path;
+- query params;
+- cuerpo de request;
+- cuerpo de response;
+- códigos de error relevantes;
+- relación con formularios frontend.
 
-- [ ] Revisar controller.
-- [ ] Revisar `@RequestMapping`, método y ruta.
-- [ ] Revisar `@PreAuthorize`.
-- [ ] Revisar parámetros de path.
-- [ ] Revisar query params.
-- [ ] Revisar body JSON.
-- [ ] Revisar multipart si aplica.
-- [ ] Revisar response.
-- [ ] Revisar errores de negocio esperados.
-- [ ] Actualizar `doc/api/<modulo>.md`.
-- [ ] Actualizar backend del módulo si cambia responsabilidad.
-- [ ] Actualizar reglas si cambia comportamiento.
+## Frontend
 
-## 4. Checklist para DTOs
+Cuando cambie frontend, revisar:
 
-Cuando cambia un DTO:
+- ruta en App Router;
+- componente principal de formulario o vista;
+- consumo de API;
+- manejo de errores;
+- navegación por permisos;
+- validaciones de formulario;
+- componentes reutilizables afectados.
 
-- [ ] Revisar campos nuevos o eliminados.
-- [ ] Revisar tipos de dato.
-- [ ] Revisar validaciones Jakarta.
-- [ ] Revisar campos obligatorios.
-- [ ] Revisar campos opcionales.
-- [ ] Revisar ejemplos JSON.
-- [ ] Actualizar documento API del módulo.
-- [ ] Actualizar backend del módulo si afecta reglas.
-- [ ] Revisar frontend si consume el DTO.
+## Reglas de negocio
 
-## 5. Checklist para reglas de negocio
+Cuando cambie una regla, revisar:
 
-Cuando cambia una regla:
+- validator relacionado;
+- service o command service relacionado;
+- access service si involucra permisos;
+- pruebas unitarias asociadas;
+- documentos de reglas, backend y API.
 
-- [ ] Identificar validator o service modificado.
-- [ ] Identificar endpoints afectados.
-- [ ] Identificar errores esperados.
-- [ ] Identificar permisos o alcance afectados.
-- [ ] Actualizar `doc/reglas/<modulo>.md`.
-- [ ] Actualizar `doc/backend/<modulo>.md`.
-- [ ] Actualizar `doc/api/<modulo>.md`.
-- [ ] Actualizar decisiones técnicas si cambia criterio estructural.
-- [ ] Revisar base de datos si cambia nullable, único o relación.
+## Seguridad y configuración
 
-## 6. Checklist para permisos
+Cuando cambie configuración o seguridad, revisar:
 
-Cuando cambia un permiso:
+- `02-configuracion-seguridad.md`;
+- `03-autenticacion-autorizacion.md`;
+- `04-permisos-roles-alcance.md`;
+- `frontend/configuracion-api.md`;
+- `frontend/autenticacion-sesion.md`.
 
-- [ ] Revisar `PermisoNombre`.
-- [ ] Revisar `SecurityDataInitializer`.
-- [ ] Revisar controllers con `@PreAuthorize`.
-- [ ] Revisar access services.
-- [ ] Revisar alcance.
-- [ ] Revisar asignación rol-permiso.
-- [ ] Revisar frontend si el permiso afecta navegación.
-- [ ] Actualizar `doc/reglas/permisos.md`.
-- [ ] Actualizar `doc/decisiones/permisos-y-alcance.md`.
-- [ ] Actualizar API del módulo afectado.
+## Revisión final del texto
 
-## 7. Checklist para estados
+Antes de cerrar un cambio documental:
 
-Cuando cambia un estado:
-
-- [ ] Revisar enum o catálogo.
-- [ ] Revisar validators.
-- [ ] Revisar services de estado.
-- [ ] Revisar cierre de consulta si aplica.
-- [ ] Revisar endpoints que reciben estado.
-- [ ] Revisar DTOs de respuesta.
-- [ ] Actualizar `doc/base-datos/estados-y-catalogos.md`.
-- [ ] Actualizar reglas del módulo.
-- [ ] Actualizar API del módulo.
-- [ ] Actualizar backend del módulo.
-- [ ] Actualizar decisiones si cambia criterio de diseño.
-
-## 8. Checklist para base de datos
-
-Cuando cambia una entidad o tabla:
-
-- [ ] Revisar entidad JPA.
-- [ ] Revisar relaciones.
-- [ ] Revisar nullable.
-- [ ] Revisar unique constraints.
-- [ ] Revisar defaults.
-- [ ] Revisar repositories.
-- [ ] Revisar services que dependen del campo.
-- [ ] Actualizar `doc/base-datos/entidades-principales.md`.
-- [ ] Actualizar `doc/base-datos/estados-y-catalogos.md` si afecta estados/catálogos.
-- [ ] Actualizar API si se expone el campo.
-- [ ] Actualizar reglas si cambia comportamiento.
-
-## 9. Checklist para archivos
-
-Cuando cambia manejo de archivos:
-
-- [ ] Revisar `FileUploadController`.
-- [ ] Revisar `FileStorageService`.
-- [ ] Revisar validaciones de extensión o content type.
-- [ ] Revisar ruta estándar del módulo.
-- [ ] Revisar endpoints multipart.
-- [ ] Revisar response.
-- [ ] Actualizar `doc/api/archivos.md`.
-- [ ] Actualizar `doc/backend/archivos.md`.
-- [ ] Actualizar `doc/reglas/archivos.md`.
-- [ ] Actualizar API del módulo que consume el archivo.
-
-## 10. Checklist para frontend
-
-Cuando cambia frontend:
-
-- [ ] Identificar si cambia contrato con backend.
-- [ ] Si cambia endpoint consumido, actualizar API.
-- [ ] Si cambia manejo de sesión, actualizar autenticación.
-- [ ] Si cambia navegación por permisos, actualizar permisos.
-- [ ] Si cambia estructura interna estable, actualizar documentación frontend.
-- [ ] Verificar que no se documenten secretos en variables `NEXT_PUBLIC_*`.
-
-## 11. Checklist de seguridad documental
-
-Antes de cerrar documentación:
-
-- [ ] No hay contraseñas reales.
-- [ ] No hay tokens reales.
-- [ ] No hay API keys reales.
-- [ ] No hay secretos JWT reales.
-- [ ] No hay usuarios reales de prueba con contraseña.
-- [ ] No hay datos personales reales.
-- [ ] No hay rutas privadas locales.
-- [ ] No hay capturas con datos sensibles.
-- [ ] Los ejemplos usan placeholders o valores genéricos.
-
-## 12. Checklist de commit documental
-
-Antes de commit:
-
-- [ ] `git status` muestra solo archivos esperados.
-- [ ] No hay archivos generados no deseados.
-- [ ] La documentación nueva se ubica en carpeta correcta.
-- [ ] El mensaje de commit indica área afectada.
-- [ ] Si el cambio fue funcional, la documentación acompaña el commit o queda en commit inmediatamente posterior.
-
-Ejemplos de commit:
-
-```bash
-git commit -m "docs(api): actualizar contrato de consultas"
-```
-
-```bash
-git commit -m "docs(reglas): actualizar reglas de procesos"
-```
-
-```bash
-git commit -m "docs(db): actualizar estados de conciliacion"
-```
+- verificar que lo documentado exista en código;
+- verificar que no haya endpoints inventados;
+- verificar que no haya credenciales reales;
+- verificar que no haya valores privados;
+- verificar que los índices incluyan documentos nuevos;
+- verificar que los enlaces relativos correspondan a archivos existentes.

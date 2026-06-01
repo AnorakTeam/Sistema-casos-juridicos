@@ -1,151 +1,75 @@
 # Reglas de negocio - Procesos
 
-El módulo de procesos administra procesos asociados a consultas jurídicas.
+## Principio general
 
-Un proceso registra información judicial u operativa como número de radicado, departamento, órgano de control, especialidad, estado funcional y estado lógico activo/inactivo.
+Un proceso representa una actuación formal vinculada a una consulta jurídica. Su ciclo funcional se administra con `EstadoProceso` y su permanencia histórica se administra con la marca `activo`.
 
-## Principios del módulo
+## Regla 1. El proceso nace pendiente
 
-- Todo proceso pertenece a una consulta.
-- La consulta define el alcance del proceso.
-- El estado funcional del proceso se diferencia del campo `activo`.
-- El número de radicado identifica el proceso y debe ser único.
-- Un proceso pendiente bloquea el cierre de la consulta.
-- La eliminación de proceso es desactivación lógica.
+Todo proceso creado por el backend inicia en estado `PENDIENTE`. El cliente no controla el estado inicial.
 
-## Estados de proceso
+## Regla 2. Radicado opcional en estado pendiente
 
-| Estado | Uso |
-|---|---|
-| `PENDIENTE` | Proceso pendiente de resultado. |
-| `SENTENCIA_FAVORABLE` | Proceso con sentencia favorable. |
-| `SENTENCIA_DESFAVORABLE` | Proceso con sentencia desfavorable. |
-| `DESISTIMIENTO` | Proceso terminado por desistimiento. |
-| `RECHAZO` | Proceso terminado por rechazo. |
-| `PRESCRIPCION` | Proceso terminado por prescripción. |
+Mientras el proceso está en `PENDIENTE`, `numeroRadicado` puede ser nulo. Esta regla permite registrar gestión preliminar antes de contar con radicado formal.
 
-## Creación de proceso
+## Regla 3. Radicado obligatorio en estados finales
 
-Reglas:
+Los estados finales son:
 
-- requiere permiso para gestionar procesos;
-- no se permite enviar `id`;
-- el número de radicado es obligatorio;
-- el número de radicado se normaliza;
-- el número de radicado debe tener exactamente 23 caracteres;
-- el número de radicado debe ser único;
-- el departamento es obligatorio y debe estar activo;
-- la consulta es obligatoria;
-- la consulta debe permitir operación;
-- el usuario debe tener alcance sobre la consulta;
-- estudiante y conciliador no gestionan procesos;
-- órgano de control y especialidad son opcionales;
-- si se informa especialidad, debe existir órgano de control;
-- la especialidad debe pertenecer al órgano de control seleccionado;
-- el proceso nace con estado `PENDIENTE`;
-- el proceso nace activo.
+- `SENTENCIA_FAVORABLE`
+- `SENTENCIA_DESFAVORABLE`
+- `DESISTIMIENTO`
+- `RECHAZO`
+- `PRESCRIPCION`
 
-## Actualización de proceso
+Para cualquiera de estos estados, el backend exige número de radicado.
 
-Reglas:
+## Regla 4. Longitud del radicado
 
-- requiere permiso para gestionar procesos;
-- el proceso debe existir y estar activo;
-- el usuario debe tener alcance sobre la consulta;
-- si el DTO trae `id`, debe coincidir con la ruta;
-- no se permite cambiar la consulta asociada;
-- el número de radicado debe mantener unicidad;
-- departamento, órgano de control y especialidad deben estar activos cuando se informan;
-- la especialidad debe pertenecer al órgano de control seleccionado;
-- debe existir cambio real;
-- actualizar datos generales no cambia `activo`;
-- el estado funcional se cambia por endpoint específico.
+Cuando se informa radicado, debe tener exactamente 23 caracteres.
 
-## Cambio de estado funcional
+## Regla 5. Unicidad del radicado
 
-Reglas:
+Si se informa radicado, debe ser único frente a otros procesos. En actualización se excluye el proceso actual para permitir conservar el mismo radicado.
 
-- requiere permiso para gestionar procesos;
-- el estado destino es obligatorio;
-- no se permite cambiar al mismo estado;
-- el proceso debe estar activo;
-- la consulta asociada debe permitir operación;
-- el usuario debe tener alcance sobre la consulta.
+## Regla 6. La consulta no cambia en edición
 
-## Cambio de activo lógico
+La consulta asociada define el alcance del proceso. Por eso, al actualizar un proceso existente no se permite modificar `consultaId`.
 
-Reglas:
+## Regla 7. La consulta debe permitir operación
 
-- requiere permiso para gestionar procesos;
-- el parámetro `activo` es obligatorio;
-- no se permite cambiar al mismo estado lógico;
-- el usuario debe tener alcance sobre la consulta;
-- la consulta asociada debe permitir operación.
+No se realizan operaciones de creación, edición o cambio de estado sobre procesos cuya consulta asociada no permita operación operativa.
 
-## Eliminación lógica
+## Regla 8. Especialidad coherente con órgano de control
 
-Reglas:
+Si se informa especialidad, debe pertenecer al órgano de control seleccionado. Si se informa especialidad sin órgano de control, la operación se rechaza.
 
-- requiere permiso para gestionar procesos;
-- el proceso debe estar activo;
-- se valida alcance;
-- la consulta asociada debe permitir operación;
-- se marca `activo=false`;
-- no se elimina físicamente.
+## Regla 9. Estado funcional y activo son conceptos separados
 
-## Alcance
+`estado` representa el resultado funcional del proceso.
 
-El alcance del proceso se hereda desde la consulta asociada.
+`activo` representa la disponibilidad lógica del registro.
 
-Reglas:
+La eliminación por endpoint no borra físicamente el proceso; lo desactiva.
 
-- listar procesos aplica alcance por consulta;
-- ver proceso valida alcance por consulta;
-- crear proceso valida alcance sobre consulta;
-- gestionar proceso valida alcance sobre consulta.
+## Regla 10. Procesos pendientes bloquean cierre de consulta
 
-## Relación con cierre de consulta
+Una consulta no puede cerrarse si tiene procesos activos en estado `PENDIENTE`. Esta regla se valida desde el servicio de estado de consulta.
 
-Una consulta no puede cerrarse si tiene procesos activos en estado:
+## Regla 11. Gestión restringida por permisos
 
-```text
-PENDIENTE
-```
+Las operaciones de escritura requieren `GESTIONAR_PROCESOS`. La lectura requiere `VER_PROCESOS` o `GESTIONAR_PROCESOS`.
 
-Esto conserva la coherencia del cierre operativo del caso.
+## Regla 12. El alcance se hereda desde la consulta
 
-## Órganos de control
+El proceso no define por sí solo el alcance del usuario. El acceso se determina con base en la consulta asociada.
 
-Reglas:
+## Reglas respaldadas por pruebas
 
-- el nombre es obligatorio;
-- máximo 80 caracteres;
-- nombre único ignorando mayúsculas/minúsculas;
-- nace activo;
-- actualizar requiere cambio real;
-- no se permite desactivar órgano con especialidades activas asociadas;
-- la eliminación es desactivación lógica.
+`ProcesoValidatorTest` valida:
 
-## Especialidades
-
-Reglas:
-
-- el nombre es obligatorio;
-- máximo 80 caracteres;
-- debe pertenecer a un órgano de control activo;
-- el nombre debe ser único dentro del órgano de control;
-- nace activa;
-- actualizar requiere cambio real;
-- cambiar activo requiere parámetro obligatorio;
-- la eliminación es desactivación lógica.
-
-## Reglas para frontend
-
-- validar que el radicado tenga 23 caracteres antes de enviar;
-- cargar especialidades según órgano de control;
-- no permitir cambiar consulta en edición;
-- usar endpoint específico para cambio de estado;
-- usar endpoint específico para activo/inactivo;
-- manejar errores de radicado duplicado;
-- manejar errores de especialidad que no pertenece al órgano;
-- usar `credentials: "include"`.
+- radicado nulo permitido en pendiente;
+- texto vacío interpretado como radicado nulo en pendiente;
+- rechazo de estado final sin radicado;
+- rechazo de radicado con longitud inválida;
+- aceptación de radicado válido.

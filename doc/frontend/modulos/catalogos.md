@@ -1,18 +1,38 @@
-# Módulo: Catálogos
+# Frontend - Módulo de catálogos
 
-## Propósito
+## 1. Propósito del módulo
 
-Permite administrar los parámetros base del sistema: áreas jurídicas, temas y tipos de consulta. Los catálogos forman una jerarquía: Área → Tema → Tipo.
+El módulo de catálogos permite administrar parámetros base usados por las consultas jurídicas y otros formularios del sistema. En el frontend actual, la administración visible de catálogos se concentra en la ruta `/admin`, mediante pestañas para área, tema y tipo.
 
-Ver `doc/api/catalogos.md` para la especificación completa del backend.
+Los catálogos documentados en esta vista son:
 
-## Pantalla y ruta
+```text
+Área
+Tema
+Tipo
+```
 
-| Ruta | Componente | Descripción |
-|---|---|---|
-| `/admin` | `AreaForm` + `TemaForm` + `TipoForm` | Gestión de catálogos dentro de la pantalla de administración (tabs) |
+La jerarquía funcional es:
 
-## Componentes
+```text
+Área → Tema → Tipo
+```
+
+## 2. Ruta y componentes
+
+La ruta es:
+
+```text
+/admin
+```
+
+La página se define en:
+
+```text
+src/app/(dashboard)/admin/page.js
+```
+
+y renderiza los siguientes componentes:
 
 ```text
 src/components/forms/catalogos/AreaForm.jsx
@@ -20,63 +40,135 @@ src/components/forms/catalogos/TemaForm.jsx
 src/components/forms/catalogos/TipoForm.jsx
 ```
 
-Los tres formularios se presentan como tabs dentro de la pantalla `/admin`, junto con los tabs de permisos, cambio de rol y auditoría.
+## 3. Organización visual
 
-## Permisos
+Los catálogos se muestran en pestañas dentro de la pantalla de administración:
 
-| Permiso | Uso |
+| Pestaña | Componente | Recurso |
+|---|---|---|
+| Área | `AreaForm` | Áreas jurídicas. |
+| Tema | `TemaForm` | Temas asociados a áreas. |
+| Tipo | `TipoForm` | Tipos asociados a temas. |
+
+La misma pantalla también contiene pestañas administrativas de permisos, cambio de rol y auditoría.
+
+## 4. Permisos usados
+
+| Permiso | Uso frontend |
 |---|---|
-| `Acceder administración` | Acceder a la pantalla `/admin`. |
-| `Gestionar catálogos` | Crear, editar y desactivar áreas, temas y tipos. |
-| `Ver catálogos` | Consultar catálogos sin modificar. |
+| `Acceder administración` | Permite entrar a la pantalla `/admin`. |
+| `Ver catálogos` | Permite consultar catálogos cuando el componente lo requiere. |
+| `Gestionar catálogos` | Permite crear, editar y desactivar áreas, temas y tipos. |
 
-## Endpoints consumidos
+Cada formulario consulta `/api/auth/me` para validar sesión y permisos antes de cargar o permitir operaciones.
 
-### Áreas
+## 5. Formulario de áreas
 
-```text
-GET    /api/areas
-POST   /api/areas
-PUT    /api/areas/{id}
-PATCH  /api/areas/{id}/activo?activo=false
-```
-
-### Temas
+Componente:
 
 ```text
-GET    /api/temas
-GET    /api/temas/area/{areaId}
-POST   /api/temas
-PUT    /api/temas/{id}
-PATCH  /api/temas/{id}/activo?activo=false
+AreaForm.jsx
 ```
 
-### Tipos
+Endpoints consumidos:
 
 ```text
-GET    /api/tipos
-GET    /api/tipos/tema/{temaId}
-POST   /api/tipos
-PUT    /api/tipos/{id}
-PATCH  /api/tipos/{id}/activo?activo=false
+GET /api/areas
+POST /api/areas
+PUT /api/areas/{id}
+PATCH /api/areas/{id}/activo?activo=false
 ```
 
-## Comportamiento de cada formulario
+El formulario permite:
 
-Los tres formularios comparten el mismo patrón:
+- listar áreas;
+- crear área;
+- editar área existente;
+- desactivar área con confirmación;
+- mostrar errores del backend mediante toast.
 
-1. Cargar la lista existente con paginación.
-2. Formulario de creación en la parte superior.
-3. Botones "Editar" y "Desactivar" por fila.
-4. Al editar, el formulario se rellena con los datos del ítem y cambia el botón a "Actualizar".
-5. El diálogo `ConfirmActionDialog` confirma antes de desactivar.
+## 6. Formulario de temas
 
-### Manejo de errores de red
+Componente:
 
-`cargarAreas()`, `cargarTemas()` y `cargarTipos()` están envueltos en `try/catch`. Si la petición falla por error de red, se muestra un toast de error sin romper la pantalla.
+```text
+TemaForm.jsx
+```
 
-Del mismo modo, `onSubmit` tiene `try/catch` completo. Los errores de red muestran toast; los errores del backend (400, 409) muestran el mensaje exacto del backend.
+Endpoints consumidos:
 
-### Respuesta a 403
+```text
+GET /api/areas
+GET /api/temas
+POST /api/temas
+PUT /api/temas/{id}
+PATCH /api/temas/{id}/activo?activo=false
+```
 
-Las acciones sin permiso en los catálogos muestran un toast de error en lugar de redirigir, para que el administrador no pierda el contexto de la pantalla.
+El selector de área permite asociar cada tema a un área. El frontend carga áreas antes de permitir la gestión de temas.
+
+## 7. Formulario de tipos
+
+Componente:
+
+```text
+TipoForm.jsx
+```
+
+Endpoints consumidos:
+
+```text
+GET /api/temas
+GET /api/tipos
+POST /api/tipos
+PUT /api/tipos/{id}
+PATCH /api/tipos/{id}/activo?activo=false
+```
+
+El selector de tema permite asociar cada tipo a un tema.
+
+## 8. Patrón común de formularios
+
+Los tres formularios comparten un patrón:
+
+```text
+1. Validan sesión con /api/auth/me.
+2. Validan permiso de gestión.
+3. Cargan datos existentes.
+4. Presentan formulario de creación.
+5. Permiten seleccionar un registro para edición.
+6. Envían POST o PUT según modo.
+7. Usan PATCH para desactivar.
+8. Recargan la lista después de operaciones exitosas.
+```
+
+## 9. Confirmación de desactivación
+
+La desactivación se realiza mediante `ConfirmActionDialog`. Esto evita cambiar el estado de un catálogo por accidente.
+
+El frontend no elimina físicamente los registros; usa endpoints de cambio de estado activo.
+
+## 10. Manejo de errores
+
+Los formularios capturan:
+
+- sesión expirada;
+- permisos insuficientes;
+- errores de red;
+- errores de validación del backend;
+- duplicados o relaciones inválidas reportadas por el backend.
+
+Los mensajes se muestran mediante `toast` y estados locales.
+
+## 11. Relación con otros módulos
+
+Áreas, temas y tipos alimentan otros formularios, especialmente:
+
+- nueva consulta;
+- consulta jurídica;
+- procesos, cuando dependen de catálogos de apoyo;
+- estadísticas, porque agrupa resultados por área.
+
+## 12. Alcance de la documentación
+
+Este documento describe la administración frontend de área, tema y tipo. Otros catálogos consumidos por el sistema, como sedes, tipos de documento, órganos de control y especialidades, pueden estar disponibles como endpoints backend o selectores en otros módulos, pero esta pantalla de administración documentada corresponde a los formularios existentes en `/admin`.

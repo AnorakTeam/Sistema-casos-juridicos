@@ -1,8 +1,6 @@
 # Entidades principales
 
-Este documento describe las entidades persistentes principales del sistema y sus relaciones.
-
-La estructura está organizada por dominios funcionales.
+Este documento describe las entidades persistentes principales del sistema. La estructura está organizada por dominios funcionales y se basa en las entidades JPA del código fuente actual.
 
 ## 1. Seguridad y acceso
 
@@ -14,29 +12,37 @@ Entidad:
 UsuarioSistema
 ```
 
+Tabla:
+
+```text
+usuario_sistema
+```
+
 Propósito:
 
-Representa al usuario autenticable del sistema.
+Representa al usuario autenticable del sistema. Es la identidad de acceso usada por seguridad, roles, permisos, autenticación y resolución del perfil activo.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
-| `username` | Usuario de acceso. Corresponde al correo usado para login. |
+| `id` | Identificador del usuario del sistema. |
+| `username` | Usuario de acceso, con longitud máxima de 120 caracteres y valor único. |
 | `password_hash` | Contraseña cifrada. |
 | `activo` | Estado lógico del usuario. |
-| `tipo_perfil_actual` | Tipo de perfil real activo. |
-| `rol_id` | Rol asignado. |
+| `tipo_perfil_actual` | Tipo de perfil operativo vigente del usuario. |
+| `rol_id` | Rol funcional asignado. |
 
 Relaciones:
 
 ```text
 usuario_sistema -> rol
 usuario_sistema -> perfil real activo según tipo_perfil_actual
+usuario_sistema -> usuario_cambio_perfil_historial
+usuario_sistema -> audit_logs como actor textual en auditoría
 ```
 
-Tipos de perfil:
+Tipos de perfil admitidos por enum:
 
 ```text
 ASESOR
@@ -46,6 +52,13 @@ ADMINISTRATIVO
 CONCILIADOR
 ```
 
+Criterio operativo:
+
+- el usuario del sistema es la entidad de autenticación;
+- el perfil real aporta datos funcionales del rol humano;
+- el sistema resuelve el perfil activo mediante estrategias por tipo de perfil;
+- al desactivar o reactivar perfiles desde sus servicios de comando, el estado se sincroniza con `UsuarioSistema`.
+
 ### `rol`
 
 Entidad:
@@ -54,19 +67,25 @@ Entidad:
 Rol
 ```
 
+Tabla:
+
+```text
+rol
+```
+
 Propósito:
 
-Agrupa permisos funcionales y se asocia a un tipo de perfil.
+Agrupa permisos funcionales y se asocia a un tipo de perfil. Permite administrar capacidades del sistema sin acoplarlas a usuarios específicos.
 
-Campos:
+Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
+| `id` | Identificador del rol. |
 | `nombre` | Nombre único del rol. |
 | `descripcion` | Descripción funcional. |
-| `activo` | Estado lógico. |
-| `tipo_perfil` | Tipo de perfil al que pertenece el rol. |
+| `activo` | Disponibilidad lógica del rol. |
+| `tipo_perfil` | Tipo de perfil compatible con el rol. |
 
 Relaciones:
 
@@ -83,32 +102,40 @@ Entidad:
 Permiso
 ```
 
-Propósito:
-
-Representa acciones, accesos o capacidades funcionales.
-
-Campos:
-
-| Columna | Uso |
-|---|---|
-| `id` | Identificador. |
-| `nombre` | Nombre único del permiso. |
-| `descripcion` | Descripción funcional. |
-| `activo` | Estado lógico. |
-
-### `rol_permiso`
-
-Tabla de relación:
+Tabla:
 
 ```text
-rol_permiso
+permiso
 ```
 
 Propósito:
 
-Relaciona roles con permisos.
+Representa una acción funcional o permiso de navegación. Los permisos se asignan a roles y son utilizados por backend y frontend.
 
-Relaciones:
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `id` | Identificador del permiso. |
+| `nombre` | Nombre único del permiso. |
+| `descripcion` | Descripción del alcance funcional. |
+| `activo` | Disponibilidad lógica. |
+
+Relación:
+
+```text
+permiso -> rol_permiso -> rol
+```
+
+### `rol_permiso`
+
+Tabla de unión definida en la entidad `Rol`.
+
+Propósito:
+
+Permite asociar múltiples permisos a un rol y múltiples roles a un permiso.
+
+Relación:
 
 ```text
 rol_permiso.rol_id -> rol.id
@@ -125,14 +152,34 @@ UsuarioCambioPerfilHistorial
 
 Propósito:
 
-Conserva historial de cambios de perfil real de un usuario del sistema.
+Registra trazabilidad de cambios de perfil del usuario del sistema.
 
-Uso funcional:
+Campos principales:
 
-- trazabilidad de cambio de perfil;
-- registro de perfil anterior y nuevo;
-- registro de motivo;
-- auditoría operativa de cambios de identidad funcional.
+| Columna | Uso |
+|---|---|
+| `usuario_sistema_id` | Usuario afectado. |
+| `tipo_perfil_anterior` | Tipo de perfil antes del cambio. |
+| `perfil_anterior_id` | Id del perfil anterior. |
+| `rol_anterior_id` | Rol anterior cuando aplica. |
+| `rol_anterior_nombre` | Nombre del rol anterior para conservar trazabilidad. |
+| `tipo_perfil_nuevo` | Tipo de perfil asignado. |
+| `perfil_nuevo_id` | Id del perfil nuevo. |
+| `rol_nuevo_id` | Rol nuevo cuando aplica. |
+| `rol_nuevo_nombre` | Nombre del rol nuevo. |
+| `cambiado_por_usuario_id` | Usuario que ejecutó el cambio, cuando está disponible. |
+| `cambiado_por_username` | Nombre de usuario que ejecutó el cambio. |
+| `motivo` | Motivo del cambio, obligatorio. |
+| `fecha_cambio` | Fecha del cambio. |
+
+Relaciones:
+
+```text
+usuario_cambio_perfil_historial -> usuario_sistema
+usuario_cambio_perfil_historial -> rol anterior
+usuario_cambio_perfil_historial -> rol nuevo
+usuario_cambio_perfil_historial -> usuario que cambió
+```
 
 ### `password_reset_token`
 
@@ -144,16 +191,189 @@ PasswordResetToken
 
 Propósito:
 
-Administra tokens de recuperación de contraseña.
+Soporta el flujo de recuperación y restablecimiento de contraseña.
 
-Reglas generales:
+Campos principales:
 
-- no almacena el token plano;
-- guarda hash del token;
-- controla expiración;
-- controla si fue usado.
+| Columna | Uso |
+|---|---|
+| `token_hash` | Hash del token, único. |
+| `usuario_sistema_id` | Usuario propietario del token. |
+| `fecha_creacion` | Momento de creación. |
+| `fecha_expiracion` | Momento máximo de uso. |
+| `usado` | Marca de consumo del token. |
+| `fecha_uso` | Fecha en que fue usado, si aplica. |
 
-## 2. Catálogos generales
+## 2. Perfiles internos
+
+Los perfiles internos almacenan información funcional de los usuarios del consultorio. Cada perfil puede asociarse a un `UsuarioSistema` mediante relación uno a uno.
+
+### `administrativo`
+
+Entidad:
+
+```text
+Administrativo
+```
+
+Propósito:
+
+Representa personal administrativo del consultorio jurídico.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `usuario_sistema_id` | Usuario de acceso asociado. |
+| `nombre` | Nombre completo. |
+| `tipo_documento` | Tipo de documento. |
+| `documento` | Documento único. |
+| `email` | Correo único. |
+| `telefono` | Teléfono único. |
+| `usuario` | Usuario interno único. |
+| `codigo` | Código único. |
+| `sede_id` | Sede asociada. |
+| `activo` | Estado lógico del perfil. |
+| `directora` | Marca funcional de dirección. |
+
+Relaciones:
+
+```text
+administrativo -> usuario_sistema
+administrativo -> tipo_documento
+administrativo -> sede
+```
+
+### `asesor`
+
+Entidad:
+
+```text
+Asesor
+```
+
+Propósito:
+
+Representa asesor jurídico del consultorio. Participa en consultas, estudiantes y alcance de atención.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `usuario_sistema_id` | Usuario de acceso asociado. |
+| `nombre`, `documento`, `email`, `telefono`, `usuario`, `codigo` | Datos únicos del perfil. |
+| `tipo_documento` | Catálogo de documento. |
+| `sede_id` | Sede del asesor. |
+| `area_id` | Área jurídica de atención. |
+| `activo` | Disponibilidad lógica. |
+
+Relaciones:
+
+```text
+asesor -> usuario_sistema
+asesor -> tipo_documento
+asesor -> sede
+asesor -> area
+asesor -> estudiante
+asesor -> consulta
+```
+
+Regla persistente documentada por servicios:
+
+- un asesor con consultas operativas directas o asociadas a sus estudiantes no se desactiva desde los servicios de comando.
+
+### `monitor`
+
+Entidad:
+
+```text
+Monitor
+```
+
+Propósito:
+
+Representa monitor del consultorio jurídico.
+
+Relaciones:
+
+```text
+monitor -> usuario_sistema
+monitor -> tipo_documento
+monitor -> sede
+monitor -> consulta
+```
+
+Regla persistente documentada por servicios:
+
+- un monitor con consultas operativas asignadas no se desactiva desde los servicios de comando.
+
+### `estudiante`
+
+Entidad:
+
+```text
+Estudiante
+```
+
+Propósito:
+
+Representa estudiante vinculado al consultorio y relacionado con asesor, consultas, seguimientos y conciliaciones.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `usuario_sistema_id` | Usuario de acceso asociado. |
+| `asesor_id` | Asesor responsable. |
+| `conciliacion` | Indica habilitación para conciliación. |
+| `activo` | Disponibilidad lógica. |
+
+Relaciones:
+
+```text
+estudiante -> usuario_sistema
+estudiante -> tipo_documento
+estudiante -> sede
+estudiante -> asesor
+estudiante -> consulta
+estudiante -> seguimiento_respuesta
+estudiante -> conciliacion
+```
+
+Reglas persistentes documentadas por servicios:
+
+- un estudiante con consultas operativas asignadas no se desactiva desde los servicios de comando;
+- `conciliacion` habilita participación en asignación de conciliaciones cuando el flujo lo requiere.
+
+### `conciliador`
+
+Entidad:
+
+```text
+Conciliador
+```
+
+Propósito:
+
+Representa conciliador interno o externo que puede ser asignado a conciliaciones.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `tipo_conciliador` | Enum `INTERNO` o `EXTERNO`. |
+| `activo` | Disponibilidad lógica. |
+
+Relaciones:
+
+```text
+conciliador -> usuario_sistema
+conciliador -> tipo_documento
+conciliador -> sede
+conciliador -> conciliacion
+```
+
+## 3. Catálogos generales
 
 ### `area`
 
@@ -165,15 +385,14 @@ Area
 
 Propósito:
 
-Agrupa temas jurídicos.
+Catálogo de áreas jurídicas. Se relaciona con temas, asesores y consultas.
 
 Campos:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
 | `nombre` | Nombre único del área. |
-| `activo` | Estado lógico. |
+| `activo` | Disponibilidad lógica. |
 
 Relaciones:
 
@@ -193,24 +412,19 @@ Tema
 
 Propósito:
 
-Clasifica la consulta dentro de un área.
+Catálogo de temas asociados a un área.
 
-Campos:
-
-| Columna | Uso |
-|---|---|
-| `id` | Identificador. |
-| `nombre` | Nombre del tema. |
-| `activo` | Estado lógico. |
-| `area_id` | Área asociada. |
-
-Relaciones:
+Relación:
 
 ```text
 tema -> area
 tema -> tipo
 tema -> consulta
 ```
+
+Regla aplicada por servicios:
+
+- el tema seleccionado para una consulta debe pertenecer al área de la consulta.
 
 ### `tipo`
 
@@ -222,81 +436,18 @@ Tipo
 
 Propósito:
 
-Clasifica la consulta dentro de un tema.
+Catálogo de tipos asociados a un tema.
 
-Campos:
-
-| Columna | Uso |
-|---|---|
-| `id` | Identificador. |
-| `nombre` | Nombre del tipo. |
-| `activo` | Estado lógico. |
-| `tema_id` | Tema asociado. |
-
-Relaciones:
+Relación:
 
 ```text
 tipo -> tema
 tipo -> consulta
 ```
 
-### `departamento`
+Regla aplicada por servicios:
 
-Entidad:
-
-```text
-Departamento
-```
-
-Propósito:
-
-Catálogo territorial para municipios y procesos.
-
-Relaciones:
-
-```text
-departamento -> municipio
-departamento -> proceso
-```
-
-### `municipio`
-
-Entidad:
-
-```text
-Municipio
-```
-
-Propósito:
-
-Catálogo territorial asociado a departamento.
-
-Relaciones:
-
-```text
-municipio -> departamento
-municipio -> barrio
-municipio -> persona
-```
-
-### `barrio`
-
-Entidad:
-
-```text
-Barrio
-```
-
-Propósito:
-
-Catálogo territorial asociado a municipio.
-
-Relaciones:
-
-```text
-barrio -> municipio
-barrio -> persona
-```
+- el tipo seleccionado debe pertenecer al tema de la consulta.
 
 ### `sede`
 
@@ -308,60 +459,57 @@ Sede
 
 Propósito:
 
-Representa sedes del sistema y se relaciona con perfiles y consultas.
+Catálogo de sedes del consultorio y sedes de reunión.
 
 Relaciones:
 
 ```text
+sede -> perfiles
 sede -> consulta
-sede -> administrativo
-sede -> asesor
-sede -> estudiante
-sede -> monitor
-sede -> conciliador
+sede -> reunion_conciliacion
+sede -> reunion_conciliacion_historial
 ```
 
-### `tipodoc`
+### Catálogos geográficos
 
-Entidad:
-
-```text
-TipoDocumento
-```
-
-Propósito:
-
-Catálogo de tipos de documento para perfiles y usuarios internos.
-
-Relaciones:
+Entidades:
 
 ```text
-tipodoc -> administrativo
-tipodoc -> asesor
-tipodoc -> estudiante
-tipodoc -> monitor
-tipodoc -> conciliador
-```
-
-### `nacionalidades`
-
-Entidad:
-
-```text
+Departamento
+Municipio
+Barrio
 Nacionalidad
 ```
 
-Propósito:
-
-Catálogo de nacionalidades usado por persona.
-
-Relación:
+Relaciones:
 
 ```text
-nacionalidades -> persona
+departamento -> municipio
+municipio -> barrio
+municipio -> persona
+barrio -> persona
+nacionalidad -> persona
 ```
 
-## 3. Personas y catálogos de persona
+### Catálogos de persona
+
+Entidades:
+
+```text
+TipoPersona
+Condicion
+Ocupacion
+Empresa
+TipoDocumento
+```
+
+Uso:
+
+- tipifican datos personales;
+- normalizan formularios;
+- permiten mantener consistencia en personas y perfiles.
+
+## 4. Personas
 
 ### `persona`
 
@@ -373,202 +521,38 @@ Persona
 
 Propósito:
 
-Almacena información de personas relacionadas con consultas jurídicas y otros flujos.
+Representa personas atendidas o relacionadas con una consulta jurídica.
 
-Bloques de información:
+Grupos de información observados en la entidad:
 
-| Bloque | Campos principales |
+| Grupo | Contenido |
 |---|---|
-| Identificación | tipo de persona, tipo de documento textual, número de documento, fecha y ciudad de expedición. |
-| Datos personales | nombres, apellidos, nombre identitario, pronombre, sexo, género, orientación sexual, fecha de nacimiento. |
-| Contacto | teléfono, correo. |
+| Identificación | tipo de persona, documento, nombres, apellidos, tipo de documento. |
+| Contacto | correo, teléfono, dirección y ubicación. |
 | Caracterización | nacionalidad, estado civil, escolaridad, grupo étnico, condición actual, lectura/escritura, discapacidad y PCD. |
-| Vivienda | municipio, barrio, dirección, comuna, localidad, estrato, vivienda, zona, tenencia y servicios. |
-| Economía | ocupación, empresa, salario, cargo y datos laborales. |
-| Acudiente | nombre, relación, teléfono, correo y dirección. |
-| Servicio | cómo se enteró y relación con universidad. |
-| Control | activo. |
+| Vivienda | estrato, tipo de vivienda, zona, tenencia, servicios. |
+| Laboral | ocupación, empresa, salario, cargo, teléfono y dirección de empresa. |
+| Acudiente | datos de acudiente cuando aplica. |
+| Vinculación | cómo se enteró y relación con universidad. |
+| Control | `activo`. |
 
-Relaciones principales:
+Relaciones:
 
 ```text
 persona -> tipo_persona
-persona -> nacionalidades
+persona -> tipo_documento
+persona -> nacionalidad
 persona -> condicion
 persona -> municipio
 persona -> barrio
 persona -> ocupacion
-persona -> empresas
+persona -> empresa
 persona -> consulta como persona principal
 persona -> consulta_parte
 persona -> consulta_contraparte
 ```
 
-### `tipo_persona`
-
-Entidad:
-
-```text
-TipoPersona
-```
-
-Propósito:
-
-Clasifica personas.
-
-### `condicion`
-
-Entidad:
-
-```text
-Condicion
-```
-
-Propósito:
-
-Catálogo de condición actual de persona.
-
-### `empresas`
-
-Entidad:
-
-```text
-Empresa
-```
-
-Propósito:
-
-Catálogo de empresas asociadas a datos laborales.
-
-### `ocupacion`
-
-Entidad:
-
-```text
-Ocupacion
-```
-
-Propósito:
-
-Catálogo de ocupaciones asociadas a datos económicos.
-
-## 4. Perfiles internos
-
-Los perfiles internos representan actores operativos del consultorio jurídico.
-
-Todos tienen relación opcional uno a uno con `usuario_sistema` mediante `usuario_sistema_id`.
-
-La relación es nullable en las entidades para permitir migración de datos existentes sin romper el arranque.
-
-### `administrativo`
-
-Entidad:
-
-```text
-Administrativo
-```
-
-Campos principales:
-
-| Columna | Uso |
-|---|---|
-| `usuario_sistema_id` | Usuario asociado. |
-| `nombre` | Nombre. |
-| `tipo_documento` | Tipo de documento. |
-| `documento` | Documento único. |
-| `email` | Correo único. |
-| `telefono` | Teléfono único. |
-| `usuario` | Usuario único. |
-| `codigo` | Código único. |
-| `sede` | Sede. |
-| `activo` | Estado lógico. |
-| `directora` | Marca de directora. |
-
-### `asesor`
-
-Entidad:
-
-```text
-Asesor
-```
-
-Campos específicos:
-
-| Columna | Uso |
-|---|---|
-| `area_id` | Área jurídica asociada. |
-
-Relaciones:
-
-```text
-asesor -> area
-asesor -> estudiante
-asesor -> consulta
-```
-
-### `estudiante`
-
-Entidad:
-
-```text
-Estudiante
-```
-
-Campos específicos:
-
-| Columna | Uso |
-|---|---|
-| `asesor_id` | Asesor asociado. |
-| `conciliacion` | Habilitación para conciliaciones. |
-
-Relaciones:
-
-```text
-estudiante -> asesor
-estudiante -> consulta
-estudiante -> seguimiento_respuesta
-estudiante -> conciliacion
-```
-
-### `monitor`
-
-Entidad:
-
-```text
-Monitor
-```
-
-Propósito:
-
-Perfil operativo asociado a consultas y seguimientos según reglas de alcance.
-
-Relaciones:
-
-```text
-monitor -> consulta
-```
-
-### `conciliador`
-
-Entidad:
-
-```text
-Conciliador
-```
-
-Campos específicos:
-
-| Columna | Uso |
-|---|---|
-| `tipo_conciliador` | Enum `INTERNO` o `EXTERNO`. |
-
-Relaciones:
-
-```text
-conciliador -> conciliacion
-```
-
-## 5. Consultas jurídicas
+## 5. Consultas
 
 ### `consulta`
 
@@ -580,36 +564,38 @@ Consulta
 
 Propósito:
 
-Representa el caso o consulta jurídica principal.
+Representa el caso o atención jurídica principal del sistema.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
-| `fecha` | Fecha de consulta. |
+| `fecha` | Fecha de la consulta. |
 | `descripcion` | Descripción breve. |
-| `hechos` | Relato de hechos. |
-| `pretensiones` | Pretensiones. |
-| `concepto_juridico` | Concepto jurídico. |
-| `tramite` | Trámite. |
-| `observaciones` | Observaciones. |
-| `tipo_violencia` | Clasificación adicional. |
-| `estado` | Estado funcional de consulta. |
-| `resultado` | Resultado o conclusión. |
+| `hechos` | Hechos del caso. |
+| `pretensiones` | Pretensiones de la consulta. |
+| `concepto_juridico` | Concepto jurídico registrado. |
+| `tramite` | Trámite definido. |
+| `observaciones` | Observaciones complementarias. |
+| `tipo_violencia` | Clasificación opcional relacionada. |
+| `estado` | Estado funcional de la consulta. |
+| `resultado` | Conclusión o resultado funcional de cierre. |
+| `last_updated_at` | Fecha de última actualización usada también por reportes. |
 | `persona_id` | Persona principal. |
-| `sede_id` | Sede. |
-| `area_id` | Área. |
-| `tema_id` | Tema. |
+| `sede_id` | Sede asociada. |
+| `area_id` | Área jurídica. |
+| `tema_id` | Tema jurídico. |
 | `tipo_id` | Tipo jurídico. |
-| `asesor_id` | Asesor responsable. |
-| `monitor_id` | Monitor responsable. |
-| `estudiante_id` | Estudiante responsable. |
+| `asesor_id` | Asesor asignado. |
+| `monitor_id` | Monitor asignado. |
+| `estudiante_id` | Estudiante asignado. |
 
 Relaciones:
 
 ```text
-consulta -> persona
+consulta -> persona principal
+consulta -> consulta_parte -> persona
+consulta -> consulta_contraparte -> persona
 consulta -> sede
 consulta -> area
 consulta -> tema
@@ -617,40 +603,27 @@ consulta -> tipo
 consulta -> asesor
 consulta -> monitor
 consulta -> estudiante
-consulta -> seguimiento
 consulta -> proceso
+consulta -> seguimiento
 consulta -> conciliacion
 ```
 
-### `consulta_parte`
-
-Tabla de relación:
+Tablas de relación:
 
 ```text
 consulta_parte
-```
-
-Relaciona consulta con personas que actúan como partes adicionales.
-
-```text
-consulta_parte.consulta_id -> consulta.id
-consulta_parte.persona_id -> persona.id
-```
-
-### `consulta_contraparte`
-
-Tabla de relación:
-
-```text
 consulta_contraparte
 ```
 
-Relaciona consulta con personas que actúan como contrapartes.
+Reglas implementadas por servicios:
 
-```text
-consulta_contraparte.consulta_id -> consulta.id
-consulta_contraparte.persona_id -> persona.id
-```
+- las consultas nuevas se crean en estado `PENDIENTE`;
+- el estado no se cambia mediante edición general;
+- `CERRADO` y `ARCHIVADO` bloquean operaciones operativas;
+- una consulta requiere `resultado` para cerrar;
+- una consulta no se cierra con procesos pendientes, seguimientos pendientes, respuestas pendientes, notificaciones pendientes o conciliaciones pendientes;
+- una consulta con procesos, seguimientos o conciliaciones activas no permite modificar datos estructurales;
+- campos narrativos y complementarios se mantienen editables mientras la consulta permita operación.
 
 ## 6. Seguimientos
 
@@ -664,7 +637,14 @@ CategoriaSeguimiento
 
 Propósito:
 
-Catálogo de categorías para seguimientos.
+Catálogo de categorías para seguimiento.
+
+Campos:
+
+| Columna | Uso |
+|---|---|
+| `nombre` | Nombre único. |
+| `activo` | Disponibilidad lógica. |
 
 ### `seguimiento`
 
@@ -676,22 +656,21 @@ Seguimiento
 
 Propósito:
 
-Representa tarea o actuación asociada a una consulta.
+Representa una tarea, requerimiento o actuación de seguimiento asociada a una consulta.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
-| `descripcion` | Descripción. |
-| `fecha_entrega` | Fecha límite. |
+| `descripcion` | Descripción del seguimiento. |
+| `fecha_entrega` | Fecha límite o de entrega. |
 | `dias_notificacion` | Días previos para recordatorio. |
-| `notificar_partes` | Notifica partes. |
-| `notificar_estudiante` | Notifica y muestra al estudiante. |
-| `alerta_disciplinaria` | Marca alerta disciplinaria. |
+| `notificar_partes` | Indica notificación a persona principal, partes y contrapartes. |
+| `notificar_estudiante` | Indica visibilidad/notificación al estudiante asignado. |
+| `alerta_disciplinaria` | Indica alerta administrativa/disciplinaria. |
 | `estado` | Estado funcional. |
-| `activo` | Estado lógico. |
-| `categoria_seguimiento` | Categoría. |
+| `activo` | Desactivación lógica. |
+| `categoria_seguimiento` | Categoría asociada. |
 | `consulta` | Consulta asociada. |
 | `autor` | Usuario que creó el seguimiento. |
 | `fecha_creacion` | Fecha de creación. |
@@ -707,6 +686,14 @@ seguimiento -> seguimiento_respuesta
 seguimiento -> seguimiento_notificacion
 ```
 
+Reglas implementadas por servicios:
+
+- un seguimiento nuevo inicia `PENDIENTE`;
+- solo seguimientos pendientes son editables;
+- `notificar_estudiante=true` requiere consulta con estudiante activo asignado;
+- seguimientos pendientes bloquean cierre de consulta;
+- al cancelar o completar se aplican efectos sobre notificaciones pendientes.
+
 ### `seguimiento_respuesta`
 
 Entidad:
@@ -718,6 +705,22 @@ SeguimientoRespuesta
 Propósito:
 
 Respuesta del estudiante a un seguimiento visible.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `seguimiento_id` | Seguimiento respondido. |
+| `estudiante_id` | Estudiante autor de la respuesta. |
+| `contenido` | Contenido de la respuesta. |
+| `estado` | Estado de revisión. |
+| `fuera_plazo` | Indica si se respondió fuera del plazo. |
+| `observacion_revision` | Observación del revisor, obligatoria al rechazar. |
+| `revisado_por_id` | Usuario que revisa. |
+| `fecha_creacion` | Fecha de creación. |
+| `fecha_actualizacion` | Fecha de actualización. |
+| `fecha_decision` | Fecha de aprobación o rechazo. |
+| `activo` | Estado lógico. |
 
 Relaciones:
 
@@ -737,21 +740,28 @@ SeguimientoNotificacion
 
 Propósito:
 
-Controla notificaciones inmediatas y recordatorios de seguimiento.
+Registra notificaciones inmediatas, recordatorios y alertas asociadas a seguimientos.
 
-Relación:
+Campos principales:
 
-```text
-seguimiento_notificacion -> seguimiento
-```
+| Columna | Uso |
+|---|---|
+| `seguimiento_id` | Seguimiento relacionado. |
+| `tipo_notificacion` | `PARTES`, `ESTUDIANTE`, `ALERTA_DISCIPLINARIA` o `AUTOR`. |
+| `momento_notificacion` | `INMEDIATA` o `RECORDATORIO`. |
+| `fecha_programada` | Fecha programada. |
+| `fecha_envio` | Fecha real de envío. |
+| `enviada` | Indica si se envió. |
+| `intentos` | Número de intentos. |
+| `error` | Error de envío. |
+| `activa` | Vigencia de la notificación pendiente. |
+| `fecha_cancelacion` | Fecha de cancelación. |
 
-Restricción única:
+Restricción única observada en entidad:
 
 ```text
 seguimiento_id + tipo_notificacion + momento_notificacion
 ```
-
-Evita duplicar notificaciones equivalentes para un seguimiento.
 
 ## 7. Procesos
 
@@ -765,18 +775,17 @@ Proceso
 
 Propósito:
 
-Representa proceso asociado a una consulta.
+Representa un proceso jurídico asociado a una consulta.
 
-Campos:
+Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
-| `numero_radicado` | Número único de radicado. |
-| `departamento_id` | Departamento. |
+| `numero_radicado` | Radicado único cuando se informa. Puede estar vacío mientras el proceso está `PENDIENTE`; es obligatorio para estados finales. |
+| `departamento_id` | Departamento del proceso. |
 | `consulta_id` | Consulta asociada. |
 | `organo_control_id` | Órgano de control. |
-| `especialidad_id` | Especialidad. |
+| `especialidad_id` | Especialidad asociada al órgano de control. |
 | `estado` | Estado funcional del proceso. |
 | `activo` | Estado lógico. |
 
@@ -789,6 +798,14 @@ proceso -> organo_control
 proceso -> especialidad
 ```
 
+Reglas implementadas por servicios:
+
+- un proceso nuevo inicia `PENDIENTE`;
+- `numero_radicado` puede ser nulo o vacío mientras el proceso esté pendiente;
+- si se informa radicado, debe cumplir la longitud definida por el backend y conservar unicidad;
+- un estado final exige radicado válido;
+- un proceso pendiente bloquea cierre de consulta.
+
 ### `organo_control`
 
 Entidad:
@@ -799,12 +816,13 @@ OrganoControl
 
 Propósito:
 
-Catálogo de órganos de control.
+Catálogo de órganos de control disponibles para procesos.
 
 Relación:
 
 ```text
 organo_control -> especialidad
+organo_control -> proceso
 ```
 
 ### `especialidad`
@@ -826,7 +844,11 @@ especialidad -> organo_control
 especialidad -> proceso
 ```
 
-## 8. Conciliaciones
+Regla implementada:
+
+- una especialidad pertenece a un órgano de control específico.
+
+## 8. Conciliación
 
 ### `conciliacion`
 
@@ -838,24 +860,23 @@ Conciliacion
 
 Propósito:
 
-Representa conciliación asociada a una consulta jurídica.
+Representa trámite de conciliación asociado a una consulta jurídica.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
 | `consulta_id` | Consulta origen. |
 | `estudiante_id` | Estudiante asignado. |
 | `conciliador_id` | Conciliador asignado. |
-| `estado_id` | Estado funcional en catálogo. |
-| `fecha_conciliacion` | Campo heredado. La fecha vigente de reunión se almacena en `reunion_conciliacion.fecha_reunion`. |
-| `documento_solicitud_path` | Ruta de solicitud PDF. |
-| `acta_path` | Ruta de acta PDF. |
-| `solicitado_por_id` | Usuario solicitante. |
+| `estado_id` | Estado de conciliación. |
+| `fecha_conciliacion` | Campo heredado de fecha de conciliación. |
+| `documento_solicitud_path` | Ruta documental de solicitud. |
+| `acta_path` | Ruta documental de acta de finalización. |
+| `solicitado_por_id` | Usuario que solicitó la conciliación. |
 | `fecha_creacion` | Fecha de creación. |
 | `fecha_actualizacion` | Fecha de actualización. |
-| `fecha_finalizacion` | Fecha de finalización. |
+| `fecha_finalizacion` | Fecha funcional de finalización. |
 | `activo` | Estado lógico. |
 
 Relaciones:
@@ -866,7 +887,19 @@ conciliacion -> estudiante
 conciliacion -> conciliador
 conciliacion -> estado_conciliacion
 conciliacion -> usuario_sistema como solicitante
+conciliacion -> reunion_conciliacion
+conciliacion -> reunion_conciliacion_historial
+conciliacion -> reunion_conciliacion_notificacion
 ```
+
+Reglas implementadas por servicios:
+
+- la conciliación nace desde una consulta;
+- no se crea sobre consulta cerrada o archivada;
+- la solicitud PDF se almacena al crear;
+- los estados finales se aplican mediante endpoint de finalización con acta;
+- al finalizar o desactivar conciliación se cancelan notificaciones pendientes de reunión;
+- conciliaciones pendientes bloquean cierre de consulta.
 
 ### `estado_conciliacion`
 
@@ -878,104 +911,26 @@ EstadoConciliacion
 
 Propósito:
 
-Catálogo administrable de estados de conciliación.
+Catálogo funcional de estados de conciliación.
 
 Campos:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador. |
-| `codigo` | Código técnico. |
+| `codigo` | Código técnico único. |
 | `nombre` | Nombre visible. |
-| `activo` | Estado activo. |
+| `activo` | Disponibilidad lógica. |
 | `orden` | Orden de presentación. |
 
-## 9. Auditoría
-
-### `audit_logs`
-
-Entidad:
+Códigos técnicos usados por backend:
 
 ```text
-AuditLog
+EN_ESPERA
+ESPERANDO_REUNION
+REUNION_PROGRAMADA
+COMPLETO_CONCILIADO
+COMPLETO_NO_CONCILIADO
 ```
-
-Propósito:
-
-Registra eventos auditables del backend.
-
-Campos:
-
-| Columna | Uso |
-|---|---|
-| `id` | Identificador. |
-| `username` | Usuario que ejecutó la acción. |
-| `action` | Acción auditada. |
-| `entity_name` | Entidad lógica afectada. |
-| `entity_id` | Identificador de entidad afectada. |
-| `timestamp` | Fecha y hora. |
-| `details` | Detalles técnicos. |
-
-## 10. Relaciones principales del dominio
-
-Vista resumida:
-
-```text
-usuario_sistema -> rol -> permiso
-usuario_sistema -> perfil real
-perfil -> consulta
-persona -> consulta
-consulta -> seguimiento
-consulta -> proceso
-consulta -> conciliacion
-seguimiento -> seguimiento_respuesta
-seguimiento -> seguimiento_notificacion
-proceso -> organo_control -> especialidad
-conciliacion -> estado_conciliacion
-```
-
-## 11. Tablas con desactivación lógica
-
-Usan `activo` o equivalente:
-
-- catálogos;
-- personas;
-- perfiles;
-- roles;
-- permisos;
-- procesos;
-- seguimientos;
-- respuestas de seguimiento;
-- notificaciones;
-- conciliaciones.
-
-## 12. Tablas con estado funcional
-
-Usan campo `estado` o relación a estado:
-
-- `consulta.estado`;
-- `proceso.estado`;
-- `seguimiento.estado`;
-- `seguimiento_respuesta.estado`;
-- `conciliacion.estado_id`.
-
-## 13. Consideraciones de integridad
-
-La integridad se protege mediante:
-
-- llaves foráneas JPA;
-- validaciones de service;
-- validaciones de negocio;
-- estados funcionales;
-- desactivación lógica;
-- relaciones activas;
-- restricciones únicas;
-- permisos y alcance.
-
-
----
-
-## 8.1 Reuniones de conciliación
 
 ### `reunion_conciliacion`
 
@@ -993,24 +948,18 @@ Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `conciliacion_id` | PK y FK hacia `conciliacion.id`. |
-| `fecha_reunion` | Fecha y hora vigente de la reunión. |
-| `sede_id` | Sede donde se realizará la reunión. |
-| `observaciones` | Observaciones opcionales, máximo 300 caracteres. |
+| `conciliacion_id` | Identificador y relación hacia conciliación. |
+| `fecha_reunion` | Fecha y hora vigente. |
+| `sede_id` | Sede de reunión. |
+| `observaciones` | Observaciones opcionales. |
 | `fecha_creacion` | Fecha de creación. |
-| `fecha_actualizacion` | Fecha de última actualización. |
+| `fecha_actualizacion` | Fecha de actualización. |
 
-Relaciones:
+Relación:
 
 ```text
 reunion_conciliacion -> conciliacion
 reunion_conciliacion -> sede
-```
-
-Regla estructural:
-
-```text
-Una conciliación tiene máximo una reunión vigente.
 ```
 
 ### `reunion_conciliacion_historial`
@@ -1023,32 +972,20 @@ ReunionConciliacionHistorial
 
 Propósito:
 
-Registra cada programación y reprogramación de reunión.
+Registra programación y reprogramación de reuniones.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
-| `id` | Identificador del historial. |
 | `conciliacion_id` | Conciliación afectada. |
 | `tipo_evento` | `PROGRAMACION` o `REPROGRAMACION`. |
-| `fecha_reunion_anterior` | Fecha anterior, si aplica. |
-| `fecha_reunion_nueva` | Nueva fecha de reunión. |
-| `sede_anterior_id` | Sede anterior, si aplica. |
+| `fecha_reunion_anterior` | Fecha anterior cuando aplica. |
+| `fecha_reunion_nueva` | Nueva fecha. |
+| `sede_anterior_id` | Sede anterior. |
 | `sede_nueva_id` | Nueva sede. |
-| `observaciones_anteriores` | Observaciones anteriores. |
-| `observaciones_nuevas` | Nuevas observaciones. |
-| `realizado_por_id` | Usuario que ejecutó el cambio. |
+| `realizado_por_id` | Usuario que realizó el cambio. |
 | `fecha_evento` | Fecha del evento. |
-
-Relaciones:
-
-```text
-reunion_conciliacion_historial -> conciliacion
-reunion_conciliacion_historial -> sede anterior
-reunion_conciliacion_historial -> sede nueva
-reunion_conciliacion_historial -> usuario_sistema
-```
 
 ### `reunion_conciliacion_notificacion`
 
@@ -1060,41 +997,165 @@ ReunionConciliacionNotificacion
 
 Propósito:
 
-Registra historial de notificaciones inmediatas, recordatorios y alertas administrativas asociadas a reuniones de conciliación.
+Registra notificaciones inmediatas, recordatorios y alertas administrativas de reuniones de conciliación.
+
+Campos principales:
+
+| Columna | Uso |
+|---|---|
+| `conciliacion_id` | Conciliación relacionada. |
+| `tipo_destinatario` | `CONSULTANTE`, `PARTE`, `CONTRAPARTE` o `ADMINISTRATIVO`. |
+| `motivo` | `PROGRAMACION`, `REPROGRAMACION` o `ERROR_ENVIO`. |
+| `momento_notificacion` | `INMEDIATA` o `RECORDATORIO`. |
+| `destinatario_email` | Correo destino. |
+| `destinatario_nombre` | Nombre destino. |
+| `fecha_programada` | Fecha programada. |
+| `fecha_envio` | Fecha de envío. |
+| `enviada` | Estado de envío. |
+| `intentos` | Número de intentos. |
+| `error` | Error cuando aplica. |
+| `activa` | Vigencia de la notificación. |
+| `fecha_cancelacion` | Fecha de cancelación. |
+
+## 9. Auditoría
+
+### `audit_logs`
+
+Entidad:
+
+```text
+AuditLog
+```
+
+Propósito:
+
+Registra acciones auditables ejecutadas por servicios anotados con `@Auditable`.
 
 Campos principales:
 
 | Columna | Uso |
 |---|---|
 | `id` | Identificador. |
-| `conciliacion_id` | Conciliación relacionada. |
-| `tipo_destinatario` | `CONSULTANTE`, `PARTE`, `CONTRAPARTE` o `ADMINISTRATIVO`. |
-| `motivo` | `PROGRAMACION`, `REPROGRAMACION` o `ERROR_ENVIO`. |
-| `momento_notificacion` | `INMEDIATA` o `RECORDATORIO`. |
-| `destinatario_email` | Correo destino. |
-| `destinatario_nombre` | Nombre del destinatario. |
-| `fecha_programada` | Fecha programada de envío. |
-| `fecha_envio` | Fecha real de envío, si aplica. |
-| `enviada` | Indica si el correo fue enviado. |
-| `intentos` | Número de intentos. |
-| `error` | Error registrado, si aplica. |
-| `fecha_creacion` | Fecha de creación. |
-| `fecha_actualizacion` | Fecha de última actualización. |
-| `activa` | Indica si sigue pendiente o vigente. |
-| `fecha_cancelacion` | Fecha de cancelación, si aplica. |
+| `created_date` | Fecha de creación del registro de auditoría. |
+| `username` | Usuario asociado a la acción. |
+| `action` | Acción auditada. |
+| `entity_name` | Entidad lógica auditada. |
+| `entity_id` | Identificador afectado cuando está disponible. |
+| `details` | Detalle adicional. |
 
-Relación:
+Características:
 
-```text
-reunion_conciliacion_notificacion -> conciliacion
-```
+- la entidad usa listener de auditoría de Spring Data;
+- los campos principales no se actualizan después de registrados;
+- la consulta se expone mediante módulo de auditoría.
 
-## 8.2 Fuente de verdad de fecha de reunión
+## 10. Estadísticas
 
-La fecha vigente de reunión se almacena en:
+El módulo de estadísticas no define una tabla principal propia para reportes. Sus resultados se calculan desde entidades operativas existentes.
+
+Fuentes principales:
 
 ```text
-reunion_conciliacion.fecha_reunion
+consulta
+proceso
+seguimiento
+conciliacion
+perfiles internos
+catálogos relacionados
 ```
 
-El campo `conciliacion.fecha_conciliacion` permanece como campo heredado, pero no es la fuente principal para la HU de reuniones.
+Servicios relacionados:
+
+```text
+EstadisticasQueryService
+EstadisticasRangoQueryService
+EstadisticasPerfilQueryService
+EstadisticasMapperService
+EstadisticasPdfService
+```
+
+Criterio documental:
+
+- las estadísticas derivan de datos persistidos en módulos operativos;
+- `Consulta.lastUpdatedAt` participa en consultas de rango y reportes;
+- los PDF estadísticos se generan como salida del servicio, no como entidad persistente principal documentada aquí.
+
+## 11. Archivos
+
+El almacenamiento de archivos se maneja mediante servicio de archivos. La base de datos conserva rutas en entidades cuando el archivo forma parte del flujo de negocio.
+
+Ejemplos:
+
+| Entidad | Campo documental |
+|---|---|
+| `Conciliacion` | `documento_solicitud_path`. |
+| `Conciliacion` | `acta_path`. |
+
+El módulo de archivos también permite carga, descarga, listado y validación de rutas desde el backend.
+
+## 12. Tablas con desactivación lógica
+
+Usan `activo` o equivalente lógico:
+
+- catálogos;
+- personas;
+- perfiles;
+- roles;
+- permisos;
+- procesos;
+- seguimientos;
+- respuestas de seguimiento;
+- notificaciones de seguimiento;
+- conciliaciones;
+- notificaciones de reunión;
+- usuarios del sistema.
+
+## 13. Tablas con estado funcional
+
+Usan campo `estado` o relación a estado:
+
+- `consulta.estado`;
+- `proceso.estado`;
+- `seguimiento.estado`;
+- `seguimiento_respuesta.estado`;
+- `conciliacion.estado_id`.
+
+## 14. Relaciones transversales principales
+
+```text
+usuario_sistema -> rol -> rol_permiso -> permiso
+usuario_sistema -> perfil actual según tipo_perfil_actual
+perfil interno -> usuario_sistema
+asesor -> estudiante
+consulta -> persona principal
+consulta -> partes y contrapartes
+consulta -> sede, área, tema y tipo
+consulta -> asesor, monitor y estudiante
+consulta -> proceso
+consulta -> seguimiento
+consulta -> conciliacion
+seguimiento -> respuesta
+seguimiento -> notificacion
+conciliacion -> estado_conciliacion
+conciliacion -> reunion vigente
+conciliacion -> historial de reunión
+conciliacion -> notificacion de reunión
+audit_logs registra acciones de servicios auditables
+```
+
+## 15. Consideraciones de integridad
+
+La integridad se protege mediante:
+
+- relaciones JPA;
+- campos obligatorios en entidades;
+- validación de catálogos activos;
+- validación de jerarquía área-tema-tipo;
+- validación de responsables asignados;
+- bloqueo de operaciones sobre consultas cerradas o archivadas;
+- bloqueo de cierre de consulta con pendientes;
+- bloqueo de cambio estructural de consulta con actividad asociada;
+- validación condicional de radicado en procesos;
+- sincronización entre perfil y usuario del sistema;
+- estrategias para cambio y resolución de perfil activo;
+- auditoría de acciones relevantes.

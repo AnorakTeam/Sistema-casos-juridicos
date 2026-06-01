@@ -2,34 +2,33 @@
 
 Esta carpeta documenta las reglas de negocio vigentes del sistema de gestión de casos jurídicos.
 
-Las reglas descritas corresponden al comportamiento implementado en backend y deben mantenerse alineadas con el código fuente.
+Las reglas descritas corresponden al comportamiento implementado en backend. El frontend puede ayudar a orientar al usuario, pero las validaciones críticas se aplican en los servicios de backend.
 
 ## Índice
 
 | Documento | Contenido |
 |---|---|
-| `consultas.md` | Reglas de creación, actualización, estados, responsables, archivo y cierre de consultas. |
-| `seguimientos.md` | Reglas de seguimientos, respuestas, revisión y notificaciones. |
-| `procesos.md` | Reglas de procesos, estados, radicado, catálogos y relación con consultas. |
-| `conciliaciones.md` | Reglas de conciliación, responsables, estados, documentos y alcance. |
-| `permisos.md` | Reglas de permisos, roles, alcance y autorización. |
-| `archivos.md` | Reglas de carga, descarga, rutas y seguridad de archivos. |
+| `consultas.md` | Reglas de creación, responsables, estados, cierre, archivo y trazabilidad de consultas. |
+| `procesos.md` | Reglas de procesos, radicado, estados, órganos de control y especialidades. |
+| `seguimientos.md` | Reglas de seguimientos, respuestas, revisión, visibilidad y notificaciones. |
+| `conciliaciones.md` | Reglas de conciliación, responsables, reuniones, actas, estados y notificaciones. |
+| `permisos.md` | Reglas de roles, permisos, alcance y perfiles activos. |
+| `estadisticas.md` | Reglas de acceso y cálculo de estadísticas operativas. |
+| `archivos.md` | Reglas de carga, descarga, rutas, seguridad documental y archivos de conciliación. |
 
 ## Principios generales
 
-Las reglas de negocio del sistema siguen estos principios:
-
-- las reglas críticas se validan en backend;
-- el frontend puede ocultar acciones, pero no reemplaza la validación del backend;
-- las operaciones protegidas requieren usuario autenticado;
-- los permisos funcionales se complementan con validaciones de alcance;
-- el estado funcional de un recurso no debe confundirse con su estado lógico activo/inactivo;
-- los cambios de ciclo de vida se hacen mediante endpoints específicos;
-- los datos históricos se conservan mediante desactivación lógica o estados de archivo cuando corresponde.
+- Las reglas críticas se validan en backend.
+- El frontend organiza formularios y navegación, pero no reemplaza las validaciones del backend.
+- Los permisos funcionales se complementan con validaciones de alcance.
+- Los estados funcionales se cambian mediante endpoints específicos.
+- El campo `activo` se usa para disponibilidad operativa o desactivación lógica según entidad.
+- Las operaciones históricas conservan trazabilidad.
+- Los documentos y archivos se gestionan con rutas controladas.
 
 ## Estado funcional y activo lógico
 
-El sistema diferencia:
+El sistema diferencia entre estado funcional y activo lógico.
 
 | Concepto | Uso |
 |---|---|
@@ -38,26 +37,23 @@ El sistema diferencia:
 
 Ejemplos:
 
-- una consulta usa estado `PENDIENTE`, `ACTIVO`, `CERRADO` o `ARCHIVADO`;
-- un proceso usa estado `PENDIENTE` o estados finales jurídicos;
-- una conciliación usa estados del catálogo `estado_conciliacion`;
-- perfiles, catálogos y algunos registros usan `activo` para desactivación lógica.
+- una consulta usa estados como `PENDIENTE`, `ACTIVO`, `EN_PROCESO`, `URGENTE`, `CERRADO` y `ARCHIVADO`;
+- un proceso usa `PENDIENTE` y estados finales como `SENTENCIA_FAVORABLE`, `RECHAZO`, `SENTENCIA_DESFAVORABLE` o `CONCILIACION`;
+- una conciliación usa estados técnicos del catálogo `estado_conciliacion`;
+- perfiles, catálogos, seguimientos y otros registros usan `activo` para disponibilidad operativa.
 
-## Actualización de documentación ante cambios
+## Relación con documentación técnica
 
-Cuando una regla de negocio cambie en el código, deben revisarse los documentos relacionados.
+Las reglas de esta carpeta se complementan con:
 
-Ejemplos de impacto:
-
-| Cambio en código | Documentos a revisar |
+| Carpeta | Relación |
 |---|---|
-| Cambio en reglas de consulta | `reglas/consultas.md`, `backend/consultas.md`, `api/consultas.md`. |
-| Cambio en reglas de seguimiento | `reglas/seguimientos.md`, `backend/seguimientos.md`, `api/seguimientos.md`. |
-| Cambio en reglas de proceso | `reglas/procesos.md`, `backend/procesos.md`, `api/procesos.md`. |
-| Cambio en reglas de conciliación | `reglas/conciliaciones.md`, `backend/conciliaciones.md`, `api/conciliaciones.md`. |
-| Cambio en permisos o alcance | `reglas/permisos.md`, `04-permisos-roles-alcance.md`, documentos API afectados. |
-| Cambio en rutas o archivos | `reglas/archivos.md`, `backend/archivos.md`, `api/archivos.md`. |
+| `backend/` | Describe cómo se implementan las reglas en servicios, validadores y repositorios. |
+| `api/` | Expone cómo se invocan las reglas desde endpoints REST. |
+| `frontend/` | Describe cómo se presentan los formularios y acciones al usuario. |
+| `base-datos/` | Documenta entidades, relaciones, estados y catálogos vinculados. |
+| `decisiones/` | Explica decisiones de diseño relacionadas con reglas transversales. |
 
-## Seguridad documental
+## Mantenimiento de reglas
 
-Estos documentos no deben incluir valores reales de secretos, contraseñas, tokens, llaves, firmas, credenciales, cadenas de conexión o usuarios reales de prueba.
+Cuando una regla cambie en el código, se revisan los documentos relacionados en `reglas/`, `backend/` y `api/`. Si el cambio también afecta formularios o navegación, se revisa la sección correspondiente en `frontend/`.

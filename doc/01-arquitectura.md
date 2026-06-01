@@ -1,18 +1,19 @@
 # Arquitectura del sistema
 
-El sistema está organizado como una aplicación web con backend en Spring Boot y frontend en Next.js.
+## Vista general
 
-La arquitectura prioriza separación de responsabilidades, control de permisos, reglas de negocio en backend y configuración segura mediante variables de entorno.
-
-## Arquitectura del backend
-
-El backend se encuentra en:
+El proyecto se divide en dos aplicaciones principales:
 
 ```text
-backend/app
+backend/app   API REST, reglas de negocio, seguridad, persistencia y reportes.
+frontend      Aplicación web Next.js consumidora de la API.
 ```
 
-Paquetes principales:
+La arquitectura favorece separación de responsabilidades. El backend contiene controllers, DTOs, models, repositories, services, validators, mappers, access services, configuración de seguridad, auditoría, almacenamiento de archivos y schedulers. El frontend contiene rutas, componentes, formularios, navegación, utilidades de API y componentes visuales.
+
+## Arquitectura backend
+
+La estructura principal del backend se organiza así:
 
 ```text
 co.edu.ufps.legal_cases
@@ -24,11 +25,9 @@ co.edu.ufps.legal_cases
   security
 ```
 
-## Paquete `business`
+### Paquete `business`
 
-Contiene los módulos funcionales del sistema.
-
-Estructura general:
+Contiene la lógica principal del consultorio jurídico:
 
 ```text
 business/controller
@@ -37,219 +36,201 @@ business/model
 business/repository
 business/scheduler
 business/service
-business/service/acceso
 ```
 
-### Controller
+Los módulos de negocio identificados en código son:
 
-Expone endpoints HTTP.
+- catálogos;
+- personas;
+- perfiles;
+- consultas;
+- procesos;
+- seguimientos;
+- respuestas de seguimiento;
+- conciliaciones;
+- reuniones de conciliación;
+- estadísticas.
 
-Responsabilidades:
+### Paquete `security`
 
-- recibir parámetros, cuerpos JSON o archivos;
-- aplicar anotaciones de autorización cuando corresponde;
-- delegar en services;
-- devolver DTOs o respuestas HTTP.
+Contiene autenticación, autorización, JWT, roles, permisos, usuarios del sistema, cambio de perfil y resolución del perfil activo.
 
-No debe contener reglas de negocio complejas ni consultas directas a repositorios.
-
-### DTO
-
-Representa datos de entrada y salida.
-
-Convenciones:
-
-- DTOs de entrada pueden usar validaciones con Jakarta Validation;
-- DTOs de salida no requieren validaciones;
-- los DTOs evitan exponer entidades completas.
-
-### Model
-
-Representa entidades persistentes del dominio.
-
-Las entidades definen relaciones JPA, estados, campos de control y estructura de persistencia.
-
-### Repository
-
-Encapsula acceso a datos con Spring Data JPA.
-
-No debe decidir permisos ni reglas de negocio de alto nivel.
-
-### Service
-
-Orquesta casos de uso.
-
-En módulos complejos se separan responsabilidades en:
-
-- service fachada;
-- command service;
-- query service;
-- validator;
-- mapper;
-- relation service;
-- access service;
-- alcance service.
-
-### Validator
-
-Centraliza reglas de negocio propias del módulo.
-
-Ejemplos:
-
-- validar duplicados;
-- validar estados;
-- validar datos obligatorios;
-- validar coherencia entre relaciones;
-- validar que un recurso pueda operar.
-
-No valida permisos ni alcance.
-
-### Mapper
-
-Convierte entidades a DTOs y DTOs a entidades cuando corresponde.
-
-No debe consultar repositorios ni validar permisos.
-
-### AccessService
-
-Valida permisos funcionales y acceso a acciones específicas.
-
-### AlcanceService
-
-Valida si el usuario actual está relacionado con el recurso concreto.
-
-Este patrón permite separar:
-
-```text
-permiso funcional
-alcance real
-regla de negocio
-persistencia
-mapeo
-```
-
-## Paquete `security`
-
-Contiene autenticación, autorización, usuarios del sistema, roles y permisos.
-
-Componentes principales:
+Elementos relevantes:
 
 - `AuthController`;
-- `AuthService`;
-- `JwtService`;
+- `UsuarioSistemaController`;
+- `RolController`;
+- `PermisoController`;
 - `JwtAuthenticationFilter`;
-- `UsuarioActualService`;
-- `PermisoNombre`;
-- `SecurityDataInitializer`;
-- repositories de usuarios, roles y permisos.
+- `JwtService`;
+- `AuthService`;
+- `UsuarioCambioPerfilService`;
+- estrategias de cambio de perfil;
+- estrategias de estado de perfil;
+- estrategias de resolución de perfil activo.
 
-## Paquete `common`
+### Paquete `audit`
 
-Contiene componentes transversales:
+Implementa auditoría mediante AOP:
 
-- excepciones de negocio;
-- DTO estándar de error;
-- manejador global de excepciones;
-- utilidades de normalización;
-- servicios de correo.
+- `Auditable` marca métodos de servicio auditables;
+- `AuditAspect` intercepta ejecuciones exitosas;
+- `AuditLogService` persiste eventos;
+- `AuditLogController` expone consulta paginada.
 
-## Paquete `config`
+### Paquete `file_storage`
 
-Contiene configuración de seguridad, CORS y datos iniciales.
+Implementa carga, descarga, listado y administración de archivos.
 
-## Paquete `file_storage`
+### Paquete `common`
 
-Contiene manejo de archivos:
+Contiene utilidades compartidas, excepciones y el manejador global de errores.
 
-- carga de archivos;
-- carga múltiple;
-- listado;
-- descarga;
-- rutas controladas por backend;
-- validación básica de rutas.
+## Patrón de capas del backend
 
-## Paquete `audit`
-
-Contiene auditoría mediante AOP.
-
-Componentes principales:
-
-- anotación `Auditable`;
-- aspecto `AuditAspect`;
-- entidad `AuditLog`;
-- controller y service de consulta de auditoría.
-
-## Arquitectura del frontend
-
-El frontend se encuentra en:
+La capa típica por módulo sigue este flujo:
 
 ```text
-frontend
+Controller -> Service/Fachada -> CommandService/QueryService -> Validator/Mapper -> Repository -> Entity
 ```
 
-Estructura principal:
+No todos los módulos tienen exactamente los mismos nombres, pero el patrón general está presente.
+
+### Controllers
+
+Exponen endpoints REST, reciben DTOs, parámetros y archivos, y delegan en servicios. También aplican `@PreAuthorize` para autorización por permisos.
+
+### Services
+
+Agrupan lógica de negocio. En módulos complejos se separan responsabilidades:
+
+- CommandService para operaciones de escritura;
+- QueryService para consultas;
+- Validator para reglas de negocio;
+- Mapper para conversión entidad/DTO;
+- AccessService para permisos y alcance.
+
+### Repositories
+
+Usan Spring Data JPA para acceso a base de datos. Algunos repositories incluyen consultas derivadas y consultas orientadas a estadísticas.
+
+### DTOs
+
+Definen contratos de entrada y salida. Los DTOs se validan con Jakarta Validation y con validadores de negocio cuando la regla requiere contexto.
+
+## Estrategias de perfil
+
+El código fuente implementa Strategy en tres zonas de seguridad/perfil:
+
+### Cambio hacia nuevo perfil
+
+Se usan handlers de cambio de perfil:
 
 ```text
-src/app
-src/components
-src/components/forms
-src/components/navigation
-src/components/ui
-src/hooks
-src/lib
+PerfilCambioHandler
+PerfilCambioHandlerRegistry
+CambiarAAdministrativoHandler
+CambiarAAsesorHandler
+CambiarAConciliadorHandler
+CambiarAEstudianteHandler
+CambiarAMonitorHandler
 ```
 
-### `src/app`
+Cada handler conoce cómo construir o actualizar el perfil destino.
 
-Contiene rutas de Next.js.
+### Desactivación del perfil anterior
 
-Se organiza con rutas públicas y rutas bajo layout de dashboard.
+Se usan handlers de estado:
 
-### `src/components`
-
-Contiene componentes reutilizables.
-
-### `src/components/forms`
-
-Contiene formularios por módulo.
-
-### `src/components/navigation`
-
-Contiene navegación del sistema y filtrado de opciones por permisos.
-
-### `src/lib/config.js`
-
-Centraliza URLs de API:
-
-```javascript
-API_URL_BASE
-FILE_STORAGE_API_URL_BASE
+```text
+PerfilEstadoHandler
+PerfilEstadoHandlerRegistry
+AdministrativoPerfilEstadoHandler
+AsesorPerfilEstadoHandler
+ConciliadorPerfilEstadoHandler
+EstudiantePerfilEstadoHandler
+MonitorPerfilEstadoHandler
 ```
 
-### `src/lib/permission.js`
+Esto evita que el servicio orquestador tenga lógica condicional por tipo de perfil y permite aplicar reglas específicas, como validar consultas operativas antes de desactivar asesores, estudiantes o monitores.
 
-Centraliza nombres de permisos usados por frontend.
+### Resolución del perfil activo
 
-### `src/lib/authz.js`
+Se usan resolvers de perfil activo:
 
-Contiene helpers para evaluar permisos, roles y perfiles en frontend.
-
-## Relación backend/frontend
-
-El frontend consume endpoints del backend mediante `fetch`.
-
-Las peticiones protegidas usan:
-
-```javascript
-credentials: "include"
+```text
+PerfilUsuarioActivoResolver
+PerfilUsuarioActivoResolverRegistry
+AdministrativoPerfilUsuarioActivoResolver
+AsesorPerfilUsuarioActivoResolver
+ConciliadorPerfilUsuarioActivoResolver
+EstudiantePerfilUsuarioActivoResolver
+MonitorPerfilUsuarioActivoResolver
 ```
 
-El backend valida la cookie de sesión y carga permisos en el contexto de seguridad.
+Cada resolver busca el perfil activo del usuario en su repositorio correspondiente.
 
-## Convenciones arquitectónicas
+## Arquitectura frontend
 
-- El backend valida reglas críticas.
-- El frontend mejora experiencia y visibilidad, pero no reemplaza seguridad.
-- Las reglas por rol y alcance se validan en backend.
-- Los permisos se centralizan por nombre.
-- Los documentos y archivos se reciben mediante `multipart/form-data` cuando corresponde.
+El frontend usa Next.js con App Router.
+
+Estructura principal observada:
+
+```text
+frontend/src/app
+frontend/src/components
+frontend/src/hooks
+frontend/src/lib
+```
+
+### Rutas
+
+Las páginas se ubican en `src/app`. Las rutas del dashboard se agrupan bajo `src/app/(dashboard)`.
+
+### Componentes
+
+Los componentes se organizan en:
+
+- `components/auth` para autenticación;
+- `components/navigation` para navegación por permisos;
+- `components/forms` para formularios de módulos;
+- `components/forms/parts` para controles reutilizables;
+- `components/ui` para componentes visuales base.
+
+### Configuración de API
+
+La configuración de URLs está centralizada en `src/lib/config.js`. El cliente HTTP de apoyo está en `src/lib/apiClient.js`, y el manejo de errores HTTP se apoya en `src/lib/api.js`.
+
+## Arquitectura de seguridad
+
+La seguridad del backend usa:
+
+- Spring Security;
+- JWT;
+- cookie HTTP-only;
+- filtro `JwtAuthenticationFilter`;
+- autorización por `@PreAuthorize`;
+- validadores de permisos y alcance por servicio;
+- CORS configurable por propiedades.
+
+Los endpoints públicos son los de login, logout, solicitud/restablecimiento de contraseña y documentación OpenAPI. El resto requiere autenticación, salvo excepciones declaradas en configuración.
+
+## Arquitectura de estadísticas
+
+El módulo de estadísticas se organiza con fachada y servicios especializados:
+
+```text
+EstadisticasController
+EstadisticasService
+EstadisticasQueryService
+EstadisticasRangoQueryService
+EstadisticasPerfilQueryService
+EstadisticasMapperService
+EstadisticasPdfService
+```
+
+El controller expone estadísticas por semestre, rango y perfil. El servicio PDF genera reportes descargables.
+
+## Schedulers
+
+El código contiene schedulers para procesar notificaciones pendientes de seguimiento y conciliación. La configuración de recordatorios de seguimiento usa la propiedad `app.seguimiento.notificaciones.cron`.

@@ -1,23 +1,24 @@
 # Estados y catálogos
 
-Este documento describe estados funcionales, enumeraciones y catálogos principales del sistema.
+Este documento describe estados funcionales, enums y catálogos usados por el sistema. La información fue contrastada con enums, entidades JPA, controladores y servicios del código fuente actual.
 
-## 1. Diferencia entre estado funcional y activo lógico
+## 1. Estado funcional y activo lógico
 
 El sistema separa dos conceptos:
 
 | Concepto | Propósito |
 |---|---|
-| Estado funcional | Representa ciclo operativo o resultado del recurso. |
-| Activo lógico | Representa disponibilidad o desactivación lógica sin eliminar historial. |
+| Estado funcional | Representa el ciclo operativo o resultado del recurso. |
+| Activo lógico | Representa disponibilidad o desactivación sin eliminar historial. |
 
 Ejemplos:
 
-- una consulta usa `estado` para su ciclo operativo;
-- un proceso usa `estado` para resultado del proceso y `activo` para borrado lógico;
-- un seguimiento usa `estado` y `activo`;
-- una conciliación usa `estado_conciliacion` y `activo`;
-- catálogos y perfiles usan `activo`.
+- `Consulta.estado` define si la consulta está pendiente, activa, cerrada o archivada;
+- `Proceso.estado` define si está pendiente o tiene resultado final;
+- `Seguimiento.estado` define si está pendiente, completado o cancelado;
+- `SeguimientoRespuesta.estado` define revisión de respuesta;
+- `Conciliacion.estado` se relaciona con catálogo `estado_conciliacion`;
+- `activo` se usa en catálogos, perfiles, procesos, seguimientos, respuestas y conciliaciones.
 
 ## 2. Estados de consulta
 
@@ -29,22 +30,26 @@ EstadoConsulta
 
 Valores:
 
-| Estado | Descripción |
+| Estado | Uso funcional |
 |---|---|
+| `PENDIENTE` | Estado inicial o de espera administrativa. |
 | `ACTIVO` | Consulta en atención activa. |
 | `EN_PROCESO` | Consulta en gestión operativa. |
-| `PENDIENTE` | Estado inicial o de espera. |
 | `URGENTE` | Consulta priorizada. |
-| `CERRADO` | Consulta cerrada operativamente. |
-| `ARCHIVADO` | Consulta archivada para historial. |
+| `CERRADO` | Consulta cerrada funcionalmente. |
+| `ARCHIVADO` | Consulta archivada para histórico. |
 
-Reglas principales:
+Reglas implementadas:
 
-- las consultas nuevas nacen `PENDIENTE`;
+- toda consulta nueva se crea en `PENDIENTE`;
+- el estado no se cambia mediante edición general de datos;
+- para entrar en estados operativos se validan responsables mínimos cuando aplica;
 - `CERRADO` bloquea operaciones operativas;
-- `ARCHIVADO` excluye de listados operativos;
+- `ARCHIVADO` excluye la consulta de operaciones activas;
 - una consulta cerrada solo puede archivarse;
-- desarchivar devuelve a `CERRADO`.
+- desarchivar devuelve la consulta a `CERRADO`;
+- cerrar exige resultado o conclusión final;
+- cerrar exige ausencia de procesos, seguimientos, respuestas, notificaciones y conciliaciones pendientes.
 
 ## 3. Estados de proceso
 
@@ -56,20 +61,23 @@ EstadoProceso
 
 Valores:
 
-| Estado | Descripción |
+| Estado | Uso funcional |
 |---|---|
-| `PENDIENTE` | Proceso pendiente de resultado. |
-| `SENTENCIA_FAVORABLE` | Resultado favorable. |
-| `SENTENCIA_DESFAVORABLE` | Resultado desfavorable. |
-| `DESISTIMIENTO` | Terminado por desistimiento. |
-| `RECHAZO` | Terminado por rechazo. |
-| `PRESCRIPCION` | Terminado por prescripción. |
+| `PENDIENTE` | Proceso sin resultado final. |
+| `SENTENCIA_FAVORABLE` | Resultado final favorable. |
+| `SENTENCIA_DESFAVORABLE` | Resultado final desfavorable. |
+| `DESISTIMIENTO` | Terminación por desistimiento. |
+| `RECHAZO` | Terminación por rechazo. |
+| `PRESCRIPCION` | Terminación por prescripción. |
 
-Reglas principales:
+Reglas implementadas:
 
-- el valor por defecto es `PENDIENTE`;
-- un proceso pendiente bloquea el cierre de la consulta;
-- `activo` no reemplaza el estado.
+- el proceso se crea inicialmente en `PENDIENTE`;
+- `EstadoProceso.esFinal()` retorna verdadero para todo estado distinto de `PENDIENTE`;
+- un proceso pendiente bloquea cierre de consulta;
+- `numero_radicado` puede estar vacío mientras el proceso esté `PENDIENTE`;
+- un estado final exige radicado válido;
+- si el radicado se informa, conserva unicidad y longitud validada por el backend.
 
 ## 4. Estados de seguimiento
 
@@ -81,18 +89,19 @@ EstadoSeguimiento
 
 Valores:
 
-| Estado | Descripción |
+| Estado | Uso funcional |
 |---|---|
-| `PENDIENTE` | Seguimiento activo en gestión. |
-| `COMPLETADO` | Seguimiento completado. |
+| `PENDIENTE` | Seguimiento por atender. |
+| `COMPLETADO` | Seguimiento finalizado funcionalmente. |
 | `CANCELADO` | Seguimiento cancelado. |
 
-Reglas principales:
+Reglas implementadas:
 
-- todo seguimiento nace `PENDIENTE`;
-- un seguimiento pendiente bloquea el cierre de consulta;
-- completar puede depender de respuestas aprobadas cuando notifica estudiante;
-- `activo` conserva borrado lógico.
+- un seguimiento nuevo se crea `PENDIENTE`;
+- solo seguimientos pendientes son editables;
+- seguimientos pendientes bloquean cierre de consulta;
+- cambiar a estados no pendientes aplica efectos sobre notificaciones pendientes;
+- la eliminación lógica conserva trazabilidad.
 
 ## 5. Estados de respuesta de seguimiento
 
@@ -104,54 +113,22 @@ EstadoRespuestaSeguimiento
 
 Valores:
 
-| Estado | Descripción |
+| Estado | Uso funcional |
 |---|---|
-| `PENDIENTE` | Respuesta enviada y pendiente de revisión. |
+| `PENDIENTE` | Respuesta enviada por estudiante pendiente de revisión. |
 | `APROBADA` | Respuesta aprobada. |
-| `RECHAZADA` | Respuesta rechazada. |
+| `RECHAZADA` | Respuesta rechazada con observación de revisión. |
 
-Reglas principales:
+Reglas implementadas:
 
-- toda respuesta nace `PENDIENTE`;
-- una respuesta pendiente bloquea cierre de consulta;
-- una respuesta aprobada puede completar el seguimiento asociado;
-- una respuesta rechazada permite nuevo intento según reglas del módulo.
+- la decisión de revisión solo admite `APROBADA` o `RECHAZADA`;
+- una respuesta rechazada exige `observacion_revision`;
+- la observación se limita a la longitud definida por el validador;
+- respuestas pendientes bloquean cierre de consulta.
 
-## 6. Tipos de notificación de seguimiento
+## 6. Estados de conciliación
 
-Enum:
-
-```text
-TipoNotificacionSeguimiento
-```
-
-Valores:
-
-| Tipo | Destinatarios |
-|---|---|
-| `PARTES` | Persona principal, partes y contrapartes. |
-| `ESTUDIANTE` | Estudiante asignado a la consulta. |
-| `ALERTA_DISCIPLINARIA` | Administrativos activos. |
-| `AUTOR` | Usuario que creó el seguimiento. |
-
-## 7. Momentos de notificación de seguimiento
-
-Enum:
-
-```text
-MomentoNotificacionSeguimiento
-```
-
-Valores:
-
-| Momento | Descripción |
-|---|---|
-| `INMEDIATA` | Notificación generada al crear o actualizar seguimiento. |
-| `RECORDATORIO` | Notificación programada según fecha de entrega y días de notificación. |
-
-## 8. Estados de conciliación
-
-Entidad/catálogo:
+Entidad catálogo:
 
 ```text
 EstadoConciliacion
@@ -163,55 +140,77 @@ Tabla:
 estado_conciliacion
 ```
 
-Campos:
+Códigos técnicos usados por backend:
 
-| Campo | Uso |
+| Código | Uso funcional |
 |---|---|
-| `codigo` | Código técnico usado por backend. |
-| `nombre` | Nombre visible. |
-| `activo` | Estado activo del catálogo. |
-| `orden` | Orden de presentación. |
+| `EN_ESPERA` | Conciliación en espera de asignación o condiciones iniciales. |
+| `ESPERANDO_REUNION` | Conciliación con responsables que requiere programación de reunión. |
+| `REUNION_PROGRAMADA` | Conciliación con reunión programada. |
+| `COMPLETO_CONCILIADO` | Conciliación finalizada con acuerdo. |
+| `COMPLETO_NO_CONCILIADO` | Conciliación finalizada sin acuerdo. |
 
-Códigos base:
+Características:
 
-| Código | Nombre visible |
-|---|---|
-| `EN_ESPERA` | En espera |
-| `ESPERANDO_REUNION` | Esperando reunión |
-| `REUNION_PROGRAMADA` | Reunión programada |
-| `COMPLETO_CONCILIADO` | Completo - conciliado |
-| `COMPLETO_NO_CONCILIADO` | Completo - no conciliado |
+- el backend valida estados por `codigo`, no por nombre visible;
+- el código se normaliza mediante `EstadoConciliacionCodigo.normalizar`;
+- el catálogo incluye `nombre`, `activo` y `orden`;
+- los estados finales se aplican mediante flujo de finalización con acta;
+- conciliaciones en estados pendientes bloquean cierre de consulta;
+- al finalizar o desactivar conciliación se cancelan notificaciones pendientes de reunión.
 
-Clasificación:
+## 7. Eventos y notificaciones de reunión de conciliación
 
-| Grupo | Estados |
-|---|---|
-| No finalizados | `EN_ESPERA`, `ESPERANDO_REUNION`, `REUNION_PROGRAMADA`. |
-| Finalizados | `COMPLETO_CONCILIADO`, `COMPLETO_NO_CONCILIADO`. |
-
-Reglas principales:
-
-- el backend valida por `codigo`, no por `nombre`;
-- el nombre puede ser usado por frontend para visualización;
-- `EN_ESPERA` se calcula automáticamente según asignaciones;
-- estados finalizados se usan en flujo de finalización con acta.
-
-## 9. Tipo de conciliador
-
-Enum:
+Enums:
 
 ```text
-TipoConciliador
+TipoEventoReunionConciliacion
+TipoDestinatarioReunionConciliacion
+MomentoNotificacionReunionConciliacion
+MotivoNotificacionReunionConciliacion
+```
+
+Valores observados:
+
+| Enum | Valores |
+|---|---|
+| `TipoEventoReunionConciliacion` | `PROGRAMACION`, `REPROGRAMACION`. |
+| `TipoDestinatarioReunionConciliacion` | `CONSULTANTE`, `PARTE`, `CONTRAPARTE`, `ADMINISTRATIVO`. |
+| `MomentoNotificacionReunionConciliacion` | `INMEDIATA`, `RECORDATORIO`. |
+| `MotivoNotificacionReunionConciliacion` | `PROGRAMACION`, `REPROGRAMACION`, `ERROR_ENVIO`. |
+
+Uso:
+
+- programación y reprogramación generan historial;
+- notificaciones inmediatas se envían al programar o reprogramar;
+- recordatorios se programan antes de la reunión;
+- alertas administrativas se crean cuando no hay destinatarios con correo o cuando ocurre error de envío.
+
+## 8. Notificaciones de seguimiento
+
+Enums:
+
+```text
+TipoNotificacionSeguimiento
+MomentoNotificacionSeguimiento
 ```
 
 Valores:
 
-| Tipo | Uso |
+| Enum | Valores |
 |---|---|
-| `INTERNO` | Conciliador interno. |
-| `EXTERNO` | Conciliador externo. |
+| `TipoNotificacionSeguimiento` | `PARTES`, `ESTUDIANTE`, `ALERTA_DISCIPLINARIA`, `AUTOR`. |
+| `MomentoNotificacionSeguimiento` | `INMEDIATA`, `RECORDATORIO`. |
 
-## 10. Tipo de perfil de usuario
+Uso:
+
+- `PARTES` notifica persona principal, partes y contrapartes;
+- `ESTUDIANTE` requiere consulta con estudiante activo asignado;
+- `ALERTA_DISCIPLINARIA` notifica destinatarios administrativos;
+- `AUTOR` recuerda a la persona que creó el seguimiento;
+- `RECORDATORIO` se calcula con `fecha_entrega - dias_notificacion`.
+
+## 9. Tipos de perfil
 
 Enum:
 
@@ -221,190 +220,96 @@ TipoPerfilUsuario
 
 Valores:
 
-| Tipo | Perfil real |
-|---|---|
-| `ASESOR` | Perfil asesor. |
-| `ESTUDIANTE` | Perfil estudiante. |
-| `MONITOR` | Perfil monitor. |
-| `ADMINISTRATIVO` | Perfil administrativo. |
-| `CONCILIADOR` | Perfil conciliador. |
+```text
+ASESOR
+ESTUDIANTE
+MONITOR
+ADMINISTRATIVO
+CONCILIADOR
+```
 
 Uso:
 
-- se almacena en `usuario_sistema.tipo_perfil_actual`;
-- permite resolver el perfil real activo del usuario;
-- se usa para validaciones de alcance y compatibilidad de rol.
+- se almacena en `UsuarioSistema.tipo_perfil_actual`;
+- define el perfil operativo vigente;
+- se usa por estrategias de cambio de perfil;
+- se usa por estrategias de resolución de perfil activo;
+- se relaciona con roles mediante `Rol.tipo_perfil`.
 
-## 11. Catálogos generales
+## 10. Tipo de conciliador
 
-Catálogos con `activo`:
+Enum:
 
-| Catálogo | Tabla | Uso |
+```text
+TipoConciliador
+```
+
+Valores:
+
+```text
+INTERNO
+EXTERNO
+```
+
+Uso:
+
+- clasifica el perfil de conciliador;
+- se almacena en la entidad `Conciliador`.
+
+## 11. Catálogos jurídicos
+
+| Catálogo | Entidad | Relación principal |
 |---|---|---|
-| Área | `area` | Clasificación jurídica principal. |
-| Tema | `tema` | Clasificación dependiente de área. |
-| Tipo | `tipo` | Clasificación dependiente de tema. |
-| Departamento | `departamento` | Catálogo territorial. |
-| Municipio | `municipio` | Catálogo territorial dependiente de departamento. |
-| Barrio | `barrio` | Catálogo territorial dependiente de municipio. |
-| Sede | `sede` | Sedes del sistema. |
-| Nacionalidad | `nacionalidades` | Nacionalidades de personas. |
-| Tipo de documento | `tipodoc` | Tipos de documento para perfiles y usuarios. |
+| Área | `Area` | Área jurídica de consulta y asesor. |
+| Tema | `Tema` | Pertenece a un área. |
+| Tipo | `Tipo` | Pertenece a un tema. |
+| Órgano de control | `OrganoControl` | Agrupa especialidades. |
+| Especialidad | `Especialidad` | Pertenece a órgano de control. |
+| Categoría de seguimiento | `CategoriaSeguimiento` | Clasifica seguimientos. |
 
-Reglas comunes:
+Reglas implementadas:
 
-- se listan activos para formularios;
-- se listan todos para administración;
-- se validan duplicados;
-- se desactivan lógicamente.
+- un tema pertenece al área seleccionada;
+- un tipo pertenece al tema seleccionado;
+- el asesor asignado debe pertenecer al área de consulta;
+- el estudiante se valida respecto de su asesor y área;
+- una especialidad pertenece a un órgano de control.
 
-## 12. Catálogos de persona
+## 12. Catálogos personales y geográficos
 
-| Catálogo | Tabla | Uso |
-|---|---|---|
-| TipoPersona | `tipo_persona` | Clasifica personas. |
-| Condicion | `condicion` | Condición actual de persona. |
-| Empresa | `empresas` | Empresa asociada a datos laborales. |
-| Ocupacion | `ocupacion` | Ocupación de persona. |
-
-## 13. Catálogos de proceso
-
-| Catálogo | Tabla | Uso |
-|---|---|---|
-| Órgano de control | `organo_control` | Clasifica entidad u órgano competente. |
-| Especialidad | `especialidad` | Especialidad dependiente de órgano de control. |
-
-Reglas:
-
-- especialidad pertenece a órgano de control;
-- órgano con especialidades activas no se desactiva;
-- especialidad se desactiva lógicamente.
-
-## 14. Catálogos de seguimiento
-
-| Catálogo | Tabla | Uso |
-|---|---|---|
-| Categoría de seguimiento | `categoria_seguimiento` | Clasifica seguimientos. |
-
-Reglas:
-
-- nombre único;
-- activo/inactivo;
-- se usa para crear seguimientos.
-
-## 15. Catálogo de estados de conciliación
-
-A diferencia de otros estados funcionales implementados como enum, conciliación usa tabla:
-
-```text
-estado_conciliacion
-```
-
-Justificación funcional:
-
-- permite nombre visible administrable;
-- mantiene código técnico estable;
-- evita validar reglas por texto visible;
-- facilita orden de presentación.
-
-## 16. Estados que bloquean cierre de consulta
-
-Una consulta no puede cerrar si existen recursos pendientes.
-
-| Recurso | Estado o condición bloqueante |
+| Catálogo | Entidad |
 |---|---|
-| Proceso | `PENDIENTE` y activo. |
-| Seguimiento | `PENDIENTE` y activo. |
-| Respuesta de seguimiento | `PENDIENTE` y activa. |
-| Notificación de seguimiento | Activa y no enviada. |
-| Conciliación | `EN_ESPERA`, `ESPERANDO_REUNION` o `REUNION_PROGRAMADA`, activa. |
+| Tipo de documento | `TipoDocumento` |
+| Tipo de persona | `TipoPersona` |
+| Condición | `Condicion` |
+| Ocupación | `Ocupacion` |
+| Empresa | `Empresa` |
+| Nacionalidad | `Nacionalidad` |
+| Departamento | `Departamento` |
+| Municipio | `Municipio` |
+| Barrio | `Barrio` |
+| Sede | `Sede` |
 
-## 17. Reglas de documentación
+Uso:
 
-Cuando se agregue, elimine o cambie un estado:
+- normalizan formularios de persona y perfiles;
+- permiten filtrar datos activos;
+- conservan histórico cuando están referenciados por entidades ya registradas.
 
-- actualizar este documento;
-- actualizar reglas del módulo correspondiente;
-- actualizar API si cambia request o response;
-- actualizar backend del módulo si cambia interpretación del estado;
-- actualizar base de datos si cambia catálogo administrable.
+## 13. Catálogos y activo lógico
 
-Ejemplos:
+Los catálogos usan `activo` para controlar disponibilidad. Un catálogo inactivo puede mantenerse referenciado por información histórica, pero deja de estar disponible para nuevas operaciones según los servicios y endpoints activos.
 
-| Cambio | Documentos a revisar |
+## 14. Resumen de estados que bloquean cierre de consulta
+
+Una consulta no se cierra si existen recursos pendientes asociados:
+
+| Recurso | Condición documentada por código |
 |---|---|
-| Nuevo estado de consulta | `estados-y-catalogos.md`, `reglas/consultas.md`, `api/consultas.md`. |
-| Nuevo estado de proceso | `estados-y-catalogos.md`, `reglas/procesos.md`, `api/procesos.md`. |
-| Cambio en estado de conciliación | `estados-y-catalogos.md`, `reglas/conciliaciones.md`, `api/conciliaciones.md`, `backend/conciliaciones.md`. |
-| Nuevo catálogo | `estados-y-catalogos.md`, `backend/catalogos.md`, `api/catalogos.md`. |
+| Proceso | Proceso activo en `PENDIENTE`. |
+| Seguimiento | Seguimiento activo en `PENDIENTE`. |
+| Respuesta de seguimiento | Respuesta activa en `PENDIENTE`. |
+| Notificación de seguimiento | Notificación activa no enviada. |
+| Conciliación | Conciliación activa en estado pendiente. |
 
-
----
-
-## 18. Enums de reuniones de conciliación
-
-La HU de reuniones de conciliación agrega enumeraciones para historial y notificaciones.
-
-### `TipoEventoReunionConciliacion`
-
-| Valor | Uso |
-|---|---|
-| `PROGRAMACION` | Registro inicial de reunión. |
-| `REPROGRAMACION` | Cambio de fecha, sede u observaciones de una reunión existente. |
-
-### `TipoDestinatarioReunionConciliacion`
-
-| Valor | Uso |
-|---|---|
-| `CONSULTANTE` | Persona principal o convocante de la consulta. |
-| `PARTE` | Parte asociada a la consulta. |
-| `CONTRAPARTE` | Contraparte asociada a la consulta. |
-| `ADMINISTRATIVO` | Administrativo notificado por fallos de envío. |
-
-### `MotivoNotificacionReunionConciliacion`
-
-| Valor | Uso |
-|---|---|
-| `PROGRAMACION` | Notificación por programación inicial. |
-| `REPROGRAMACION` | Notificación por reprogramación. |
-| `ERROR_ENVIO` | Alerta por error al enviar notificaciones. |
-
-### `MomentoNotificacionReunionConciliacion`
-
-| Valor | Uso |
-|---|---|
-| `INMEDIATA` | Envío al momento de programar o reprogramar. |
-| `RECORDATORIO` | Envío programado un día antes de la reunión. |
-
-## 19. Relación entre `REUNION_PROGRAMADA` y reunión
-
-El estado de conciliación:
-
-```text
-REUNION_PROGRAMADA
-```
-
-requiere que exista una reunión asociada en:
-
-```text
-reunion_conciliacion
-```
-
-La fuente de verdad de fecha y sede de reunión es:
-
-```text
-reunion_conciliacion.fecha_reunion
-reunion_conciliacion.sede_id
-```
-
-No se debe depender de `conciliacion.fecha_conciliacion` como fuente principal de reunión.
-
-## 20. Recordatorio de reunión
-
-El recordatorio se programa un día antes:
-
-```text
-fecha_programada = fecha_reunion - 1 día
-```
-
-Si la fecha calculada ya está en el pasado, no se crea recordatorio.
+Además, el cierre exige resultado funcional en `Consulta.resultado`.

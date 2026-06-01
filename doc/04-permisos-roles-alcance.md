@@ -1,215 +1,136 @@
 # Permisos, roles y alcance
 
-El sistema usa permisos funcionales y reglas de alcance para controlar acciones y visibilidad.
+## Modelo general
 
-## Conceptos
+El sistema separa:
 
-### Rol
+- usuario de acceso (`UsuarioSistema`);
+- rol (`Rol`);
+- permisos (`Permiso`);
+- perfil operativo actual (`TipoPerfilUsuario` y perfil activo asociado);
+- reglas de alcance por módulo.
 
-Agrupa permisos funcionales y está asociado a un tipo de perfil.
+Un usuario autenticado opera con los permisos de su rol y con el alcance propio de su perfil activo.
 
-Roles base:
+## Roles y permisos
 
-- Administrador;
-- Asesor;
-- Estudiante;
-- Monitor;
-- Conciliador.
+Los permisos están centralizados en la clase `PermisoNombre`. Esto evita repetir cadenas de texto en controllers y services.
 
-### Permiso
-
-Representa una acción o acceso funcional.
-
-Ejemplos:
-
-- Ver consultas.
-- Crear consultas.
-- Cambiar estado consultas.
-- Ver conciliaciones.
-- Gestionar conciliaciones.
-- Concluir conciliaciones.
-- Acceder inicio.
-
-### Alcance
-
-Define si un usuario puede actuar sobre un recurso específico.
-
-Ejemplo:
-
-Un usuario puede tener permiso para ver conciliaciones, pero solo verá conciliaciones dentro de su alcance.
-
-## Inicialización de permisos
-
-`SecurityDataInitializer` crea permisos declarados en `PermisoNombre` cuando no existen.
-
-También crea roles base cuando faltan.
-
-La matriz de asignación rol-permiso se administra desde base de datos o desde el módulo correspondiente.
-
-## Permisos de navegación
-
-Controlan acceso visual a secciones del frontend.
-
-Ejemplos:
-
-- Acceder inicio.
-- Acceder recepción.
-- Acceder nueva consulta.
-- Acceder consultas jurídicas.
-- Acceder administración.
-- Acceder roles.
-- Acceder estudiantes.
-- Acceder asesores y monitores.
-- Acceder personas.
-- Acceder eliminación.
-- Acceder conciliaciones.
-- Acceder procesos.
-
-## Permisos funcionales
-
-Controlan acciones sobre módulos.
-
-Ejemplos:
-
-- Ver personas.
-- Crear personas.
-- Editar personas.
-- Cambiar estado personas.
-- Ver consultas.
-- Crear consultas.
-- Editar consultas.
-- Cambiar estado consultas.
-- Archivar consultas.
-- Ver seguimientos.
-- Crear seguimientos.
-- Responder seguimientos.
-- Aprobar respuestas de seguimiento.
-- Ver procesos.
-- Gestionar procesos.
-- Ver conciliaciones.
-- Gestionar conciliaciones.
-- Concluir conciliaciones.
-
-## Frontend
-
-El frontend declara permisos en:
+El backend expone endpoints para gestionar:
 
 ```text
-src/lib/permission.js
+/api/roles
+/api/permisos
+/api/usuarios-sistema
 ```
 
-La navegación usa permisos en:
+Los roles pueden tener permisos asociados o removidos mediante endpoints específicos del `RolController`.
+
+## Categorías de permisos implementadas
+
+### Navegación
+
+Permisos usados para mostrar secciones principales del frontend:
+
+- `Acceder inicio`;
+- `Acceder recepción`;
+- `Acceder tareas`;
+- `Acceder nueva consulta`;
+- `Acceder consultas jurídicas`;
+- `Acceder administración`;
+- `Acceder roles`;
+- `Acceder estudiantes`;
+- `Acceder asesores y monitores`;
+- `Acceder personas`;
+- `Acceder eliminación`;
+- `Acceder conciliaciones`;
+- `Acceder procesos`.
+
+### Catálogos y personas
+
+Incluye permisos para consultar catálogos, gestionar catálogos, ver personas, crear personas, editar personas y cambiar estado de personas.
+
+### Consultas
+
+Incluye permisos para ver, crear, editar, cambiar estado, archivar y asignar responsables de consulta.
+
+### Seguimientos
+
+Incluye permisos para ver, crear, editar, eliminar, responder, aprobar respuestas, ver alertas disciplinarias y gestionar categorías de seguimiento.
+
+### Usuarios, roles y permisos
+
+Incluye permisos para ver, crear, editar, cambiar estado y asignar rol a usuarios; también permisos para ver, crear, editar roles y asignar permisos a roles.
+
+### Perfiles
+
+El código define permisos para estudiantes, asesores, monitores, conciliadores y administradores. Algunos módulos distinguen permisos de consulta y permisos de gestión.
+
+### Conciliaciones
+
+Incluye permisos para ver conciliaciones, gestionar conciliaciones, programar reuniones, reprogramar reuniones y concluir conciliaciones.
+
+### Procesos
+
+Incluye permisos para ver procesos y gestionar procesos.
+
+### Reportes
+
+El permiso `Ver reportes` habilita reportes globales de estadísticas. Algunos reportes por perfil usan además `Ver consultas`.
+
+## Autorización en controllers
+
+Los controllers usan `@PreAuthorize`. La autorización se expresa con permisos constantes, por ejemplo:
 
 ```text
-PermissionSidebar
+hasAuthority('Ver consultas')
+hasAuthority('Gestionar procesos')
+hasAnyAuthority('Ver personas', 'Gestionar personas')
 ```
 
-El frontend filtra menús por permisos, pero no reemplaza las validaciones del backend.
+## Alcance por servicios
 
-## Backend
+El backend no depende únicamente de la visibilidad del frontend. Cada módulo sensible tiene servicios de acceso que validan si el usuario puede operar el recurso específico.
 
-El backend usa permisos en controllers y services mediante:
+Servicios de acceso observados:
 
-- `@PreAuthorize`;
-- services de acceso;
-- helpers de usuario actual;
-- authorities cargadas desde el token.
+- `ConsultaAccessService`;
+- `ProcesoAccessService`;
+- `SeguimientoAccessService`;
+- `SeguimientoRespuestaAccessService`;
+- `ConciliacionAccessService`;
+- servicios de acceso de perfiles y personas.
 
-## Reglas de alcance
+Estos servicios permiten reglas como:
 
-### Administrador
+- validar si el usuario puede crear, editar o cambiar estado;
+- validar si puede asignar responsables;
+- validar si puede ver u operar recursos según su perfil;
+- validar si puede gestionar perfiles administrativos, asesores, monitores, estudiantes o conciliadores.
 
-Puede operar recursos globales según permisos asignados.
+## Navegación frontend por permisos
 
-### Asesor
+El frontend implementa navegación mediante `PermissionSidebar`. La visibilidad de opciones de menú depende de permisos del usuario autenticado.
 
-Opera recursos asociados a consultas donde participa como asesor según reglas del módulo.
+La visibilidad en frontend mejora la experiencia de usuario, pero la autorización final siempre la valida el backend.
 
-### Monitor
+## Cambio de perfil y permisos
 
-Opera recursos asociados a consultas donde participa como monitor según reglas del módulo.
+El cambio de perfil se gestiona desde usuarios del sistema. El backend usa estrategias para construir el nuevo perfil, desactivar el perfil anterior y resolver el perfil activo vigente.
 
-### Estudiante
+La operación conserva historial de cambio de perfil mediante `UsuarioCambioPerfilHistorial` y servicios asociados.
 
-Consulta y actúa sobre recursos asociados a su perfil según reglas de cada módulo.
+## Estado operativo del perfil
 
-### Conciliador
+Los perfiles tienen estado activo. El backend sincroniza el estado del perfil con el `UsuarioSistema` cuando un perfil se desactiva o reactiva desde los servicios de perfiles.
 
-Opera conciliaciones donde está asignado como conciliador.
+Además, asesor, estudiante y monitor no pueden desactivarse si tienen consultas operativas vivas asociadas. Esta regla protege la continuidad operativa de las consultas.
 
-## Conciliaciones
+## Estadísticas y reportes
 
-Permisos relevantes:
+El módulo de estadísticas usa:
 
-| Permiso | Uso |
-|---|---|
-| Acceder conciliaciones | Navegación hacia la sección de conciliaciones. |
-| Ver conciliaciones | Consulta de conciliaciones visibles para el usuario. |
-| Gestionar conciliaciones | Acciones administrativas del módulo según reglas de acceso. |
-| Concluir conciliaciones | Operación de cierre de conciliación según alcance. |
-| Programar reuniones de conciliación | Acciones relacionadas con reuniones de conciliación. |
-| Reprogramar reuniones de conciliación | Acciones relacionadas con reprogramación de reuniones. |
+- `Ver reportes` para reportes globales y PDF;
+- `Ver consultas` para semestres disponibles y estadísticas por perfil.
 
-Reglas de alcance:
-
-- administrador gestiona de forma global según permisos;
-- asesor crea y consulta conciliaciones de consultas donde es asesor directo;
-- monitor crea y consulta conciliaciones de consultas donde es monitor directo;
-- conciliador consulta y opera conciliaciones donde está asignado;
-- estudiante consulta conciliaciones donde está asignado o donde es estudiante responsable de la consulta.
-
-## Regla central
-
-El frontend puede ocultar acciones, pero el backend siempre valida:
-
-```text
-permiso funcional + alcance real + regla de negocio
-```
-
-
----
-
-# Reuniones de conciliación
-
-La programación y reprogramación de reuniones de conciliación usa permisos funcionales específicos.
-
-## Permisos
-
-| Permiso | Propósito |
-|---|---|
-| `Acceder conciliaciones` | Navegación hacia conciliaciones. |
-| `Ver conciliaciones` | Consulta de conciliaciones según alcance. |
-| `Programar reuniones de conciliación` | Acción de programar reunión. |
-| `Reprogramar reuniones de conciliación` | Acción de reprogramar reunión. |
-
-No se requiere permiso de navegación independiente para reuniones, porque la reunión se consulta dentro del detalle de conciliación.
-
-## Alcance por perfil
-
-### Administrador
-
-Puede programar y reprogramar reuniones de conciliación de forma global según permisos.
-
-### Conciliador
-
-Puede programar y reprogramar reuniones solo cuando está asignado a la conciliación.
-
-### Estudiante
-
-Puede consultar conciliaciones relacionadas según permisos y alcance, pero no programa ni reprograma reuniones.
-
-### Asesor y monitor
-
-Pueden consultar conciliaciones relacionadas según permisos y alcance, pero no programan ni reprograman reuniones en esta HU.
-
-## Regla de frontend
-
-El frontend debe separar:
-
-```text
-navegación -> Acceder conciliaciones
-lectura -> Ver conciliaciones
-acción -> Programar/Reprogramar reuniones de conciliación
-```
-
-Mostrar un botón por permiso no reemplaza la validación de alcance del backend.
+Esto permite separar reportes administrativos de estadísticas relacionadas con perfiles operativos.

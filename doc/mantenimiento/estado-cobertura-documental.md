@@ -1,209 +1,109 @@
 # Estado de cobertura documental
 
-Este documento resume la cobertura documental actual del sistema.
+Este documento resume la cobertura documental vigente del sistema y permite ubicar rápidamente dónde se documenta cada área.
 
-No funciona como lista de faltantes, sino como guía de ubicación y alcance de la documentación vigente.
+## Documentación base
 
-## Cobertura actual
-
-| Área | Carpeta/documentos |
+| Área | Documento |
 |---|---|
 | Visión general | `doc/00-vision-general.md` |
 | Arquitectura | `doc/01-arquitectura.md` |
 | Configuración y seguridad | `doc/02-configuracion-seguridad.md` |
 | Autenticación y autorización | `doc/03-autenticacion-autorizacion.md` |
-| Permisos y alcance | `doc/04-permisos-roles-alcance.md` |
+| Permisos, roles y alcance | `doc/04-permisos-roles-alcance.md` |
 | Estándar de API y errores | `doc/05-estandar-api-errores.md` |
-| Backend por módulos | `doc/backend/` |
-| Inventario de API | `doc/api/` |
-| Reglas de negocio | `doc/reglas/` |
-| Base de datos y estados | `doc/base-datos/` |
-| Decisiones técnicas | `doc/decisiones/` |
-| Mantenimiento documental | `doc/mantenimiento/` |
+| Pruebas unitarias | `doc/06-pruebas.md` |
 
 ## Backend
 
-Documentos:
-
-```text
-doc/backend/README.md
-doc/backend/catalogos.md
-doc/backend/personas.md
-doc/backend/perfiles.md
-doc/backend/consultas.md
-doc/backend/seguimientos.md
-doc/backend/procesos.md
-doc/backend/conciliaciones.md
-doc/backend/archivos.md
-doc/backend/auditoria.md
-```
-
-Cobertura:
-
-- estructura backend;
-- módulos funcionales;
-- entidades principales;
-- services;
-- validators;
-- reglas de negocio por módulo;
-- permisos;
-- relaciones;
-- endpoints de referencia;
-- consideraciones para frontend.
+| Módulo | Documento |
+|---|---|
+| Estructura backend | `doc/backend/README.md` |
+| Autenticación y seguridad | `doc/backend/autenticacion-seguridad.md` |
+| Catálogos | `doc/backend/catalogos.md` |
+| Personas | `doc/backend/personas.md` |
+| Perfiles, usuarios y permisos | `doc/backend/perfiles.md` |
+| Consultas | `doc/backend/consultas.md` |
+| Procesos | `doc/backend/procesos.md` |
+| Seguimientos | `doc/backend/seguimientos.md` |
+| Conciliaciones y reuniones | `doc/backend/conciliaciones.md` |
+| Estadísticas | `doc/backend/estadisticas.md` |
+| Archivos | `doc/backend/archivos.md` |
+| Auditoría | `doc/backend/auditoria.md` |
 
 ## API
 
-Documentos:
-
-```text
-doc/api/README.md
-doc/api/autenticacion.md
-doc/api/usuarios-roles-permisos.md
-doc/api/catalogos.md
-doc/api/personas.md
-doc/api/perfiles.md
-doc/api/consultas.md
-doc/api/seguimientos.md
-doc/api/procesos.md
-doc/api/conciliaciones.md
-doc/api/archivos.md
-doc/api/auditoria.md
-```
-
-Cobertura:
-
-- rutas;
-- métodos HTTP;
-- permisos;
-- requests;
-- responses;
-- errores esperados;
-- notas para frontend;
-- contratos multipart;
-- autenticación.
-
-## Reglas
-
-Documentos:
-
-```text
-doc/reglas/README.md
-doc/reglas/consultas.md
-doc/reglas/seguimientos.md
-doc/reglas/procesos.md
-doc/reglas/conciliaciones.md
-doc/reglas/permisos.md
-doc/reglas/archivos.md
-```
-
-Cobertura:
-
-- reglas de consulta;
-- reglas de seguimiento;
-- reglas de proceso;
-- reglas de conciliación;
-- reglas de permisos y alcance;
-- reglas de archivos;
-- relación de cierre de consulta con pendientes operativos.
-
-## Base de datos
-
-Documentos:
-
-```text
-doc/base-datos/README.md
-doc/base-datos/entidades-principales.md
-doc/base-datos/estados-y-catalogos.md
-```
-
-Cobertura:
-
-- entidades principales;
-- relaciones;
-- estados funcionales;
-- catálogos;
-- diferencia entre estado funcional y activo lógico;
-- estados que bloquean cierre de consulta.
-
-## Decisiones
-
-Documentos:
-
-```text
-doc/decisiones/README.md
-doc/decisiones/seguridad-documental.md
-doc/decisiones/permisos-y-alcance.md
-doc/decisiones/estado-vs-activo.md
-doc/decisiones/conciliacion.md
-doc/decisiones/documentacion-vigente.md
-```
-
-Cobertura:
-
-- seguridad documental;
-- permisos y alcance;
-- estado funcional vs activo lógico;
-- decisiones de conciliación;
-- documentación vigente.
+| Módulo | Documento |
+|---|---|
+| Inventario de API | `doc/api/README.md` |
+| Autenticación | `doc/api/autenticacion.md` |
+| Usuarios, roles y permisos | `doc/api/usuarios-roles-permisos.md` |
+| Perfiles | `doc/api/perfiles.md` |
+| Personas | `doc/api/personas.md` |
+| Catálogos | `doc/api/catalogos.md` |
+| Consultas | `doc/api/consultas.md` |
+| Procesos | `doc/api/procesos.md` |
+| Seguimientos | `doc/api/seguimientos.md` |
+| Conciliaciones | `doc/api/conciliaciones.md` |
+| Estadísticas | `doc/api/estadisticas.md` |
+| Archivos | `doc/api/archivos.md` |
+| Auditoría | `doc/api/auditoria.md` |
 
 ## Frontend
 
-La documentación de frontend se maneja con dos niveles:
-
-### Documentación contractual vigente
-
-Ya cubierta en:
-
-```text
-doc/api/
-doc/reglas/
-doc/03-autenticacion-autorizacion.md
-doc/04-permisos-roles-alcance.md
-```
-
-Incluye:
-
-- contratos de backend;
-- uso de `credentials: "include"`;
-- permisos;
-- manejo de errores;
-- notas de consumo para frontend.
-
-### Documentación interna de frontend
-
-La documentación interna detallada de estructura, componentes, pantallas y formularios se organiza cuando la estructura frontend esté estable.
-
-Ubicación prevista:
-
-```text
-doc/frontend/
-```
-
-## Correcciones lógicas futuras
-
-Cuando se implementen ajustes de lógica funcional, la documentación se actualiza por impacto usando:
-
-```text
-doc/mantenimiento/matriz-actualizacion-documental.md
-```
-
-Ejemplos:
-
-| Ajuste | Documentos afectados |
+| Área | Documento |
 |---|---|
-| Radicado condicional en procesos | Backend, API, reglas y base de datos de procesos. |
-| Resultado obligatorio al cerrar consulta | Backend, API y reglas de consultas. |
-| Observación obligatoria al rechazar respuesta | Backend, API y reglas de seguimientos. |
-| Validación de asesor activo en creación de consulta por estudiante | Backend, API y reglas de consultas/perfiles. |
+| Estructura general | `doc/frontend/README.md` |
+| Rutas y organización | `doc/frontend/estructura.md` |
+| Configuración de API | `doc/frontend/configuracion-api.md` |
+| Autenticación y sesión | `doc/frontend/autenticacion-sesion.md` |
+| Navegación y permisos | `doc/frontend/navegacion-permisos.md` |
+| Servicios API | `doc/frontend/servicios-api.md` |
+| Formularios y validaciones | `doc/frontend/formularios-validaciones.md` |
+| Manejo de errores | `doc/frontend/manejo-errores.md` |
+| Consultas | `doc/frontend/modulos/consultas.md` |
+| Personas | `doc/frontend/modulos/personas.md` |
+| Procesos | `doc/frontend/modulos/procesos.md` |
+| Seguimientos | `doc/frontend/modulos/seguimientos.md` |
+| Conciliaciones | `doc/frontend/modulos/conciliaciones.md` |
+| Reuniones de conciliación | `doc/frontend/modulos/reuniones-conciliacion.md` |
+| Estadísticas | `doc/frontend/modulos/estadisticas.md` |
+| Usuarios y roles | `doc/frontend/modulos/usuarios-roles.md` |
+| Catálogos | `doc/frontend/modulos/catalogos.md` |
+| Eliminación lógica | `doc/frontend/modulos/eliminacion.md` |
 
-## Criterio de cierre documental
+## Reglas de negocio
 
-La cobertura documental se mantiene correcta cuando:
+| Módulo | Documento |
+|---|---|
+| Consultas | `doc/reglas/consultas.md` |
+| Procesos | `doc/reglas/procesos.md` |
+| Seguimientos | `doc/reglas/seguimientos.md` |
+| Conciliaciones | `doc/reglas/conciliaciones.md` |
+| Permisos y alcance | `doc/reglas/permisos.md` |
+| Estadísticas | `doc/reglas/estadisticas.md` |
+| Archivos | `doc/reglas/archivos.md` |
 
-- los endpoints documentados existen;
-- los DTOs coinciden con contratos actuales;
-- las reglas coinciden con validators y services;
-- los permisos coinciden con controllers y access services;
-- los estados coinciden con enums o catálogos;
-- las decisiones técnicas siguen reflejando el diseño real;
-- no hay valores sensibles publicados.
+## Base de datos y decisiones
+
+| Área | Documento |
+|---|---|
+| Entidades principales | `doc/base-datos/entidades-principales.md` |
+| Estados y catálogos | `doc/base-datos/estados-y-catalogos.md` |
+| Relaciones | `doc/base-datos/relaciones.md` |
+| Estado vs activo | `doc/decisiones/estado-vs-activo.md` |
+| Permisos y alcance | `doc/decisiones/permisos-y-alcance.md` |
+| Seguridad documental | `doc/decisiones/seguridad-documental.md` |
+| Documentación vigente | `doc/decisiones/documentacion-vigente.md` |
+| Conciliación | `doc/decisiones/conciliacion.md` |
+| Estrategia de perfiles | `doc/decisiones/estrategia-perfiles.md` |
+
+## Mantenimiento
+
+| Documento | Propósito |
+|---|---|
+| `doc/mantenimiento/README.md` | Guía general de mantenimiento documental. |
+| `doc/mantenimiento/checklist-cambios.md` | Lista de verificación ante cambios de código. |
+| `doc/mantenimiento/matriz-actualizacion-documental.md` | Relación entre cambios y documentos a revisar. |
+| `doc/mantenimiento/versionado-documentacion.md` | Criterios de versionado documental. |
+| `doc/mantenimiento/estado-cobertura-documental.md` | Mapa de cobertura documental vigente. |

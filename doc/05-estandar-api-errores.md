@@ -1,143 +1,142 @@
 # Estándar de API y manejo de errores
 
-El backend expone una API REST bajo el prefijo `/api`.
+## Convención general
 
-Los endpoints protegidos requieren autenticación y permisos según el módulo.
+El backend expone una API REST bajo el prefijo:
 
-## Convenciones HTTP
+```text
+/api
+```
+
+Los controllers usan métodos HTTP según la operación:
 
 | Método | Uso general |
 |---|---|
-| GET | Consultar recursos. |
-| POST | Crear recursos o ejecutar acciones con cuerpo complejo. |
-| PUT | Actualizar datos generales. |
-| PATCH | Cambiar estados, flags o acciones específicas. |
-| DELETE | Desactivar o eliminar según regla del módulo. |
+| `GET` | Consulta de recursos, listados, detalle, reportes y descargas. |
+| `POST` | Creación, acciones con cuerpo multipart o acciones funcionales que crean artefactos. |
+| `PUT` | Actualización de datos generales. |
+| `PATCH` | Cambio de estado, activación/desactivación o acciones parciales. |
+| `DELETE` | Eliminación lógica o desactivación según módulo. |
 
-## Autenticación en peticiones
+## Separación entre edición y ciclo de vida
 
-El frontend debe enviar peticiones protegidas con:
+El código fuente distingue edición de datos generales y cambios de estado. En módulos como consultas, procesos, seguimientos, conciliaciones, roles, permisos y perfiles, los cambios de estado o activación usan endpoints `PATCH` específicos.
+
+Esto evita que un `PUT` de datos generales modifique campos de control funcional.
+
+## Autenticación en API
+
+Salvo endpoints públicos declarados en `SecurityConfig`, las peticiones requieren autenticación. El token JWT viaja en cookie HTTP-only y el frontend debe enviar peticiones con:
 
 ```javascript
 credentials: "include"
 ```
 
-La sesión se valida mediante cookie.
+## Endpoints públicos
 
-## Respuestas exitosas
+La configuración de seguridad permite como públicos:
 
-Respuestas habituales:
+```text
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/auth/solicitar-recuperacion
+POST /api/auth/restablecer-password
+GET  /v3/api-docs/**
+GET  /swagger-ui/**
+GET  /swagger-ui.html
+```
 
-| Estado | Uso |
-|---|---|
-| 200 OK | Consulta o acción exitosa con respuesta. |
-| 201 Created | Recurso creado. |
-| 204 No Content | Acción exitosa sin cuerpo. |
+También permite `OPTIONS /**` para preflight CORS.
 
-## Respuesta estándar de error
+## ErrorResponseDTO
 
-La API usa un DTO estándar de error:
+El backend usa un DTO estándar para errores:
 
 ```json
 {
-  "fecha": "fecha-hora-del-error",
+  "fecha": "2026-01-01T10:00:00",
   "estado": 400,
-  "error": "Tipo de error",
+  "error": "Error de negocio",
   "mensaje": "Mensaje descriptivo",
-  "ruta": "/ruta/del/endpoint"
+  "ruta": "/api/recurso"
 }
 ```
 
-Cuando existen errores por campo, puede incluir `detalles`:
+Cuando hay errores de validación puede incluir `detalles`:
 
 ```json
 {
-  "fecha": "fecha-hora-del-error",
+  "fecha": "2026-01-01T10:00:00",
   "estado": 400,
   "error": "Error de validación",
   "mensaje": "Uno o más campos no son válidos",
-  "ruta": "/ruta/del/endpoint",
+  "ruta": "/api/recurso",
   "detalles": {
     "campo": "Mensaje de validación"
   }
 }
 ```
 
-## Errores controlados
+## Manejador global
 
-### Error de negocio
+`GlobalExceptionHandler` administra respuestas para:
 
-Se usa cuando una solicitud es técnicamente válida, pero incumple una regla funcional del sistema.
+- `BusinessException`;
+- errores de validación de DTO con `@Valid`;
+- violaciones de restricciones;
+- parámetros inválidos;
+- parámetros obligatorios faltantes;
+- cuerpos JSON inválidos;
+- métodos HTTP no permitidos;
+- acceso denegado;
+- errores no controlados.
 
-Ejemplo de casos:
+## Códigos HTTP principales
 
-- intentar operar sobre una consulta cerrada;
-- intentar cerrar una consulta con pendientes;
-- intentar asignar un responsable inválido;
-- intentar finalizar un flujo sin cumplir requisitos.
+| Código | Uso |
+|---|---|
+| `200 OK` | Consulta o acción exitosa con cuerpo. |
+| `204 No Content` | Acción exitosa sin cuerpo, por ejemplo cambio de contraseña. |
+| `400 Bad Request` | Regla de negocio, validación o solicitud inválida. |
+| `401 Unauthorized` | Sesión inexistente, inválida o no autenticada. |
+| `403 Forbidden` | Usuario autenticado sin permiso o sin alcance. |
+| `405 Method Not Allowed` | Método HTTP no soportado para el recurso. |
+| `500 Internal Server Error` | Error no controlado. El detalle técnico queda en logs. |
 
-### Error de validación
+## Manejo frontend
 
-Se usa cuando el cuerpo o parámetros no cumplen restricciones declaradas en DTOs o validaciones de Jakarta Validation.
+El frontend incluye utilidades en `src/lib/api.js` para leer respuestas, extraer título de error, extraer detalles y construir mensajes de interfaz.
 
-### Solicitud inválida
+El frontend debe mostrar el mensaje del backend cuando exista y usar detalles de validación cuando el objeto `detalles` venga presente.
 
-Se usa para parámetros con tipo inválido, parámetros faltantes o cuerpo JSON no legible.
+## Endpoints por módulo
 
-### No autorizado
+Los contratos detallados se documentan en `doc/api/`. La relación general de controllers observados es:
 
-Se usa cuando un usuario autenticado no tiene permisos o alcance suficiente.
+| Módulo | Prefijo API |
+|---|---|
+| Autenticación | `/api/auth` |
+| Usuarios | `/api/usuarios-sistema` |
+| Roles | `/api/roles` |
+| Permisos | `/api/permisos` |
+| Auditoría | `/api/audit` |
+| Archivos | `/api/files` |
+| Catálogos | `/api/areas`, `/api/temas`, `/api/tipos`, `/api/sedes`, entre otros |
+| Personas | `/api/personas`, `/api/empresas`, `/api/condiciones`, entre otros |
+| Perfiles | `/api/administrativos`, `/api/asesores`, `/api/estudiantes`, `/api/monitores`, `/api/conciliadores` |
+| Consultas | `/api/consultas` |
+| Procesos | `/api/procesos`, `/api/organos-control`, `/api/especialidades` |
+| Seguimientos | `/api/seguimientos` |
+| Conciliaciones | `/api/conciliaciones` |
+| Estadísticas | `/api/estadisticas` |
 
-### No autenticado
+## Archivos y multipart
 
-Se usa cuando la petición requiere sesión y el usuario no está autenticado.
+Las operaciones de archivos y algunos flujos documentales usan `multipart/form-data`, por ejemplo:
 
-## Manejadores
-
-El backend usa:
-
-- `GlobalExceptionHandler` para excepciones generales, negocio y validación;
-- `SecurityExceptionHandler` para errores generados por Spring Security.
-
-## Archivos
-
-El módulo de archivos usa endpoints bajo:
-
-```text
-/api/files
-```
-
-Operaciones principales:
-
-- carga de archivo;
-- carga múltiple;
-- descarga;
-- listado de archivos;
-- listado de directorios.
-
-Las cargas usan `multipart/form-data`.
-
-La descarga devuelve recurso binario con headers de archivo.
-
-## Multipart
-
-Los módulos que requieren documentos usan `multipart/form-data`.
-
-Ejemplos de campos usados por módulos:
-
-- `file`;
-- `files`;
-- `solicitud`;
-- `acta`.
-
-## Reglas para frontend
-
-El frontend debe:
-
-- leer cuerpo de respuesta cuando exista;
-- soportar respuestas vacías en `204`;
-- mostrar `mensaje` cuando venga disponible;
-- leer `detalles` para errores de validación;
-- manejar `401` como sesión no válida;
-- manejar `403` como falta de permiso o alcance;
-- no asumir que todos los errores de archivos retornan JSON.
+- carga general de archivos;
+- creación de conciliación con solicitud;
+- finalización de conciliación con acta;
+- reemplazo de solicitud;
+- importación de estudiantes desde archivo;
+- respuestas de seguimiento con archivos cuando aplica.

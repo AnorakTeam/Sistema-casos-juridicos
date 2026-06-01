@@ -1,168 +1,134 @@
 # Servicios de API
 
-El frontend consume el backend mediante `fetch` nativo de la Fetch API, centralizado en utilidades de `src/lib/` y un hook compartido para formularios.
+El frontend consume el backend mediante `fetch`, helpers de respuesta, un cliente HTTP centralizado y un hook para formularios. El patrón común incluye cookie de sesión, lectura del cuerpo de respuesta, manejo de códigos HTTP y mensajes toast.
+
+## Archivos principales
+
+| Archivo | Responsabilidad |
+|---|---|
+| `src/lib/config.js` | Define `API_URL_BASE` y `FILE_STORAGE_API_URL_BASE`. |
+| `src/lib/apiClient.js` | Cliente HTTP con métodos `get`, `post`, `put`, `patch`, `delete` y `request`. |
+| `src/lib/api.js` | Lectura de respuestas y extracción de mensajes de error. |
+| `src/hooks/useApiForm.js` | Hook para envío de formularios con toasts y manejo de sesión. |
 
 ## Cliente HTTP centralizado
 
-`src/lib/apiClient.js` es el cliente HTTP principal. Incluye `credentials: "include"` y `Content-Type: application/json` automáticamente.
+`apiClient` envuelve `fetch` y aplica comportamiento uniforme:
+
+- URL base desde `API_URL_BASE`;
+- `credentials: "include"`;
+- `Content-Type: application/json` cuando se usa la opción `json`;
+- soporte para rutas relativas y URLs absolutas;
+- métodos auxiliares para verbos HTTP.
+
+Uso típico:
 
 ```javascript
 import { apiClient } from "@/lib/apiClient";
 
-// GET autenticado
-const res = await apiClient.get("/auth/me");
-const user = await res.json();
-
-// POST con JSON
-const res = await apiClient.post("/personas", payload);
-
-// PUT
-const res = await apiClient.put(`/areas/${id}`, data);
-
-// PATCH
-const res = await apiClient.patch(`/personas/${id}/desactivar`);
-
-// DELETE
-const res = await apiClient.delete(`/areas/${id}`);
+const response = await apiClient.get("/auth/me");
+const user = await response.json();
 ```
 
-El método `request` base también acepta un campo `json` que serializa automáticamente:
+## Métodos disponibles
+
+| Método | Uso |
+|---|---|
+| `apiClient.get(path, options)` | Petición GET autenticada. |
+| `apiClient.post(path, data, options)` | Petición POST con JSON. |
+| `apiClient.put(path, data, options)` | Petición PUT con JSON. |
+| `apiClient.patch(path, data, options)` | Petición PATCH con JSON. |
+| `apiClient.delete(path, options)` | Petición DELETE autenticada. |
+| `apiClient.request(path, options)` | Petición base configurable. |
+
+## Opción `json`
+
+El método `request` acepta una opción `json`. Cuando se envía, el cliente serializa el cuerpo y agrega `Content-Type: application/json`.
 
 ```javascript
-const res = await apiClient.request("/areas", { method: "POST", json: data });
-```
-
-## Hook useApiForm
-
-`src/hooks/useApiForm.js` centraliza la lógica de envío de formularios: estado de carga, toasts de éxito y error, y redirección ante 401.
-
-```javascript
-import { useApiForm } from "@/hooks/useApiForm";
-
-const { submit, isSubmitting } = useApiForm({
-  endpoint: `${API_URL_BASE}/personas`,
+await apiClient.request("/areas", {
   method: "POST",
-  successMessage: "Persona creada correctamente",
+  json: { nombre: "Civil" },
 });
-
-const handleGuardar = async (data) => {
-  const result = await submit(data);
-  if (result.success) {
-    // limpiar o redirigir
-  }
-};
 ```
+
+## Lectura de respuesta
+
+`src/lib/api.js` define `readResponseBody(response)`, que:
+
+- devuelve `null` si la respuesta es `204` o no tiene cuerpo;
+- intenta parsear JSON;
+- devuelve texto si el cuerpo no es JSON válido.
+
+Esto permite manejar respuestas exitosas y errores con un patrón único.
+
+## Extracción de errores
+
+`getApiErrorMessages(payload)` busca mensajes en:
+
+- `detalles`;
+- `details`;
+- `errors`;
+- `fieldErrors`;
+- `validaciones`.
+
+`getApiErrorTitle(payload, fallback)` busca el mensaje principal en:
+
+- `mensaje`;
+- `message`;
+- `descripcion`;
+- `error`.
+
+`getApiErrorDescription(payload, fallback)` construye una descripción a partir de detalles o usa un fallback.
+
+## Hook `useApiForm`
+
+`useApiForm` centraliza el envío de formularios JSON. Recibe:
+
+| Propiedad | Descripción |
+|---|---|
+| `endpoint` | URL completa del endpoint. |
+| `method` | Método HTTP, por defecto `POST`. |
+| `successMessage` | Mensaje toast en caso de éxito. |
+
+Devuelve:
+
+| Propiedad | Descripción |
+|---|---|
+| `submit(data)` | Función asincrónica que envía los datos. |
+| `isSubmitting` | Estado de envío para deshabilitar botones. |
+
+## Comportamiento de `useApiForm`
 
 El hook:
-- Deshabilita el botón mientras `isSubmitting` es `true`.
-- Muestra `toast.success` si la respuesta es exitosa.
-- Muestra `toast.error` con el mensaje del backend si falla.
-- Redirige a `/` si recibe `401`.
-- Devuelve `{ success: boolean, data?, error? }`.
 
-## Helpers de respuesta
+1. activa `isSubmitting` antes de enviar;
+2. envía JSON con cookie de sesión;
+3. lee la respuesta con `readResponseBody`;
+4. redirige a `/` si recibe `401`;
+5. muestra toast de no autorizado si recibe `403`;
+6. muestra toast de éxito si `response.ok`;
+7. muestra error del backend si la respuesta falla;
+8. muestra error de conexión si `fetch` lanza excepción;
+9. desactiva `isSubmitting` al finalizar.
 
-`src/lib/api.js` provee funciones para leer y normalizar respuestas:
+## Manejo de FormData
 
-### `readResponseBody(response)`
+Para cargas de archivos, los componentes usan `fetch` directamente con `FormData`. No se debe establecer manualmente `Content-Type` en estas peticiones, porque el navegador genera el boundary del multipart.
 
-Lee el cuerpo de la respuesta como JSON o string. Devuelve `null` si está vacío o es 204.
+## Patrón de consumo en módulos
 
-```javascript
-import { readResponseBody } from "@/lib/api";
-const payload = await readResponseBody(response);
-```
+Los formularios del sistema usan estos patrones:
 
-### `getApiErrorTitle(payload, fallback)`
-
-Extrae el título del error del payload (`mensaje`, `message`, `descripcion`, `error`).
-
-```javascript
-import { getApiErrorTitle } from "@/lib/api";
-const titulo = getApiErrorTitle(payload, "Error al guardar");
-```
-
-### `getApiErrorDescription(payload, fallback)`
-
-Extrae los mensajes de detalle del error (`detalles`, `details`, `errors`, `fieldErrors`). Si no hay detalles, usa el título.
-
-```javascript
-import { getApiErrorDescription } from "@/lib/api";
-const descripcion = getApiErrorDescription(payload);
-```
-
-### Patrón completo de manejo de error
-
-```javascript
-const res = await fetch(`${API_URL_BASE}/personas`, {
-  method: "POST",
-  credentials: "include",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload),
-});
-
-const data = await readResponseBody(res);
-
-if (!res.ok) {
-  toast.error(getApiErrorTitle(data, "Error al guardar"), {
-    description: getApiErrorDescription(data),
-  });
-  return;
-}
-```
-
-## Patrones de consumo por tipo de endpoint
-
-### Listados
-
-```javascript
-const res = await fetch(`${API_URL_BASE}/areas`, { credentials: "include" });
-if (res.status === 401) { router.replace("/"); return; }
-if (!res.ok) { toast.error("Error al cargar"); return; }
-const data = await res.json();
-setAreas(Array.isArray(data) ? data : []);
-```
-
-### Peticiones con multipart/form-data (archivos)
-
-```javascript
-const formData = new FormData();
-archivos.forEach((file) => formData.append("files", file));
-formData.append("path", String(consultaId));
-
-const res = await fetch(`${FILE_STORAGE_API_URL_BASE}/files/upload-multiple`, {
-  method: "POST",
-  credentials: "include",
-  body: formData,
-  // No incluir Content-Type: el navegador lo gestiona con el boundary
-});
-```
-
-### Acciones sin cuerpo (PATCH de estado)
-
-```javascript
-const res = await fetch(`${API_URL_BASE}/areas/${id}/activo?activo=false`, {
-  method: "PATCH",
-  credentials: "include",
-});
-```
-
-## Endpoints principales por módulo
-
-| Módulo | Base path |
+| Tipo de operación | Patrón |
 |---|---|
-| Autenticación | `/api/auth` |
-| Personas | `/api/personas` |
-| Catálogos (áreas, temas, tipos) | `/api/areas`, `/api/temas`, `/api/tipos` |
-| Catálogos (sedes, departamentos…) | `/api/sedes`, `/api/departamentos`, etc. |
-| Consultas jurídicas | `/api/consultas` |
-| Seguimientos | `/api/seguimientos` |
-| Procesos | `/api/procesos` |
-| Conciliaciones | `/api/conciliaciones` |
-| Estadísticas | `/api/estadisticas` |
-| Usuarios y roles | `/api/usuarios`, `/api/roles`, `/api/permisos` |
-| Perfiles (asesores, monitores…) | `/api/asesores`, `/api/monitores`, `/api/estudiantes` |
-| Archivos | Ver `FILE_STORAGE_API_URL_BASE` |
-| Auditoría | `/api/auditoria` |
+| Cargar catálogos o listados | `fetch` o `apiClient.get` con `credentials: include`. |
+| Guardar formularios JSON simples | `useApiForm` o `fetch` con `Content-Type: application/json`. |
+| Cambiar estado | `PATCH` o endpoint específico según API backend. |
+| Subir archivos | `FormData` con `fetch`. |
+| Descargar archivos o PDF | `fetch` y manejo de `Blob` si corresponde. |
+| Error de sesión | redirección a `/`. |
 
-Para la descripción completa de cada endpoint, ver `doc/api/`.
+## Relación con documentación API
+
+Los nombres exactos de endpoints se documentan en `doc/api`. La documentación frontend describe cómo se consumen desde componentes y hooks; no reemplaza la especificación del backend.

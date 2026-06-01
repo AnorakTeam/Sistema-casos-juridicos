@@ -1,60 +1,83 @@
-# Frontend — documentación
+# Frontend
 
-Esta carpeta documenta la implementación frontend del sistema de gestión de casos jurídicos.
+Esta carpeta documenta el frontend del sistema de gestión de casos jurídicos.
 
-La documentación describe lo que está implementado. No presenta como vigente ningún componente, pantalla o flujo que no exista en el código fuente actual.
+El frontend está implementado con Next.js, React y componentes reutilizables para formularios, navegación, autenticación, consumo de API y módulos operativos del sistema.
 
-## Índice
+## Estructura documentada
 
 | Documento | Contenido |
 |---|---|
-| `estructura.md` | Árbol de carpetas real, responsabilidades y convenciones de nombres. |
-| `configuracion-api.md` | Variables de entorno, URL base, uso de credenciales y reglas de seguridad. |
-| `autenticacion-sesion.md` | Flujo de login, sesión, cookie, usuario autenticado, logout y manejo de 401. |
-| `navegacion-permisos.md` | Menús visibles, rutas protegidas, permisos de navegación y de acción. |
-| `servicios-api.md` | Cliente HTTP centralizado, hooks de formulario y patrones de consumo. |
-| `formularios-validaciones.md` | Patrón de formularios, validaciones frontend y relación con validaciones backend. |
-| `manejo-errores.md` | Mensajes por código HTTP, helpers de error y patrones de feedback. |
-| `modulos/consultas.md` | Creación y gestión de consultas jurídicas. |
-| `modulos/seguimientos.md` | Seguimientos, respuestas, calendario y comportamiento por rol. |
-| `modulos/personas.md` | Registro y gestión de personas con formulario por pasos. |
-| `modulos/procesos.md` | Procesos judiciales. |
-| `modulos/estadisticas.md` | Dashboard de estadísticas por semestre y rango libre. |
-| `modulos/catalogos.md` | Áreas, temas y tipos (catálogos del sistema). |
-| `modulos/conciliaciones.md` | Pantallas de conciliaciones, estados, acciones y endpoints consumidos. |
-| `modulos/reuniones-conciliacion.md` | Programación y reprogramación de reuniones de conciliación. |
-| `modulos/usuarios-roles.md` | Usuarios, roles, permisos, estudiantes, asesores y cargue masivo. |
-| `modulos/eliminacion.md` | Desactivación y reactivación de registros. |
-| `mantenimiento-frontend.md` | Checklist para actualizar documentación cuando cambian rutas, permisos o formularios. |
+| `estructura.md` | Organización del proyecto frontend, rutas públicas y rutas del dashboard. |
+| `configuracion-api.md` | Variables de entorno, URL base de API y URL de archivos. |
+| `autenticacion-sesion.md` | Login, recuperación, restablecimiento, sesión y cierre de sesión. |
+| `navegacion-permisos.md` | Sidebar, permisos visibles y navegación protegida. |
+| `servicios-api.md` | Utilidades de consumo de API, `apiClient`, helpers y formularios. |
+| `formularios-validaciones.md` | Componentes reutilizables de formulario y validaciones de entrada. |
+| `manejo-errores.md` | Manejo de respuestas del backend, mensajes y toasts. |
 
-## Tecnologías principales
+## Módulos documentados
 
-- Next.js 15 con App Router.
-- React 19.
-- Tailwind CSS.
-- shadcn/ui (Radix UI).
-- react-hook-form para formularios.
-- Fetch API con `credentials: "include"`.
-- Sonner para notificaciones toast.
-- Playwright para pruebas end-to-end.
+Los módulos visibles del frontend se documentan en:
 
-## Principios
+```text
+frontend/modulos/
+```
 
-- El frontend controla visibilidad de menús, botones y acciones según permisos.
-- El backend valida permisos, alcance y reglas de negocio en cada endpoint.
-- La visibilidad en frontend no reemplaza la seguridad del backend.
-- No se documentan secretos, tokens, credenciales ni datos personales reales.
-
-## Relación con la documentación existente
-
-| Documento | Cómo lo usa el frontend |
+| Documento | Módulo |
 |---|---|
-| `doc/api` | Referencia de contratos REST consumidos desde hooks y formularios. |
-| `doc/reglas` | Fuente para traducir reglas de negocio en validaciones de UI. |
-| `doc/backend` | Referencia para entender responsabilidades del backend, no para duplicar lógica. |
-| `doc/base-datos` | Fuente para entender catálogos, estados y entidades que aparecen en formularios. |
-| `doc/decisiones` | Guía de coherencia para permisos, seguridad y manejo de estado. |
+| `consultas.md` | Nueva consulta, recepción y administración de consultas jurídicas. |
+| `personas.md` | Registro, búsqueda y gestión de personas. |
+| `procesos.md` | Creación y administración de procesos asociados a consultas. |
+| `seguimientos.md` | Gestión de tareas, seguimientos y respuestas. |
+| `conciliaciones.md` | Gestión de conciliaciones y documentos asociados. |
+| `reuniones-conciliacion.md` | Programación y reprogramación de reuniones. |
+| `estadisticas.md` | Visualización y descarga de reportes estadísticos. |
+| `usuarios-roles.md` | Usuarios del sistema, roles, permisos y auditoría visual. |
+| `catalogos.md` | Administración de áreas, temas y tipos. |
+| `eliminacion.md` | Reactivación y gestión lógica de registros. |
 
-## Seguridad documental
+## Rutas principales
 
-Las variables `NEXT_PUBLIC_*` son visibles en el navegador. No deben contener secretos, tokens, API keys, contraseñas, usuarios reales de prueba ni cadenas de conexión con credenciales.
+El frontend usa App Router de Next.js. Entre las rutas implementadas se encuentran:
+
+- `/` para login;
+- `/recuperar-password`;
+- `/restablecer-password`;
+- `/inicio`;
+- `/admin`;
+- `/roles`;
+- `/asesoresymonitores`;
+- `/estudiantes`;
+- `/personas`;
+- `/recepcion`;
+- `/nuevaconsulta`;
+- `/consultasjuridicas`;
+- `/nuevoproceso`;
+- `/procesos`;
+- `/tareas`;
+- `/conciliaciones`;
+- `/estadisticas`;
+- `/eliminacion`.
+
+## Integración con backend
+
+El frontend consume el backend mediante configuración centralizada:
+
+- `API_URL_BASE` para endpoints REST;
+- `FILE_STORAGE_API_URL_BASE` para archivos;
+- `credentials: "include"` para mantener sesión por cookie;
+- `apiClient` y utilidades compartidas para solicitudes;
+- manejo de errores con mensajes del backend cuando están disponibles.
+
+## Navegación por permisos
+
+El menú lateral se construye con base en permisos visibles para el usuario autenticado. La navegación por permisos mejora la experiencia del usuario, mientras que el backend conserva la validación definitiva de autorización y alcance.
+
+## Relación con documentación backend/API
+
+Cada módulo frontend se complementa con:
+
+- documentos de API en `doc/api/`;
+- reglas de negocio en `doc/reglas/`;
+- documentación de servicios backend en `doc/backend/`.

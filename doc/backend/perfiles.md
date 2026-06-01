@@ -1,401 +1,385 @@
-# Backend - Perfiles
+# Backend - Perfiles, usuarios del sistema y cambio de perfil
 
-El módulo de perfiles administra perfiles internos asociados a usuarios del sistema.
+> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
 
-Los perfiles representan actores operativos del consultorio jurídico y se integran con autenticación, permisos, consultas, seguimientos, procesos y conciliaciones.
 
-## Paquetes principales
+## 1. Propósito del módulo
 
-```text
-business/controller/perfil
-business/dto/perfil
-business/model/perfil
-business/repository/perfil
-business/service/perfil
-business/service/acceso/perfil
-```
+El backend de perfiles administra los perfiles operativos vinculados a los usuarios del sistema. La implementación diferencia claramente entre:
 
-## Perfiles administrados
+- el **usuario del sistema**, que representa la cuenta de acceso, autenticación, rol y permisos;
+- el **perfil operativo**, que representa la identidad funcional dentro del consultorio jurídico;
+- el **rol**, que agrupa permisos y define el tipo de perfil asociado a la cuenta.
 
-| Perfil | Entidad | Controller | Endpoint base |
-|---|---|---|---|
-| Administrativo | `Administrativo` | `AdministrativoController` | `/api/administrativos` |
-| Asesor | `Asesor` | `AsesorController` | `/api/asesores` |
-| Monitor | `Monitor` | `MonitorController` | `/api/monitores` |
-| Estudiante | `Estudiante` | `EstudianteController` | `/api/estudiantes` |
-| Conciliador | `Conciliador` | `ConciliadorController` | `/api/conciliadores` |
+Los perfiles implementados son:
 
-## Relación con usuarios del sistema
+- Administrativo;
+- Asesor;
+- Monitor;
+- Estudiante;
+- Conciliador.
 
-Cada perfil puede asociarse a un `UsuarioSistema`.
+Cada perfil cuenta con controller, service principal, command service, query service, validator, mapper, DTO, repository y entidad JPA. Esta organización mantiene una separación clara entre operaciones de lectura, escritura, validaciones y conversión de datos.
 
-Relación general:
+---
 
-```text
-Perfil interno -> UsuarioSistema -> Rol -> Permisos
-```
+## 2. Estructura principal del backend
 
-Las entidades de perfil tienen relación `@OneToOne` con `UsuarioSistema`.
+Los controllers del módulo son:
 
-El flujo de creación guarda primero el perfil y luego crea el usuario del sistema correspondiente mediante `UsuarioSistemaRegistroService`.
-
-## Campos comunes
-
-Los perfiles internos comparten campos principales:
-
-| Campo | Uso |
-|---|---|
-| `id` | Identificador del perfil. |
-| `usuarioSistema` | Usuario del sistema asociado. |
-| `nombre` | Nombre del perfil. |
-| `tipoDocumento` | Tipo de documento. |
-| `documento` | Número de documento único. |
-| `email` | Correo único. |
-| `telefono` | Teléfono único. |
-| `usuario` | Nombre de usuario único. |
-| `codigo` | Código institucional único. |
-| `sede` | Sede asociada. |
-| `activo` | Estado activo/inactivo. |
-
-## Campos específicos por perfil
-
-| Perfil | Campos específicos |
-|---|---|
-| Administrativo | `directora`. |
-| Asesor | `area`. |
-| Estudiante | `asesor`, `conciliacion`. |
-| Conciliador | `tipoConciliador`. |
-| Monitor | No agrega campos específicos adicionales a los comunes. |
-
-## DTOs
-
-| DTO | Campos específicos | Validaciones principales |
+| Controller | Ruta base | Perfil administrado |
 |---|---|---|
-| `AdministrativoDTO` | `directora` | nombre, tipoDocumentoId, documento, email, teléfono, usuario, código, sede. |
-| `AsesorDTO` | `areaId` | nombre, tipoDocumentoId, documento, email, teléfono, usuario, código, sede, área. |
-| `MonitorDTO` | - | nombre, tipoDocumentoId, documento, email, teléfono, usuario, código, sede. |
-| `EstudianteDTO` | `asesorId`, `conciliacion` | nombre, tipoDocumentoId, documento, email, teléfono, usuario, código, sede, asesor. |
-| `ConciliadorDTO` | `tipoConciliador` | nombre, tipoDocumentoId, documento, email, teléfono, usuario, código, sede, tipo de conciliador. |
+| `AdministrativoController` | `/api/administrativos` | Administrativos y directoras |
+| `AsesorController` | `/api/asesores` | Asesores jurídicos |
+| `MonitorController` | `/api/monitores` | Monitores |
+| `EstudianteController` | `/api/estudiantes` | Estudiantes |
+| `ConciliadorController` | `/api/conciliadores` | Conciliadores |
+| `UsuarioSistemaController` | `/api/usuarios-sistema` | Usuarios de acceso y cambio de perfil |
+| `RolController` | `/api/roles` | Roles del sistema |
+| `PermisoController` | `/api/permisos` | Permisos del sistema |
 
-## Servicios por perfil
+Cada perfil usa servicios internos equivalentes:
 
-Cada perfil tiene una estructura similar:
+- `AdministrativoService`, `AdministrativoCommandService`, `AdministrativoQueryService`, `AdministrativoValidator`, `AdministrativoMapper`;
+- `AsesorService`, `AsesorCommandService`, `AsesorQueryService`, `AsesorValidator`, `AsesorMapper`;
+- `MonitorService`, `MonitorCommandService`, `MonitorQueryService`, `MonitorValidator`, `MonitorMapper`;
+- `EstudianteService`, `EstudianteCommandService`, `EstudianteQueryService`, `EstudianteValidator`, `EstudianteMapper`;
+- `ConciliadorService`, `ConciliadorCommandService`, `ConciliadorQueryService`, `ConciliadorValidator`, `ConciliadorMapper`.
 
-| Componente | Responsabilidad |
+---
+
+## 3. DTOs de perfiles
+
+### 3.1 AdministrativoDTO
+
+Campos documentados en código:
+
+| Campo | Descripción |
 |---|---|
-| Service fachada | Expone métodos del módulo y delega. |
-| CommandService | Crea, actualiza, cambia estado y elimina lógicamente. |
-| QueryService | Lista, lista activos y consulta por id. |
-| Validator | Valida campos, duplicados, cambios y estados. |
-| Mapper | Convierte entidad a DTO y aplica datos. |
-| AccessService | Valida permisos y reglas de acceso. |
-| Repository | Consulta y persiste datos. |
+| `id` | Identificador del perfil administrativo |
+| `nombre` | Nombre completo |
+| `tipoDocumentoId` | Tipo de documento asociado |
+| `documento` | Número de documento |
+| `email` | Correo electrónico |
+| `telefono` | Teléfono |
+| `usuario` | Nombre de usuario |
+| `codigo` | Código institucional |
+| `sedeId` | Sede asociada |
+| `activo` | Estado lógico del perfil |
+| `directora` | Indica si el administrativo tiene marca de directora |
 
-## Normalización
+### 3.2 AsesorDTO
 
-Los CommandService normalizan:
-
-- nombre;
-- documento;
-- email;
-- teléfono;
-- usuario;
-- código.
-
-La normalización evita diferencias superficiales y mejora validaciones de duplicados.
-
-## Reglas comunes de creación
-
-Al crear un perfil:
-
-- no se permite enviar `id`;
-- se normalizan datos principales;
-- se validan campos obligatorios;
-- se validan relaciones activas;
-- se validan duplicados;
-- se guarda el perfil;
-- se crea el `UsuarioSistema` asociado;
-- se vincula el perfil guardado con el usuario del sistema.
-
-## Reglas comunes de actualización
-
-Al actualizar:
-
-- se valida que el `id` del DTO no cambie;
-- se cargan relaciones activas;
-- se normalizan datos;
-- se validan duplicados excluyendo el mismo registro;
-- se valida que existan cambios efectivos;
-- se actualiza el perfil sin modificar campos de control que tienen endpoints específicos.
-
-## Reglas comunes de estado
-
-La desactivación se realiza como eliminación lógica mediante `activo=false`.
-
-El backend conserva los perfiles porque pueden estar relacionados con:
-
-- usuarios del sistema;
-- consultas;
-- seguimientos;
-- procesos;
-- conciliaciones.
-
-## Duplicados
-
-Cada perfil valida duplicados por:
-
-- documento;
-- email;
-- teléfono;
-- usuario;
-- código.
-
-En actualización se excluye el registro actual.
-
-## Perfiles y catálogos relacionados
-
-| Perfil | Relaciones requeridas |
+| Campo | Descripción |
 |---|---|
-| Administrativo | Tipo de documento activo, sede activa. |
-| Asesor | Tipo de documento activo, sede activa, área activa. |
-| Monitor | Tipo de documento activo, sede activa. |
-| Estudiante | Tipo de documento activo, sede activa, asesor activo. |
-| Conciliador | Tipo de documento activo, sede activa, tipo de conciliador. |
-
-## Administrativo
-
-### Entidad
-
-```text
-Administrativo
-```
-
-Campos específicos:
-
-- `directora`.
-
-### Reglas específicas
-
-La gestión de administrativos tiene una regla especial:
-
-- el usuario debe tener rol administrador;
-- además, el perfil administrativo actual debe estar marcado como directora.
-
-Esta regla se valida en `AdministrativoAccessService`.
-
-### Endpoints
-
-Base path:
-
-```text
-/api/administrativos
-```
-
-| Método | Ruta | Permiso/Regla | Uso |
-|---|---|---|---|
-| GET | `/api/administrativos` | Administrador | Lista administrativos. |
-| GET | `/api/administrativos/activos` | Administrador | Lista administrativos activos. |
-| GET | `/api/administrativos/directoras` | Administrador | Lista administrativos directores activos. |
-| GET | `/api/administrativos/{id}` | Administrador | Consulta administrativo por id. |
-| POST | `/api/administrativos` | Gestión de administradores | Crea administrativo. |
-| PUT | `/api/administrativos/{id}` | Gestión de administradores | Actualiza administrativo. |
-| PATCH | `/api/administrativos/{id}/activo` | Gestión de administradores | Cambia estado activo. |
-| PATCH | `/api/administrativos/{id}/directora` | Gestión de administradores | Cambia marca de directora. |
-| DELETE | `/api/administrativos/{id}` | Gestión de administradores | Desactiva administrativo. |
-
-## Asesor
-
-### Entidad
-
-```text
-Asesor
-```
-
-Campos específicos:
-
-- `area`.
-
-### Reglas específicas
-
-El asesor pertenece a un área activa.  
-Puede relacionarse con estudiantes, consultas y reglas de alcance de otros módulos.
-
-### Endpoints
-
-Base path:
-
-```text
-/api/asesores
-```
-
-| Método | Ruta | Permiso | Uso |
-|---|---|---|---|
-| GET | `/api/asesores` | `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Lista asesores. |
-| GET | `/api/asesores/activos` | `Ver perfiles auxiliares`, `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Lista asesores activos. |
-| GET | `/api/asesores/{id}` | `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Consulta asesor por id. |
-| POST | `/api/asesores` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Crea asesor. |
-| PUT | `/api/asesores/{id}` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Actualiza asesor. |
-| PATCH | `/api/asesores/{id}/activo` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Cambia estado activo. |
-| DELETE | `/api/asesores/{id}` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Desactiva asesor. |
-
-## Monitor
-
-### Entidad
-
-```text
-Monitor
-```
-
-El monitor participa en flujos de consulta y seguimiento según reglas de otros módulos.
-
-### Endpoints
-
-Base path:
-
-```text
-/api/monitores
-```
-
-| Método | Ruta | Permiso | Uso |
-|---|---|---|---|
-| GET | `/api/monitores` | `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Lista monitores. |
-| GET | `/api/monitores/activos` | `Ver perfiles auxiliares`, `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Lista monitores activos. |
-| GET | `/api/monitores/{id}` | `Ver asesores y monitores`, `Gestionar asesores y monitores` o `Gestionar usuarios` | Consulta monitor por id. |
-| POST | `/api/monitores` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Crea monitor. |
-| PUT | `/api/monitores/{id}` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Actualiza monitor. |
-| PATCH | `/api/monitores/{id}/activo` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Cambia estado activo. |
-| DELETE | `/api/monitores/{id}` | `Gestionar asesores y monitores` o `Gestionar usuarios` | Desactiva monitor. |
-
-## Estudiante
-
-### Entidad
-
-```text
-Estudiante
-```
-
-Campos específicos:
-
-- `asesor`;
-- `conciliacion`.
-
-### Reglas específicas
-
-El estudiante pertenece a un asesor activo.
-
-El campo `conciliacion` indica si el estudiante está habilitado para asignaciones relacionadas con conciliación.
-
-La gestión real de estudiantes queda restringida a administrador mediante `EstudianteAccessService`.
-
-### Alcance de consulta
-
-Los listados de estudiantes aplican alcance:
-
-- administrador consulta todos;
-- asesor consulta estudiantes asociados a su perfil;
-- consulta por asesor valida que el asesor actual corresponda cuando no es administrador.
-
-### Endpoints
-
-Base path:
-
-```text
-/api/estudiantes
-```
-
-| Método | Ruta | Permiso/Regla | Uso |
-|---|---|---|---|
-| GET | `/api/estudiantes` | `Ver estudiantes`, `Ver perfiles auxiliares` o `Gestionar usuarios` | Lista estudiantes según alcance. |
-| GET | `/api/estudiantes/activos` | `Ver estudiantes`, `Ver perfiles auxiliares` o `Gestionar usuarios` | Lista estudiantes activos según alcance. |
-| GET | `/api/estudiantes/conciliacion` | `Ver estudiantes`, `Ver perfiles auxiliares` o `Gestionar usuarios` | Lista estudiantes activos habilitados para conciliación. |
-| GET | `/api/estudiantes/activos/asesor/{asesorId}` | Permiso de consulta y alcance por asesor | Lista estudiantes activos de un asesor. |
-| GET | `/api/estudiantes/{id}` | Permiso de consulta y alcance | Consulta estudiante por id. |
-| POST | `/api/estudiantes` | `Crear usuarios` o `Gestionar usuarios`, con gestión restringida | Crea estudiante. |
-| PUT | `/api/estudiantes/{id}` | `Editar usuarios` o `Gestionar usuarios`, con gestión restringida | Actualiza estudiante. |
-| PATCH | `/api/estudiantes/{id}/activo` | `Cambiar estado estudiantes` o `Gestionar usuarios`, con gestión restringida | Cambia estado activo. |
-| PATCH | `/api/estudiantes/{id}/conciliacion` | `Editar usuarios` o `Gestionar usuarios`, con gestión restringida | Cambia habilitación para conciliación. |
-| DELETE | `/api/estudiantes/{id}` | `Gestionar usuarios` | Desactiva estudiante. |
-
-## Conciliador
-
-### Entidad
-
-```text
-Conciliador
-```
-
-Campos específicos:
-
-- `tipoConciliador`.
-
-El tipo de conciliador se maneja como enum:
-
-```text
-TipoConciliador
-```
-
-### Reglas específicas
-
-El conciliador puede quedar asociado a conciliaciones.  
-Por esto, la eliminación se implementa como desactivación lógica.
-
-### Endpoints
-
-Base path:
-
-```text
-/api/conciliadores
-```
-
-| Método | Ruta | Permiso | Uso |
-|---|---|---|---|
-| GET | `/api/conciliadores` | `Ver conciliadores`, `Gestionar conciliadores` o `Gestionar usuarios` | Lista conciliadores. |
-| GET | `/api/conciliadores/activos` | `Ver perfiles auxiliares`, `Ver conciliadores`, `Gestionar conciliadores` o `Gestionar usuarios` | Lista conciliadores activos. |
-| GET | `/api/conciliadores/{id}` | `Ver conciliadores`, `Gestionar conciliadores` o `Gestionar usuarios` | Consulta conciliador por id. |
-| POST | `/api/conciliadores` | `Gestionar conciliadores` o `Gestionar usuarios` | Crea conciliador. |
-| PUT | `/api/conciliadores/{id}` | `Gestionar conciliadores` o `Gestionar usuarios` | Actualiza conciliador. |
-| PATCH | `/api/conciliadores/{id}/activo` | `Gestionar conciliadores` o `Gestionar usuarios` | Cambia estado activo. |
-| DELETE | `/api/conciliadores/{id}` | `Gestionar conciliadores` o `Gestionar usuarios` | Desactiva conciliador. |
-
-## Usuario del sistema asociado
-
-La creación de perfiles crea también un usuario del sistema mediante `UsuarioSistemaRegistroService`.
-
-Métodos usados según perfil:
-
-| Perfil | Método |
+| `id` | Identificador del asesor |
+| `nombre` | Nombre completo |
+| `tipoDocumentoId` | Tipo de documento |
+| `documento` | Número de documento |
+| `email` | Correo electrónico |
+| `telefono` | Teléfono |
+| `usuario` | Usuario de acceso asociado |
+| `sedeId` | Sede |
+| `codigo` | Código institucional |
+| `areaId` | Área jurídica del asesor |
+| `activo` | Estado lógico del perfil |
+
+### 3.3 MonitorDTO
+
+| Campo | Descripción |
 |---|---|
-| Administrativo | `crearParaAdministrativo` |
-| Asesor | `crearParaAsesor` |
-| Monitor | `crearParaMonitor` |
-| Estudiante | `crearParaEstudiante` |
-| Conciliador | `crearParaConciliador` |
+| `id` | Identificador del monitor |
+| `nombre` | Nombre completo |
+| `tipoDocumentoId` | Tipo de documento |
+| `documento` | Número de documento |
+| `email` | Correo electrónico |
+| `telefono` | Teléfono |
+| `usuario` | Nombre de usuario |
+| `codigo` | Código institucional |
+| `sedeId` | Sede |
+| `activo` | Estado lógico |
 
-## Repositories
+### 3.4 EstudianteDTO
 
-Los repositories de perfiles permiten:
+| Campo | Descripción |
+|---|---|
+| `id` | Identificador del estudiante |
+| `nombre` | Nombre completo |
+| `tipoDocumentoId` | Tipo de documento |
+| `documento` | Número de documento |
+| `email` | Correo electrónico |
+| `telefono` | Teléfono |
+| `usuario` | Nombre de usuario |
+| `sedeId` | Sede |
+| `codigo` | Código institucional |
+| `asesorId` | Asesor asignado |
+| `activo` | Estado lógico |
+| `conciliacion` | Habilitación para conciliación |
 
-- validar duplicados;
-- listar activos;
-- buscar por id activo;
-- buscar por `usuarioSistema`;
-- consultar destinatarios para notificaciones cuando aplica.
+### 3.5 ConciliadorDTO
 
-Campos usados para duplicados:
+| Campo | Descripción |
+|---|---|
+| `id` | Identificador del conciliador |
+| `nombre` | Nombre completo |
+| `tipoDocumentoId` | Tipo de documento |
+| `documento` | Número de documento |
+| `email` | Correo electrónico |
+| `telefono` | Teléfono |
+| `usuario` | Nombre de usuario |
+| `sedeId` | Sede |
+| `codigo` | Código institucional |
+| `tipoConciliador` | Tipo funcional del conciliador |
+| `activo` | Estado lógico |
 
-- documento;
-- email;
-- teléfono;
-- usuario;
-- código.
+---
 
-## Consideraciones para frontend
+## 4. Creación de perfiles y UsuarioSistema
 
-- Usar listados activos para combos.
-- Usar endpoints generales para administración.
-- No enviar `id` en creación.
-- No modificar campos de estado desde endpoints de actualización general.
-- Para estudiantes, usar `/conciliacion` cuando se requieran estudiantes habilitados para conciliación.
-- Para estudiantes asociados a asesor, usar los endpoints por asesor.
-- Manejar errores de negocio cuando no existan cambios, existan duplicados o el usuario no tenga alcance.
-- Usar `credentials: "include"` en peticiones protegidas.
+Los command services de perfiles crean el perfil y luego registran el usuario del sistema asociado mediante `UsuarioSistemaRegistroService`.
+
+El flujo general es:
+
+1. validar permisos de gestión del perfil;
+2. validar que no se envíe `id` en creación;
+3. normalizar datos básicos;
+4. validar campos obligatorios;
+5. validar duplicados por documento, correo, teléfono, usuario y código;
+6. persistir el perfil;
+7. crear el `UsuarioSistema` asociado;
+8. vincular el perfil con el usuario creado;
+9. retornar el DTO del perfil persistido.
+
+Este diseño mantiene una relación directa entre identidad funcional y cuenta de acceso.
+
+---
+
+## 5. Actualización de perfiles
+
+La actualización por `PUT` modifica datos propios del perfil, pero conserva los campos de control funcional que cuentan con endpoints específicos.
+
+Ejemplos:
+
+- `activo` se modifica mediante `PATCH /{id}/activo`;
+- `directora` se modifica mediante `PATCH /api/administrativos/{id}/directora`;
+- `conciliacion` se modifica mediante `PATCH /api/estudiantes/{id}/conciliacion`.
+
+En actualización se valida:
+
+- que el perfil exista;
+- que el `id` del DTO no sea diferente al de la ruta;
+- que los campos obligatorios estén completos;
+- que no se generen duplicados;
+- que exista un cambio real antes de guardar.
+
+---
+
+## 6. Estado activo del perfil y UsuarioSistema
+
+El sistema conserva sincronizado el estado del perfil operativo con el usuario de acceso asociado.
+
+La clase `UsuarioSistemaPerfilEstadoService` sincroniza el estado de `UsuarioSistema` cuando se desactiva o reactiva un perfil desde los command services de:
+
+- Administrativo;
+- Asesor;
+- Estudiante;
+- Monitor;
+- Conciliador.
+
+La sincronización se ejecuta de forma segura:
+
+- si el perfil no tiene usuario asociado, no interrumpe la operación;
+- si el estado del usuario ya coincide, no guarda cambios innecesarios;
+- si el perfil se desactiva, el usuario asociado queda inactivo;
+- si el perfil se reactiva, el usuario asociado queda activo.
+
+---
+
+## 7. Protección de responsables con consultas operativas
+
+El servicio `ConsultaResponsableOperacionService` protege la integridad operativa de las consultas al impedir la desactivación de responsables con consultas vivas.
+
+Se aplica a:
+
+- asesores;
+- estudiantes;
+- monitores.
+
+Estados considerados operativos:
+
+- `PENDIENTE`;
+- `ACTIVO`;
+- `EN_PROCESO`;
+- `URGENTE`.
+
+Para asesores se validan dos escenarios:
+
+1. consultas asignadas directamente al asesor;
+2. consultas de estudiantes vinculados al asesor.
+
+Esto conserva la trazabilidad de responsables internos en casos jurídicos activos.
+
+---
+
+## 8. Habilitación de estudiantes para conciliación
+
+El estudiante cuenta con un campo funcional `conciliacion`, administrado mediante endpoint específico. Este valor permite identificar estudiantes habilitados para participar en flujos de conciliación.
+
+El backend expone:
+
+- listado general de estudiantes;
+- listado de estudiantes activos;
+- listado de estudiantes habilitados para conciliación;
+- listado de estudiantes activos por asesor;
+- cambio de estado activo;
+- cambio de habilitación para conciliación;
+- importación de estudiantes desde archivo.
+
+---
+
+## 9. Cambio de perfil con Strategy
+
+El cambio de perfil está implementado con estrategias para evitar lógica centralizada por tipo de perfil.
+
+### 9.1 Perfil destino
+
+La creación o actualización del perfil destino se resuelve mediante:
+
+- `PerfilCambioHandler`;
+- `PerfilCambioHandlerRegistry`;
+- `CambiarAAdministrativoHandler`;
+- `CambiarAAsesorHandler`;
+- `CambiarAEstudianteHandler`;
+- `CambiarAMonitorHandler`;
+- `CambiarAConciliadorHandler`.
+
+Cada handler conoce:
+
+- el tipo de perfil que atiende;
+- el DTO esperado;
+- el repositorio correspondiente;
+- las validaciones de duplicados;
+- la forma de activar o reutilizar el perfil destino.
+
+### 9.2 Desactivación del perfil anterior
+
+La desactivación del perfil anterior se resuelve mediante:
+
+- `PerfilEstadoHandler`;
+- `PerfilEstadoHandlerRegistry`;
+- `AdministrativoPerfilEstadoHandler`;
+- `AsesorPerfilEstadoHandler`;
+- `EstudiantePerfilEstadoHandler`;
+- `MonitorPerfilEstadoHandler`;
+- `ConciliadorPerfilEstadoHandler`.
+
+Los handlers de asesor, estudiante y monitor aplican la validación de consultas operativas antes de desactivar el perfil anterior.
+
+### 9.3 Resolución del perfil activo
+
+La resolución del perfil activo del usuario autenticado se resuelve mediante:
+
+- `PerfilUsuarioActivoResolver`;
+- `PerfilUsuarioActivoResolverRegistry`;
+- resolvers concretos por tipo de perfil.
+
+`PerfilUsuarioResolverService` delega la búsqueda del perfil activo al resolver correspondiente, según `tipoPerfilActual` del usuario.
+
+---
+
+## 10. Historial de cambio de perfil
+
+El cambio de perfil registra historial mediante `UsuarioCambioPerfilHistorialService` y la entidad `UsuarioCambioPerfilHistorial`.
+
+El historial conserva:
+
+- usuario del sistema;
+- tipo de perfil anterior;
+- identificador del perfil anterior;
+- rol anterior;
+- tipo de perfil nuevo;
+- identificador del perfil nuevo;
+- rol nuevo;
+- usuario que realiza el cambio;
+- motivo del cambio.
+
+El motivo es obligatorio y tiene validación de longitud máxima.
+
+---
+
+## 11. Usuarios del sistema
+
+`UsuarioSistema` representa la cuenta de acceso. El DTO `UsuarioSistemaDTO` expone:
+
+| Campo | Descripción |
+|---|---|
+| `id` | Identificador del usuario del sistema |
+| `username` | Nombre de usuario |
+| `activo` | Estado de acceso |
+| `rolId` | Rol actual |
+| `rolNombre` | Nombre del rol |
+| `perfilId` | Perfil operativo actual |
+| `tipoPerfil` | Tipo de perfil actual |
+| `permisos` | Permisos efectivos asociados al rol |
+
+Los usuarios del sistema se listan, consultan, activan/desactivan y cambian de perfil mediante endpoints específicos.
+
+---
+
+## 12. Roles y permisos
+
+Los roles agrupan permisos y están vinculados al tipo de perfil esperado para el usuario.
+
+`RolDTO` contiene:
+
+- `id`;
+- `nombre`;
+- `descripcion`;
+- `activo`;
+- `permisoIds`;
+- `permisos`.
+
+`PermisoDTO` contiene:
+
+- `id`;
+- `nombre`;
+- `descripcion`;
+- `activo`.
+
+Los permisos se asignan y retiran de roles mediante endpoints dedicados, manteniendo explícita la relación rol-permiso.
+
+---
+
+## 13. Alcance por perfil
+
+El backend usa servicios de acceso para validar permisos y alcance operativo:
+
+- `AdministrativoAccessService`;
+- `AsesorMonitorAccessService`;
+- `ConciliadorAccessService`;
+- `EstudianteAccessService`;
+- services de acceso de consultas, procesos, seguimientos y conciliaciones.
+
+Esta arquitectura permite que cada módulo combine permisos globales con reglas de alcance por usuario autenticado.
+
+---
+
+## 14. Pruebas relacionadas
+
+El comportamiento de perfiles y estrategias cuenta con pruebas unitarias sobre:
+
+- sincronización de perfil y usuario del sistema;
+- desactivación mediante Strategy;
+- resolución de perfil activo mediante Strategy;
+- registry de handlers de estado;
+- registry de resolvers de perfil;
+- bloqueo de responsables con consultas operativas.
+
+Pruebas observadas:
+
+- `UsuarioSistemaPerfilEstadoServiceTest`;
+- `PerfilEstadoServiceTest`;
+- `PerfilUsuarioResolverServiceTest`;
+- `PerfilEstadoHandlerRegistryTest`;
+- `PerfilUsuarioActivoResolverRegistryTest`;
+- `ConsultaResponsableOperacionServiceTest`.

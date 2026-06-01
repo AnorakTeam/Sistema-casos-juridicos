@@ -1,64 +1,29 @@
 # Decisiones técnicas
 
-Esta carpeta documenta decisiones técnicas relevantes del sistema de gestión de casos jurídicos.
+Esta carpeta documenta decisiones de diseño aplicadas en el sistema.
 
-Las decisiones explican por qué ciertos patrones, reglas y criterios fueron adoptados en el proyecto. Su propósito es facilitar mantenimiento, revisión técnica, evaluación académica e integración entre backend y frontend.
+Las decisiones aquí descritas explican criterios transversales que aparecen en varias capas del código fuente, como seguridad, permisos, estado funcional, archivos, conciliación y estrategias de perfiles.
 
-## Índice
+## Documentos
 
-| Documento | Contenido |
+| Documento | Decisión documentada |
 |---|---|
-| `seguridad-documental.md` | Criterios para documentar sin exponer secretos ni datos sensibles. |
-| `permisos-y-alcance.md` | Decisión de separar permisos funcionales y alcance real sobre recursos. |
-| `estado-vs-activo.md` | Decisión de separar estado funcional y activo lógico. |
-| `conciliacion.md` | Decisiones técnicas y funcionales del módulo de conciliación. |
-| `documentacion-vigente.md` | Criterios para mantener documentación alineada con el código actual. |
+| `estado-vs-activo.md` | Separación entre ciclo funcional y disponibilidad lógica. |
+| `permisos-y-alcance.md` | Combinación entre permisos funcionales y alcance real del usuario. |
+| `seguridad-documental.md` | Criterios para documentación segura sin exposición de secretos. |
+| `documentacion-vigente.md` | Criterio de mantener la documentación alineada con código fuente vigente. |
+| `conciliacion.md` | Decisiones del flujo de conciliación, reuniones, documentos y notificaciones. |
+| `estrategia-perfiles.md` | Uso de Strategy para cambio de perfil, desactivación del perfil anterior y resolución del perfil activo. |
 
-## Formato de decisión
+## Uso de estas decisiones
 
-Cada documento describe:
+Las decisiones técnicas complementan la documentación de backend, API, reglas y frontend. Cuando una decisión afecta un módulo, el documento del módulo describe el comportamiento concreto y este directorio explica el criterio transversal.
 
-- contexto;
-- decisión tomada;
-- justificación;
-- impacto en backend;
-- impacto en frontend;
-- criterios de mantenimiento.
+## Principios
 
-## Principios generales
-
-Las decisiones del proyecto siguen estos principios:
-
-- el backend valida reglas críticas de negocio;
-- el frontend mejora experiencia, pero no reemplaza seguridad;
-- las reglas de negocio deben estar centralizadas y ser mantenibles;
-- la documentación debe describir el estado vigente del sistema;
-- la documentación no debe exponer valores sensibles;
-- la persistencia debe conservar historial cuando el dominio lo requiere;
-- los permisos deben diferenciar acción general y alcance real;
-- los estados funcionales no deben mezclarse con desactivación lógica.
-
-## Relación con otras carpetas
-
-Las decisiones complementan:
-
-| Carpeta | Relación |
-|---|---|
-| `doc/backend` | Describe implementación por módulo. |
-| `doc/api` | Describe contratos de endpoints. |
-| `doc/reglas` | Describe reglas funcionales vigentes. |
-| `doc/base-datos` | Describe entidades, relaciones, estados y catálogos. |
-
-## Uso recomendado
-
-Cuando se realice un cambio funcional, se debe revisar si afecta una decisión documentada.
-
-Ejemplos:
-
-| Cambio | Documento a revisar |
-|---|---|
-| Cambio en permisos o navegación | `permisos-y-alcance.md`. |
-| Cambio en estados o activo lógico | `estado-vs-activo.md`. |
-| Cambio en conciliación | `conciliacion.md`. |
-| Cambio en criterios de documentación | `documentacion-vigente.md`. |
-| Cambio en manejo de secretos o variables | `seguridad-documental.md`. |
+- Mantener reglas críticas en backend.
+- Separar estado funcional de activo lógico.
+- Proteger trazabilidad de consultas, procesos, seguimientos y conciliaciones.
+- Evitar dependencias rígidas por tipo de perfil mediante estrategias.
+- Mantener documentación alineada con código fuente.
+- Documentar configuración sensible por nombre de variable, no por valor real.

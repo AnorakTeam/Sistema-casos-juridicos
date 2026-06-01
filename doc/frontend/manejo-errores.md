@@ -1,67 +1,61 @@
 # Manejo de errores
 
-El frontend maneja los errores del backend de forma consistente usando helpers de `src/lib/api.js` y toasts de Sonner.
+El frontend maneja errores del backend mediante helpers de `src/lib/api.js`, mensajes locales y toasts de Sonner. El objetivo es mostrar retroalimentación clara al usuario sin perder el contexto del formulario o listado.
 
-Ver `doc/05-estandar-api-errores.md` para la especificación completa del formato de error del backend.
+## Formato esperado del backend
 
-## Formato de error del backend
+El backend devuelve errores estructurados con campos como:
 
 ```json
 {
   "fecha": "fecha-hora-del-error",
   "estado": 400,
   "error": "Tipo de error",
-  "mensaje": "Mensaje descriptivo para el usuario",
-  "ruta": "/ruta/del/endpoint"
+  "mensaje": "Mensaje descriptivo",
+  "ruta": "/api/recurso"
 }
 ```
 
-Con errores de validación por campo:
+Cuando hay detalles por campo, el payload puede incluir un objeto de detalles. Los helpers del frontend también contemplan nombres alternativos como `details`, `errors`, `fieldErrors` y `validaciones`.
 
-```json
-{
-  "fecha": "fecha-hora-del-error",
-  "estado": 400,
-  "error": "Error de validación",
-  "mensaje": "Uno o más campos no son válidos",
-  "ruta": "/ruta/del/endpoint",
-  "detalles": {
-    "campo": "Mensaje de validación del campo"
-  }
-}
-```
+## Helpers principales
 
-## Helpers para extraer mensajes de error
-
-```javascript
-import { readResponseBody, getApiErrorTitle, getApiErrorDescription } from "@/lib/api";
-
-const payload = await readResponseBody(response);
-const titulo = getApiErrorTitle(payload, "Error al guardar");
-const descripcion = getApiErrorDescription(payload);
-
-toast.error(titulo, { description: descripcion });
-```
-
-`getApiErrorDescription` extrae los mensajes del campo `detalles`. Si no hay detalles, usa el título del error.
+| Helper | Función |
+|---|---|
+| `readResponseBody(response)` | Lee JSON, texto o devuelve `null` si no hay cuerpo. |
+| `getApiErrorMessages(payload)` | Extrae mensajes de detalle. |
+| `getApiErrorTitle(payload, fallback)` | Obtiene el mensaje principal. |
+| `getApiErrorDescription(payload, fallback)` | Construye descripción para toast. |
 
 ## Respuesta por código HTTP
 
-| Código | Significado | Acción en el frontend |
-|---|---|---|
-| `200` | Éxito con respuesta. | Usar la respuesta normalmente. |
-| `201` | Recurso creado. | Mostrar toast de éxito y actualizar la lista o redirigir. |
-| `204` | Éxito sin cuerpo. | Mostrar toast de éxito. `readResponseBody` devuelve `null`. |
-| `400` | Error de validación o de negocio. | Mostrar el mensaje del backend en un toast. Mantener el formulario editable. |
-| `401` | Sesión no válida o expirada. | Redirigir a `/` (login). |
-| `403` | Sin permiso o sin alcance. | Mostrar toast de error. No redirigir para preservar el contexto. |
-| `404` | Recurso no encontrado. | Mostrar mensaje y volver al listado o detalle válido. |
-| `409` | Conflicto (duplicado u operación inválida). | Mostrar el mensaje del backend. |
-| `500` | Error interno del servidor. | Mostrar mensaje general y permitir reintentar. |
+| Código | Manejo frontend |
+|---|---|
+| `200` | Usa la respuesta y actualiza UI. |
+| `201` | Muestra éxito y actualiza listado o formulario. |
+| `204` | Lee cuerpo como `null` y muestra éxito si aplica. |
+| `400` | Muestra mensaje de validación o negocio. |
+| `401` | Redirige al login en navegación o formularios. |
+| `403` | Muestra mensaje de no autorizado. |
+| `404` | Muestra mensaje de recurso no encontrado. |
+| `409` | Muestra conflicto o duplicado informado por backend. |
+| `500` | Muestra mensaje general y conserva contexto de usuario. |
+
+## Toasts
+
+El frontend usa Sonner para mensajes visuales. El `Toaster` se monta en el layout del dashboard.
+
+| Caso | Mensaje típico |
+|---|---|
+| Operación exitosa | `toast.success(...)` |
+| Error de negocio | `toast.error(título, { description })` |
+| Sesión expirada | `toast.error("Sesión expirada", ...)` y redirección. |
+| Sin permiso | `toast.error("No autorizado", ...)` |
+| Error de red | `toast.error("Error de conexión", ...)` |
 
 ## Errores de red
 
-Cuando `fetch` lanza una excepción (timeout, servidor caído, sin conexión), el frontend muestra un toast de error de conexión:
+Cuando `fetch` lanza excepción, los componentes o hooks capturan el error, lo registran con `console.error` y muestran mensaje de conexión.
 
 ```javascript
 catch (error) {
@@ -72,75 +66,43 @@ catch (error) {
 }
 ```
 
-## Feedback al usuario
+## Manejo en `useApiForm`
 
-El frontend usa **Sonner** para las notificaciones toast. Las variantes usadas son:
+`useApiForm` centraliza errores para formularios JSON:
 
-| Variante | Uso |
+- `401`: muestra sesión expirada y redirige a `/`;
+- `403`: muestra no autorizado;
+- `response.ok`: muestra éxito;
+- errores con cuerpo: usa `getApiErrorTitle` y `getApiErrorDescription`;
+- errores de red: muestra error de conexión.
+
+## Manejo en formularios específicos
+
+Algunos formularios usan estado local para mostrar errores dentro del formulario, especialmente en autenticación. Otros usan toasts para operaciones de gestión.
+
+| Módulo | Patrón observado |
 |---|---|
-| `toast.success` | Operación exitosa (guardar, actualizar, importar). |
-| `toast.error` | Error del backend, sin permiso, error de red. |
-| `toast.warning` | Advertencia parcial (ej: consulta creada pero archivos no subidos). |
+| Login | Mensaje local bajo el formulario. |
+| Recuperación de contraseña | Mensaje local de éxito o error. |
+| Restablecimiento | Mensaje local de éxito o error. |
+| Formularios de gestión | Toasts con mensajes del backend. |
+| Operaciones sensibles | Diálogo de confirmación + toast de resultado. |
 
-Los mensajes de toast muestran el texto del backend directamente cuando está disponible, para que el usuario reciba información precisa sin necesidad de buscar en los logs.
+## Confirmación de acciones
 
-## Errores de validación de archivos
+`ConfirmActionDialog.jsx` proporciona confirmación visual para acciones sensibles. Recibe título, descripción, texto de confirmación, estado de carga, variante y callbacks.
 
-`FormFileUpload` valida tipo MIME y tamaño antes de agregar cada archivo. Los archivos que no cumplen se rechazan con un `toast.error` que indica el nombre del archivo y la razón:
+Se usa para reducir errores del usuario antes de ejecutar operaciones como desactivación, eliminación lógica, cambios de estado o acciones administrativas.
 
-```text
-"archivo.exe" tiene un formato no permitido. Use PDF, imágenes o documentos Office.
-"documento.pdf" supera el tamaño máximo de 10 MB.
-```
+## Buenas prácticas aplicadas
 
-Los archivos válidos del mismo lote se agregan normalmente.
+- No ocultar mensajes de validación del backend.
+- Mantener formularios editables después de errores de negocio.
+- Redirigir al login solo en sesión inválida.
+- No redirigir automáticamente ante `403` para conservar contexto.
+- Usar mensajes concretos del backend cuando existan.
+- Registrar errores técnicos en consola para depuración.
 
-## Errores de permisos en acciones
+## Relación con backend
 
-Cuando el usuario intenta ejecutar una acción sin el permiso necesario, el formulario muestra un toast sin redirigir:
-
-```javascript
-if (!tienePermiso(user, PERMISOS.CAMBIAR_ESTADO_ESTUDIANTES)) {
-  toast.error("Sin permiso", {
-    description: "No tienes permiso para cambiar el estado de estudiantes.",
-  });
-  return;
-}
-```
-
-Esta regla evita que el usuario pierda el contexto de la pantalla en la que estaba trabajando.
-
-## Errores de validación cruzada en formularios
-
-Las validaciones que dependen de múltiples campos se ejecutan en el handler de envío, antes de llamar al backend. Si fallan, se muestra un toast con descripción específica y, cuando aplica, el formulario navega al paso donde está el campo con error:
-
-```javascript
-// Ejemplo: validación cruzada de contacto en PersonaForm
-if (!telefono && !correo) {
-  toast.error("Contacto requerido", {
-    description: "Debe ingresar al menos un teléfono o un correo electrónico.",
-  });
-  setPasoActual(pasos.indexOf("Contacto"));
-  return;
-}
-```
-
-## Errores de formato en importación masiva
-
-El endpoint `POST /api/estudiantes/importar` devuelve `400` con texto plano cuando el archivo no tiene el formato esperado. El formulario captura este caso específico y lo muestra como "Error de formato" con el mensaje exacto del backend.
-
-Cuando el proceso se ejecuta parcialmente, la respuesta incluye el resumen:
-
-```json
-{
-  "exitosos": 3,
-  "fallidos": 2,
-  "totalFilas": 5,
-  "errores": [
-    "Fila 2: Ya existe un estudiante con ese documento",
-    "Fila 4: El email es inválido"
-  ]
-}
-```
-
-El formulario muestra tarjetas con los totales y una lista con cada error por fila.
+El frontend interpreta errores; no redefine reglas. Los mensajes funcionales principales provienen del backend y se presentan al usuario con formato legible.

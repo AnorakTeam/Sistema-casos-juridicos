@@ -1,108 +1,245 @@
-# Módulo: Personas
+# Frontend - Módulo de personas
 
-## Propósito
+## 1. Propósito del módulo
 
-Permite registrar y gestionar las personas que consultan el consultorio jurídico. El formulario de registro captura datos de identificación, identidad, contacto, vivienda, economía, acudiente (para menores) y relación con el servicio.
+El módulo de personas permite registrar, consultar, editar y desactivar personas naturales usadas por el sistema como usuarios de consulta, partes, contrapartes o sujetos relacionados con una atención jurídica.
 
-Ver `doc/api/personas.md` para la especificación completa del backend.
+El frontend lo implementa con dos rutas principales:
 
-## Pantallas y rutas
-
-| Ruta | Componente principal | Descripción |
+| Ruta | Componente de página | Formulario principal |
 |---|---|---|
-| `/recepcion` | `PersonaForm` (nuevo) | Formulario de registro de persona nueva |
-| `/personas` | `PersonasForm` + `PersonaForm` (editar) | Listado y edición de personas |
+| `/recepcion` | `src/app/(dashboard)/recepcion/page.js` | `PersonaForm` |
+| `/personas` | `src/app/(dashboard)/personas/page.js` | `PersonasForm` |
 
-## Componentes
+## 2. Archivos fuente validados
 
 ```text
-src/components/forms/persona/PersonaForm.jsx
-src/components/forms/persona/PersonasForm.jsx
+frontend/src/app/(dashboard)/recepcion/page.js
+frontend/src/app/(dashboard)/personas/page.js
+frontend/src/components/forms/persona/PersonaForm.jsx
+frontend/src/components/forms/persona/PersonasForm.jsx
+frontend/src/lib/config.js
+frontend/src/lib/api.js
+frontend/src/lib/authz.js
+frontend/src/lib/permission.js
+frontend/src/lib/form-validation.js
+frontend/src/components/ui/ConfirmActionDialog.jsx
+frontend/src/components/ui/Pagination.jsx
 ```
 
-## Permisos
+## 3. Registro desde recepción
+
+La ruta `/recepcion` presenta el formulario `PersonaForm`. Esta vista está orientada al registro de una nueva persona en el sistema.
+
+### 3.1 Validación de acceso
+
+El formulario consulta:
+
+```text
+GET /api/auth/me
+```
+
+Y valida permisos relacionados con recepción y creación de personas:
 
 | Permiso | Uso |
 |---|---|
-| `Acceder recepción` | Acceder a la pantalla de registro. |
-| `Acceder personas` | Acceder al listado de personas. |
-| `Crear personas` | Usar el formulario de registro. |
-| `Ver personas` | Cargar el listado de personas. |
-| `Editar personas` | Mostrar botones de edición. |
-| `Cambiar estado personas` | Mostrar botones de desactivar/reactivar. |
+| `Acceder recepción` | Permite ingresar a la vista de registro. |
+| `Crear personas` | Permite enviar el formulario de creación. |
 
-## Endpoints consumidos
+Si el usuario no tiene permiso, la interfaz muestra error y redirige.
 
-### Listado
+### 3.2 Datos capturados
+
+`PersonaForm` maneja una estructura amplia de caracterización. Entre los campos del formulario están:
 
 ```text
-GET /api/personas
-GET /api/personas/activos
+tipoPersonaId
+tipoDocumento
+numeroDocumento
+fechaExpedicion
+ciudadExpedicion
+nombres
+apellidos
+nombreIdentitario
+pronombre
+sexo
+genero
+orientacionSexual
+fechaNacimiento
+telefono
+correo
+nacionalidadId
+estadoCivil
+escolaridad
+grupoEtnico
+condicionActualId
+sabeLeerEscribir
+discapacidad
+caracterizacionPcd
+necesitaAjustePcd
+departamentoId
+municipioId
+barrioId
+direccion
+comuna
+localidad
+estrato
+tipoVivienda
+zona
+tenencia
+numeroPersonasACargo
+ingresosAdicionales
+energiaElectrica
+acueducto
+alcantarillado
+ocupacionId
+empresaId
+salario
+cargo
+direccionEmpresa
+telefonoEmpresa
+nombreCompletoAcudiente
+relacionAcudiente
+telefonoAcudiente
+correoAcudiente
+direccionAcudiente
+comoSeEntero
+relacionConUniversidad
 ```
 
-### Detalle
+Esta estructura permite registrar información personal, sociodemográfica, ubicación, vivienda, ocupación y acudiente.
 
-```text
-GET /api/personas/{id}
-```
+### 3.3 Catálogos usados
 
-### Crear
+El formulario carga catálogos desde backend mediante rutas bajo `API_URL_BASE`, incluyendo datos como:
+
+- tipos de persona;
+- nacionalidades;
+- condiciones actuales;
+- departamentos;
+- municipios;
+- barrios;
+- ocupaciones;
+- empresas.
+
+También incluye opciones locales para algunos campos de selección, como pronombre, sexo, género, orientación sexual y estado civil.
+
+### 3.4 Validaciones de formulario
+
+El frontend aplica validaciones antes de enviar:
+
+- campos obligatorios;
+- correo con patrón de email;
+- valores numéricos no negativos;
+- información de contacto cuando corresponde;
+- consistencia de campos dependientes.
+
+La validación de correo usa `EMAIL_PATTERN` definido en `lib/form-validation.js`.
+
+### 3.5 Envío de registro
+
+El registro de persona se realiza mediante:
 
 ```text
 POST /api/personas
 ```
 
-### Editar
+El formulario usa `useApiForm` para manejar envío, estado de carga, mensajes y errores.
+
+## 4. Administración de personas
+
+La ruta `/personas` renderiza `PersonasForm`, que permite listar personas activas, buscar, editar y desactivar.
+
+### 4.1 Permisos
+
+La vista valida:
+
+| Permiso | Uso |
+|---|---|
+| `Acceder personas` | Permite entrar a la página de personas. |
+| `Ver personas` | Permite cargar el listado. |
+| `Editar personas` | Permite abrir edición. |
+| `Cambiar estado personas` o `Gestionar personas` | Permite desactivar. |
+
+### 4.2 Listado
+
+El componente carga personas activas con:
+
+```text
+GET /api/personas/activos
+```
+
+El listado permite búsqueda y paginación. También presenta acciones según permisos.
+
+### 4.3 Edición
+
+La edición se realiza mediante:
 
 ```text
 PUT /api/personas/{id}
 ```
 
-### Cambiar estado
+El formulario de edición reutiliza la estructura de datos de persona y valida reglas antes de enviar.
+
+### 4.4 Desactivación
+
+La desactivación de persona se realiza con:
 
 ```text
 PATCH /api/personas/{id}/desactivar
-PATCH /api/personas/{id}/reactivar
 ```
 
-### Catálogos para el formulario
+La acción usa `ConfirmActionDialog` para solicitar confirmación antes de enviarla.
 
-```text
-GET /api/tipos-documento/activos
-GET /api/tipos-persona
-GET /api/nacionalidades
-GET /api/condiciones
-GET /api/ocupaciones
-GET /api/empresas
-GET /api/departamentos
-GET /api/municipios/departamento/{departamentoId}   ← cascade por departamento
-GET /api/barrios/municipio/{municipioId}            ← cascade por municipio
-```
+## 5. Datos sensibles y presentación
 
-## Formulario por pasos (wizard)
+El frontend administra información personal y de caracterización. Por esa razón, el módulo:
 
-`PersonaForm` divide el registro en pasos. El paso "Acudiente" solo aparece si la persona es menor de edad según la fecha de nacimiento.
+- consulta datos usando sesión autenticada;
+- muestra acciones solo según permisos;
+- usa rutas protegidas por el layout del dashboard;
+- evita documentar o fijar datos reales en código;
+- depende del backend para reglas de persistencia y alcance.
 
-| Paso | Sección | Campos clave |
-|---|---|---|
-| 0 | Identificación | Tipo persona, tipo documento, número, fechas, nombres, apellidos |
-| 1 | Identidad | Pronombre, sexo, género, orientación sexual, grupo étnico, discapacidad |
-| 2 | Contacto | Teléfono, correo (al menos uno obligatorio) |
-| 3 | Vivienda | Departamento → municipio → barrio (cascade), dirección, estrato, zona |
-| 4 | Economía | Ocupación, empresa, salario, personas a cargo, servicios básicos |
-| 5 | Acudiente | Solo si menor de edad: nombre, relación, teléfono, correo, dirección |
-| 6 | Servicio | Cómo se enteró, relación con la universidad |
+## 6. Manejo de errores
 
-### Validaciones clave
+El módulo usa utilidades de `lib/api.js` para presentar errores de backend. Los mensajes se muestran mediante `toast.error`, `toast.success` o confirmaciones visuales.
 
-- Al pulsar "Siguiente" desde el paso "Identificación", se validan los campos obligatorios del paso con `trigger()` antes de avanzar.
-- Al enviar, se verifica que exista al menos teléfono o correo (validación cruzada). Si faltan ambos, se muestra toast y se navega al paso "Contacto".
-- Estrato: mínimo 0, máximo 7, validado en react-hook-form y en el atributo HTML.
-- Personas a cargo: mínimo 0, máximo 10, validado en react-hook-form y en HTML.
+Se manejan situaciones como:
 
-### Cascade de ubicación
+- sesión inválida;
+- falta de permisos;
+- error cargando catálogos;
+- error de validación;
+- error de conexión;
+- confirmación de desactivación.
 
-Al seleccionar departamento → se cargan municipios de ese departamento.
-Al seleccionar municipio → se cargan barrios de ese municipio.
-Al cambiar departamento → se resetean municipio y barrio.
-Al cambiar municipio → se resetea barrio.
+## 7. Relación con otros módulos
+
+Las personas registradas se usan en:
+
+- consultas jurídicas como persona principal;
+- partes adicionales;
+- contrapartes;
+- flujos de recepción;
+- caracterización para estadísticas y reportes derivados.
+
+## 8. Componentes relacionados
+
+| Componente | Función |
+|---|---|
+| `PersonaForm` | Registro de persona desde recepción. |
+| `PersonasForm` | Listado, edición y desactivación. |
+| `ConfirmActionDialog` | Confirmación de desactivación. |
+| `Pagination` | Paginación del listado. |
+
+## 9. Consideraciones de mantenimiento
+
+Al modificar el módulo debe verificarse:
+
+1. Que los nombres de campos sigan coincidiendo con el DTO de backend.
+2. Que los catálogos consumidos existan y estén activos.
+3. Que las rutas `/recepcion` y `/personas` mantengan permisos diferenciados.
+4. Que la desactivación use `PATCH` y no eliminación física.
+5. Que las validaciones visuales no sustituyan las validaciones del backend.
+6. Que los datos sensibles no se expongan en documentación ni configuración.

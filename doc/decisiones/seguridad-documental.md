@@ -2,23 +2,21 @@
 
 ## Contexto
 
-El proyecto contiene configuración de seguridad, autenticación, conexión a base de datos, correo, almacenamiento de archivos y variables de entorno.
-
-Parte de esa información puede involucrar secretos, tokens, credenciales, firmas, llaves o datos sensibles. La documentación debe explicar cómo se configura el sistema sin exponer valores reales.
+El proyecto contiene configuración de seguridad, autenticación, base de datos, correo, almacenamiento de archivos y variables de entorno. Parte de esa información puede involucrar secretos, tokens, credenciales, firmas, llaves o datos sensibles.
 
 ## Decisión
 
-La documentación del repositorio debe describir únicamente:
+La documentación del repositorio describe únicamente:
 
 - nombres de variables;
-- propósito de las variables;
+- propósito de variables;
 - flujos de configuración;
-- responsabilidades de cada componente;
-- recomendaciones de uso seguro.
+- responsabilidades de componentes;
+- criterios de uso seguro.
 
-No debe incluir valores reales de configuración sensible.
+No se documentan valores reales de configuración sensible.
 
-## Información que no se documenta con valores reales
+## Información que no se publica con valores reales
 
 No se deben publicar valores reales de:
 
@@ -32,136 +30,51 @@ No se deben publicar valores reales de:
 - usuarios reales de prueba;
 - datos personales reales;
 - rutas privadas del equipo;
-- enlaces de recuperación reales;
+- enlaces reales de recuperación;
 - credenciales de correo.
+
+## Variables documentables por nombre
+
+| Variable | Propósito documental |
+|---|---|
+| `DB_URL` | URL de conexión a base de datos. |
+| `DB_USERNAME` | Usuario de base de datos. |
+| `DB_PASSWORD` | Contraseña de base de datos. |
+| `DB_DDL_AUTO` | Comportamiento de Hibernate para esquema. |
+| `JWT_SECRET` | Secreto usado por emisión y validación de JWT. |
+| `BREVO_API_KEY` | Llave del proveedor de correo. |
+| `MAIL_FROM_EMAIL` | Correo remitente. |
+| `FRONTEND_URL` | URL permitida para flujos que redirigen al frontend. |
+| `UPLOAD_DIR` | Directorio base de almacenamiento de archivos. |
+| `NEXT_PUBLIC_API_URL` | URL pública de API usada por frontend. |
+| `NEXT_PUBLIC_API_URL_BASE` | Base de endpoints usada por frontend. |
+| `NEXT_PUBLIC_FILE_STORAGE_API_URL_BASE` | Base para endpoints de archivos. |
 
 ## Ejemplo correcto
 
 ```text
-JWT_SECRET: define el secreto usado por el mecanismo de tokens.
-```
-
-```text
-DB_PASSWORD: define la contraseña de conexión a base de datos.
+JWT_SECRET define el secreto usado por el mecanismo de tokens.
 ```
 
 ## Ejemplo incorrecto
 
 ```text
-JWT_SECRET=valor-real
+JWT_SECRET=valor-real-del-ambiente
 ```
-
-```text
-DB_PASSWORD=valor-real
-```
-
-## Justificación
-
-Esta decisión reduce riesgos de seguridad y evita que la documentación se convierta en una fuente de exposición de credenciales.
-
-También permite que el repositorio pueda ser compartido o revisado sin comprometer ambientes reales.
 
 ## Impacto en backend
 
-El backend puede seguir usando variables de entorno o configuración externa para valores sensibles.
-
-La documentación debe explicar el propósito de propiedades como:
-
-- `DB_URL`;
-- `DB_USERNAME`;
-- `DB_PASSWORD`;
-- `JWT_SECRET`;
-- `BREVO_API_KEY`;
-- `MAIL_FROM_EMAIL`;
-- `UPLOAD_DIR`;
-- `FRONTEND_URL`.
-
-Sin publicar valores reales.
+El backend lee configuración mediante propiedades y variables de entorno. La documentación explica el propósito, no el valor.
 
 ## Impacto en frontend
 
-Las variables públicas de Next.js tienen prefijo:
-
-```text
-NEXT_PUBLIC_
-```
-
-Estas variables son visibles para el navegador.
-
-Por esa razón, nunca deben contener:
-
-- secretos;
-- tokens;
-- API keys privadas;
-- credenciales;
-- firmas;
-- información sensible.
-
-Se documenta su propósito, no valores reales de producción.
-
-## Ejemplos de variables públicas aceptables
-
-| Variable | Uso |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | URL pública base del backend. |
-| `NEXT_PUBLIC_API_URL_BASE` | URL pública base de API. |
-| `NEXT_PUBLIC_FILE_STORAGE_API_URL_BASE` | URL pública base para archivos. |
-
-## Manejo de usuarios de prueba
-
-No se deben documentar usuarios reales con contraseñas.
-
-Cuando se requieran datos de prueba, se deben representar como variables o datos genéricos:
-
-```text
-E2E_USER_EMAIL
-E2E_USER_PASSWORD
-```
-
-Los valores reales deben configurarse fuera del repositorio.
-
-## Manejo de ejemplos JSON
-
-Los ejemplos JSON deben usar marcadores genéricos.
-
-Ejemplo correcto:
-
-```json
-{
-  "username": "<correo-del-usuario>",
-  "password": "<contraseña-del-usuario>"
-}
-```
-
-Ejemplo incorrecto:
-
-```json
-{
-  "username": "usuario.real@dominio",
-  "password": "clave-real"
-}
-```
-
-## Manejo de logs y auditoría
-
-Los registros de auditoría pueden contener información técnica de operaciones internas.
-
-No se deben copiar logs reales a documentación pública.
-
-Cuando se documente auditoría, se deben usar ejemplos genéricos.
+El frontend usa variables públicas `NEXT_PUBLIC_*` para conocer la API. Aunque son públicas por diseño, la documentación conserva enfoque de configuración y no expone ambientes privados.
 
 ## Criterios de mantenimiento
 
-Antes de agregar o modificar un documento, revisar que no incluya:
+Al agregar una nueva variable:
 
-- secretos reales;
-- credenciales reales;
-- tokens reales;
-- valores de firmas;
-- datos personales reales;
-- rutas privadas locales;
-- capturas con información sensible.
-
-## Regla final
-
-La documentación puede explicar que existe una configuración sensible, pero no debe revelar el valor usado por ningún ambiente real.
+1. Documentar nombre y propósito.
+2. No incluir valor real.
+3. Indicar si es backend o frontend.
+4. Revisar guías de configuración y despliegue.

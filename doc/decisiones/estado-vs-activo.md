@@ -2,9 +2,7 @@
 
 ## Contexto
 
-El sistema maneja recursos con ciclos de vida operativos y también necesita conservar información histórica.
-
-Algunos recursos tienen estados funcionales, como consulta, seguimiento, proceso y conciliación. Otros recursos usan `activo` para indicar si están disponibles o desactivados.
+El sistema maneja recursos con ciclos de vida operativos y también necesita conservar información histórica. Algunos recursos tienen estados funcionales, como consulta, proceso, seguimiento, respuesta de seguimiento y conciliación. Otros recursos usan `activo` para indicar si están disponibles o desactivados.
 
 ## Decisión
 
@@ -15,15 +13,13 @@ estado funcional
 activo lógico
 ```
 
-El estado funcional representa el ciclo de vida del recurso.
-
-El activo lógico representa disponibilidad o desactivación sin eliminación física.
+El estado funcional representa el ciclo de negocio. El activo lógico representa disponibilidad operativa o desactivación sin eliminación física.
 
 ## Definiciones
 
 ### Estado funcional
 
-Representa el estado del proceso de negocio.
+Representa el momento del flujo de negocio.
 
 Ejemplos:
 
@@ -31,7 +27,7 @@ Ejemplos:
 - `Proceso.estado`;
 - `Seguimiento.estado`;
 - `SeguimientoRespuesta.estado`;
-- `Conciliacion.estado`.
+- `Conciliacion.estado` mediante `EstadoConciliacion`.
 
 ### Activo lógico
 
@@ -43,28 +39,30 @@ Ejemplos:
 - `activo` en catálogos;
 - `activo` en procesos;
 - `activo` en seguimientos;
-- `activo` en conciliaciones.
+- `activo` en respuestas de seguimiento;
+- `activo` en conciliaciones;
+- `activo` en notificaciones.
 
 ## Justificación
 
 Separar estos conceptos evita mezclar decisiones funcionales con borrado lógico.
 
-Ejemplo incorrecto:
+Ejemplo correcto:
 
 ```text
-Desactivar una conciliación para indicar que terminó.
+La consulta se cierra con estado CERRADO.
+La consulta se archiva con estado ARCHIVADO.
 ```
 
 Ejemplo correcto:
 
 ```text
-La conciliación termina con estado final.
-activo=false solo representa desactivación lógica.
+Un catálogo se desactiva con activo=false para no ofrecerse en nuevas operaciones.
 ```
 
-## Consulta
+## Aplicación en consulta
 
-Consulta usa estados:
+Estados:
 
 ```text
 PENDIENTE
@@ -75,166 +73,109 @@ CERRADO
 ARCHIVADO
 ```
 
-Reglas:
+Criterios:
 
+- `PENDIENTE` es el estado inicial;
 - `CERRADO` representa cierre operativo;
 - `ARCHIVADO` representa archivo histórico;
-- no se usa `activo=false` para archivar consulta;
-- los listados operativos filtran consultas archivadas;
-- desarchivar devuelve a `CERRADO`.
+- cerrar exige resultado y ausencia de pendientes;
+- archivar solo aplica sobre consultas cerradas;
+- desarchivar vuelve a `CERRADO`, no reabre operación.
 
-## Proceso
+## Aplicación en proceso
 
-Proceso usa:
-
-```text
-estado
-activo
-```
-
-Reglas:
-
-- `estado` representa resultado o etapa del proceso;
-- `activo` representa disponibilidad lógica;
-- un proceso `PENDIENTE` y activo bloquea cierre de consulta;
-- desactivar proceso no equivale a finalizarlo.
-
-## Seguimiento
-
-Seguimiento usa:
+Estados:
 
 ```text
-estado
-activo
+PENDIENTE
+SENTENCIA_FAVORABLE
+SENTENCIA_DESFAVORABLE
+DESISTIMIENTO
+RECHAZO
+PRESCRIPCION
 ```
 
-Reglas:
+Criterios:
 
-- `estado=PENDIENTE` representa actividad operativa pendiente;
-- `estado=COMPLETADO` o `CANCELADO` representa cierre del seguimiento;
-- `activo=false` representa desactivación lógica;
-- seguimientos pendientes y activos bloquean cierre de consulta.
+- `PENDIENTE` indica ausencia de resultado final;
+- cualquier estado distinto de `PENDIENTE` es final según `EstadoProceso.esFinal()`;
+- el radicado puede estar vacío en pendiente;
+- los estados finales exigen radicado;
+- `activo=false` representa eliminación lógica, no resultado procesal.
 
-## Respuesta de seguimiento
+## Aplicación en seguimiento
 
-Respuesta usa:
+Estados:
 
 ```text
-estado
-activo
+PENDIENTE
+COMPLETADO
+CANCELADO
 ```
 
-Reglas:
+Criterios:
 
-- `PENDIENTE` representa respuesta pendiente de revisión;
+- `PENDIENTE` bloquea cierre de consulta;
+- `COMPLETADO` o `CANCELADO` dejan de representar pendiente operativo;
+- `activo=false` conserva trazabilidad sin operar el seguimiento.
+
+## Aplicación en respuesta de seguimiento
+
+Estados:
+
+```text
+PENDIENTE
+APROBADA
+RECHAZADA
+```
+
+Criterios:
+
+- `PENDIENTE` bloquea cierre de consulta;
 - `APROBADA` y `RECHAZADA` representan decisión de revisión;
-- `activo=false` representa desactivación lógica;
-- respuestas pendientes y activas bloquean cierre de consulta.
+- `RECHAZADA` requiere observación.
 
-## Conciliación
+## Aplicación en conciliación
 
-Conciliación usa:
-
-```text
-estado_id
-activo
-```
-
-Reglas:
-
-- `estado_id` apunta al catálogo `estado_conciliacion`;
-- el estado representa flujo de conciliación;
-- `activo=false` representa desactivación lógica;
-- estados no finalizados bloquean cierre de consulta;
-- estados finales no bloquean cierre.
-
-## Catálogos
-
-Catálogos usan `activo`.
-
-Ejemplos:
-
-- área;
-- tema;
-- tipo;
-- sede;
-- municipio;
-- barrio;
-- nacionalidad;
-- tipo de documento;
-- órgano de control;
-- especialidad;
-- categoría de seguimiento;
-- estado de conciliación.
-
-Regla:
+Conciliación usa catálogo persistente:
 
 ```text
-activo=false oculta el registro de flujos operativos, pero conserva historia.
+estado_conciliacion
 ```
 
-## Perfiles
-
-Perfiles usan `activo`.
-
-Ejemplos:
-
-- asesor;
-- estudiante;
-- monitor;
-- administrativo;
-- conciliador.
-
-Regla:
+Códigos:
 
 ```text
-activo=false evita uso operativo del perfil.
+EN_ESPERA
+ESPERANDO_REUNION
+REUNION_PROGRAMADA
+COMPLETO_CONCILIADO
+COMPLETO_NO_CONCILIADO
 ```
 
-## Impacto en endpoints
+Criterios:
 
-### PUT
+- estados pendientes bloquean cierre de consulta;
+- estados finales se aplican con acta;
+- `activo=false` representa desactivación lógica y cancela notificaciones pendientes;
+- el estado funcional se conserva como parte del historial.
 
-Actualiza datos generales.
+## Impacto en frontend
 
-No debe cambiar estados funcionales ni activos lógicos cuando el módulo tiene endpoints específicos.
+El frontend debe tratar `estado` y `activo` como campos distintos:
 
-### PATCH
-
-Se usa para:
-
-- cambiar estado funcional;
-- cambiar activo lógico;
-- archivar/desarchivar;
-- acciones específicas de ciclo de vida.
-
-### DELETE
-
-Se usa como desactivación lógica o archivo lógico cuando el dominio lo define.
-
-## Ventajas
-
-- conserva historial;
-- evita pérdida de relaciones;
-- mejora trazabilidad;
-- facilita reglas de cierre;
-- evita mezclar operación con eliminación;
-- mantiene consistencia en módulos.
+- `estado` determina flujo, acciones disponibles y etiquetas funcionales;
+- `activo` determina disponibilidad o visibilidad operativa;
+- las operaciones de ciclo de vida usan endpoints específicos.
 
 ## Criterios de mantenimiento
 
-Cuando se agregue un nuevo recurso:
+Cuando se agregue un nuevo estado o una nueva regla de activo lógico, revisar:
 
-1. Definir si necesita estado funcional.
-2. Definir si necesita activo lógico.
-3. Evitar usar `activo=false` como reemplazo de estado funcional.
-4. Crear endpoints específicos para cambios de ciclo de vida.
-5. Documentar qué estados bloquean operaciones.
-6. Documentar si el recurso participa en cierre de consulta.
-
-## Regla final
-
-```text
-estado explica qué está pasando funcionalmente.
-activo explica si el registro está disponible para operación.
-```
+- entidades JPA;
+- enums o catálogos;
+- servicios de comando;
+- validadores;
+- filtros de listados;
+- reglas de cierre;
+- documentación de API y reglas.

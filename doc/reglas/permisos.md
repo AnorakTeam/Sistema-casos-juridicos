@@ -1,235 +1,121 @@
-# Reglas de negocio - Permisos y alcance
+# Reglas de negocio - Permisos, roles, usuarios y perfiles
 
-El sistema usa permisos funcionales, roles y reglas de alcance para proteger acciones y recursos.
+> Documento validado contra el código fuente actualizado del sistema. La documentación describe únicamente comportamiento implementado en backend.
 
-## Principios
 
-- La autenticación identifica al usuario.
-- El rol agrupa permisos.
-- El permiso habilita una acción funcional.
-- El alcance define si el usuario puede ejecutar esa acción sobre un recurso específico.
-- El backend valida permisos y alcance.
-- El frontend puede ocultar acciones, pero no reemplaza la seguridad del backend.
+## 1. Principio general
 
-## Roles base
+El sistema combina autorización por permisos con alcance funcional por perfil. Esto permite que una cuenta de usuario acceda únicamente a las operaciones autorizadas por su rol y dentro del contexto operativo que le corresponde.
 
-| Rol | Tipo de perfil |
-|---|---|
-| Administrador | Administrativo. |
-| Asesor | Asesor. |
-| Estudiante | Estudiante. |
-| Monitor | Monitor. |
-| Conciliador | Conciliador. |
+La autorización se expresa mediante:
 
-## Permisos de navegación
-
-Controlan visibilidad de secciones del frontend.
-
-Ejemplos:
-
-- `Acceder inicio`;
-- `Acceder recepción`;
-- `Acceder nueva consulta`;
-- `Acceder consultas jurídicas`;
-- `Acceder administración`;
-- `Acceder roles`;
-- `Acceder estudiantes`;
-- `Acceder asesores y monitores`;
-- `Acceder personas`;
-- `Acceder eliminación`;
-- `Acceder conciliaciones`;
-- `Acceder procesos`.
-
-## Permisos funcionales
-
-Controlan acciones concretas.
-
-Ejemplos:
-
-- `Ver personas`;
-- `Crear personas`;
-- `Editar personas`;
-- `Cambiar estado personas`;
-- `Ver consultas`;
-- `Crear consultas`;
-- `Editar consultas`;
-- `Cambiar estado consultas`;
-- `Archivar consultas`;
-- `Asignar responsables consulta`;
-- `Ver seguimientos`;
-- `Crear seguimientos`;
-- `Responder seguimientos`;
-- `Aprobar respuestas de seguimiento`;
-- `Ver procesos`;
-- `Gestionar procesos`;
-- `Ver conciliaciones`;
-- `Gestionar conciliaciones`;
-- `Concluir conciliaciones`.
-
-## Inicialización de permisos
-
-El backend centraliza nombres de permisos en `PermisoNombre`.
-
-El inicializador de seguridad:
-
-- crea permisos que existan en código y no estén en base de datos;
-- crea roles base si no existen;
-- no sobrescribe la matriz de asignación rol-permiso.
-
-## Alcance por perfil
-
-### Administrador
-
-Accede de forma global según permisos asignados.
-
-### Asesor
-
-Accede a recursos relacionados con:
-
-- consultas donde es asesor asignado;
-- consultas donde el estudiante asignado pertenece a su asesoría;
-- recursos derivados de esas consultas según módulo.
-
-### Monitor
-
-Accede a recursos relacionados con consultas donde es monitor asignado.
-
-### Estudiante
-
-Accede a recursos donde está asignado o relacionado, según reglas del módulo.
-
-Ejemplos:
-
-- consultas donde es estudiante asignado;
-- seguimientos visibles para estudiante;
-- conciliaciones donde es estudiante asignado o estudiante de la consulta.
-
-### Conciliador
-
-Accede a recursos de conciliación donde está asignado como conciliador.
-
-## Permisos y reglas por módulo
-
-### Consultas
-
-Reglas:
-
-- ver y buscar consultas requiere permiso de consulta;
-- editar requiere permiso de edición;
-- cambiar estado requiere permiso de cambio de estado;
-- archivar requiere permiso de archivo y alcance administrativo;
-- asignar responsables requiere permiso específico;
-- estudiante no asigna responsables;
-- estudiante no cambia estado.
-
-### Seguimientos
-
-Reglas:
-
-- crear seguimiento requiere permiso de creación;
-- estudiante y conciliador no crean seguimientos;
-- responder seguimiento es acción propia de estudiante;
-- revisar respuestas requiere permiso de aprobación;
-- estudiante y conciliador no revisan respuestas.
-
-### Procesos
-
-Reglas:
-
-- ver procesos requiere permiso de visualización;
-- gestionar procesos requiere permiso de gestión;
-- estudiante y conciliador no gestionan procesos;
-- el alcance se hereda desde la consulta.
-
-### Conciliaciones
-
-Reglas:
-
-- ver conciliaciones requiere permiso de visualización;
-- crear requiere permiso de gestión y alcance sobre la consulta;
-- asignar conciliador es acción administrativa;
-- asignar estudiante puede realizarla administrador o conciliador asignado;
-- concluir o finalizar requiere permiso y alcance;
-- estudiante solo consulta conciliaciones relacionadas.
-
-### Archivos
-
-Reglas:
-
-- endpoints genéricos requieren autenticación;
-- reglas de negocio se validan en el módulo que usa el archivo;
-- el backend controla rutas y almacenamiento.
-
-## Frontend
-
-Reglas:
-
-- puede ocultar menús según permisos;
-- puede ocultar botones según permisos;
-- debe manejar `403` como falta de permiso o alcance;
-- no debe asumir que ver un botón garantiza autorización;
-- siempre debe respetar respuestas del backend.
-
-## Regla central
-
-```text
-autenticación + permiso funcional + alcance real + regla de negocio
-```
-
-Una acción solo es válida cuando los cuatro elementos se cumplen según corresponda.
-
+- anotaciones `@PreAuthorize` en controllers;
+- permisos constantes definidos en `PermisoNombre`;
+- servicios de acceso por módulo;
+- resolución del perfil activo del usuario autenticado.
 
 ---
 
-# Permisos para reuniones de conciliación
+## 2. Rol, permiso y perfil
 
-La HU de reuniones de conciliación usa permisos funcionales existentes del módulo de conciliación.
+- El **permiso** representa una capacidad puntual del sistema.
+- El **rol** agrupa permisos y puede estar asociado a un tipo de perfil.
+- El **usuario del sistema** conserva el rol actual, estado activo y tipo de perfil vigente.
+- El **perfil operativo** representa la identidad funcional del usuario dentro del consultorio.
 
-## Permisos involucrados
+---
 
-| Permiso | Uso |
-|---|---|
-| `Acceder conciliaciones` | Permite navegación hacia la sección de conciliaciones. |
-| `Ver conciliaciones` | Permite listar y consultar conciliaciones según alcance. |
-| `Programar reuniones de conciliación` | Permite programar la reunión de una conciliación según alcance. |
-| `Reprogramar reuniones de conciliación` | Permite reprogramar la reunión vigente según alcance. |
+## 3. Estado activo
 
-No se crea permiso de navegación `Acceder reuniones de conciliación`, porque la reunión vive dentro del detalle de conciliación y no en una pantalla independiente.
+Roles, permisos, usuarios y perfiles manejan estado lógico `activo`.
 
-## Matriz de roles
+Reglas implementadas:
 
-| Rol | Acceder conciliaciones | Ver conciliaciones | Programar reunión | Reprogramar reunión |
-|---|---:|---:|---:|---:|
-| Administrador | Sí | Sí | Sí | Sí |
-| Conciliador | Sí | Sí | Sí, solo asignadas | Sí, solo asignadas |
-| Estudiante | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
-| Asesor | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
-| Monitor | Sí, si consulta conciliaciones | Sí, según alcance | No | No |
+- un usuario inactivo no puede ser tratado como usuario operativo;
+- un perfil inactivo no se resuelve como perfil activo del usuario;
+- la desactivación de perfil sincroniza el usuario del sistema asociado cuando se hace desde gestión directa del perfil;
+- el cambio de perfil desactiva el perfil anterior y activa o crea el perfil destino.
 
-## Regla de alcance
+---
 
-Tener el permiso funcional no es suficiente.
+## 4. Cambio de perfil
 
-El backend valida:
+El cambio de perfil valida:
 
-```text
-permiso funcional + alcance real + regla de negocio
-```
+1. usuario del sistema existente;
+2. usuario activo;
+3. rol actual activo;
+4. tipo de perfil destino informado;
+5. datos de cambio obligatorios;
+6. perfil destino diferente al perfil actual;
+7. rol destino existente, activo y compatible con el tipo de perfil destino;
+8. motivo del cambio obligatorio;
+9. duplicados en el perfil destino.
 
-Para reuniones:
+El flujo usa Strategy para:
 
-- administrador tiene alcance global;
-- conciliador debe estar asignado a la conciliación;
-- estudiante no puede programar ni reprogramar, aunque vea la conciliación;
-- asesor y monitor no programan/reprograman en esta HU.
+- crear o actualizar el perfil destino;
+- desactivar el perfil anterior;
+- resolver el perfil activo del usuario autenticado.
 
-## Frontend
+---
 
-Reglas para botones:
+## 5. Protección de responsables
 
-- mostrar menú de conciliaciones con `Acceder conciliaciones`;
-- mostrar detalle/listado con `Ver conciliaciones`;
-- mostrar botón de programar con `Programar reuniones de conciliación`;
-- mostrar botón de reprogramar con `Reprogramar reuniones de conciliación`.
+No se desactiva asesor, estudiante o monitor cuando existen consultas operativas asociadas.
 
-El backend sigue siendo la autoridad final.
+Estados operativos:
+
+- `PENDIENTE`;
+- `ACTIVO`;
+- `EN_PROCESO`;
+- `URGENTE`.
+
+Esta regla aplica en:
+
+- cambio de estado del perfil;
+- eliminación lógica del perfil;
+- cambio de perfil cuando el perfil anterior es asesor, estudiante o monitor.
+
+---
+
+## 6. Reglas por controller
+
+Los controllers usan permisos específicos para cada módulo. Ejemplos:
+
+- `GESTIONAR_USUARIOS` para operaciones generales de usuarios;
+- `VER_USUARIOS` para consulta de usuarios;
+- `CAMBIAR_ESTADO_USUARIOS` para activar o desactivar usuarios del sistema;
+- `ASIGNAR_ROL_USUARIOS` para cambio de perfil;
+- `GESTIONAR_ROLES`, `CREAR_ROLES`, `EDITAR_ROLES`, `VER_ROLES` para roles;
+- `GESTIONAR_PERMISOS`, `ASIGNAR_PERMISOS_A_ROLES` para permisos;
+- permisos específicos por perfiles para administrativos, asesores, monitores, estudiantes y conciliadores.
+
+---
+
+## 7. Alcance por servicios de acceso
+
+Los servicios de acceso complementan los permisos con reglas de alcance. La arquitectura usa servicios específicos como:
+
+- `ConsultaAccessService`;
+- `ProcesoAccessService`;
+- `SeguimientoAccessService`;
+- `ConciliacionAccessService`;
+- `AdministrativoAccessService`;
+- `AsesorMonitorAccessService`;
+- `EstudianteAccessService`;
+- `ConciliadorAccessService`.
+
+Esta separación permite que los controllers se mantengan declarativos y que la lógica contextual quede en servicios especializados.
+
+---
+
+## 8. Estrategias documentadas
+
+El sistema aplica el patrón Strategy en perfiles mediante:
+
+- `PerfilCambioHandler` para perfil destino;
+- `PerfilEstadoHandler` para desactivar perfil anterior;
+- `PerfilUsuarioActivoResolver` para resolver perfil vigente.
+
+Cada estrategia corresponde a un tipo de perfil y se registra en su respectivo registry.

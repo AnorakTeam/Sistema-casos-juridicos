@@ -1,145 +1,149 @@
-# Configuración y seguridad
+# Configuración y seguridad de entorno
 
-Este documento describe la configuración general del sistema y las reglas para manejar información sensible.
+## Propósito
 
-## Principio de seguridad documental
+Este documento describe la configuración observada en el código fuente para ejecutar el backend y el frontend del sistema. No incluye valores reales de credenciales, tokens, llaves ni secretos.
 
-La documentación del repositorio no debe exponer valores reales de configuración sensible.
+## Backend
 
-No se deben documentar valores reales de:
-
-- contraseñas;
-- tokens;
-- secretos JWT;
-- API keys;
-- firmas;
-- llaves privadas;
-- cadenas de conexión con credenciales;
-- usuarios reales de prueba;
-- datos personales reales.
-
-La documentación puede explicar que una variable existe y cuál es su propósito, pero no debe publicar su valor.
-
-## Configuración backend
-
-Archivo principal:
+El backend se configura desde:
 
 ```text
 backend/app/src/main/resources/application.properties
 ```
 
-El backend usa variables de entorno para configuración sensible.
+La aplicación usa variables de entorno para los datos sensibles y para los parámetros dependientes del ambiente.
 
-Variables principales:
+### Variables principales del backend
 
-| Variable | Propósito |
+| Variable | Uso en el código |
 |---|---|
-| `PORT` | Puerto HTTP de la aplicación. |
-| `DB_URL` | URL de conexión a la base de datos. |
-| `DB_USERNAME` | Usuario de conexión a base de datos. |
-| `DB_PASSWORD` | Contraseña de conexión a base de datos. |
-| `DB_DDL_AUTO` | Estrategia de actualización de esquema JPA/Hibernate. |
-| `DB_SHOW_SQL` | Controla visualización de SQL generado por Hibernate. |
-| `JWT_SECRET` | Secreto usado por el mecanismo de tokens. |
-| `AUTH_COOKIE_SECURE` | Define si la cookie se marca como segura. |
-| `AUTH_COOKIE_SAME_SITE` | Define la política SameSite de la cookie. |
+| `PORT` | Puerto HTTP del backend. Valor por defecto: `8080`. |
+| `DB_URL` | URL de conexión JDBC a PostgreSQL. |
+| `DB_USERNAME` | Usuario de base de datos. |
+| `DB_PASSWORD` | Contraseña de base de datos. |
+| `DB_DDL_AUTO` | Estrategia de Hibernate para esquema. Valor por defecto en código: `update`. |
+| `DB_SHOW_SQL` | Activa o desactiva salida de SQL. Valor por defecto en código: `true`. |
+| `JWT_SECRET` | Secreto usado para firmar/verificar JWT. |
+| `AUTH_COOKIE_SECURE` | Define si la cookie de autenticación se marca como segura. Valor por defecto: `true`. |
+| `AUTH_COOKIE_SAME_SITE` | Política SameSite de la cookie. Valor por defecto: `None`. |
 | `BREVO_API_KEY` | Llave del proveedor de correo. |
-| `MAIL_FROM_EMAIL` | Correo remitente configurado. |
-| `FRONTEND_URL` | URL del frontend usada en flujos de recuperación. |
-| `UPLOAD_DIR` | Directorio físico de almacenamiento de archivos. |
+| `MAIL_FROM_EMAIL` | Correo remitente del sistema. |
+| `FRONTEND_URL` | URL usada para construir enlaces de restablecimiento de contraseña. |
+| `UPLOAD_DIR` | Directorio base para carga de archivos. Valor por defecto: `uploads`. |
 
-## Base de datos
+### Base de datos
 
-El backend usa PostgreSQL/Supabase.
+El backend usa PostgreSQL mediante Spring Data JPA. La configuración incluye:
 
-El esquema por defecto configurado para Hibernate es:
+- driver PostgreSQL;
+- dialecto `PostgreSQLDialect`;
+- esquema por defecto `DB_consultorioJuridico`;
+- creación de namespaces habilitada para Hibernate.
 
-```text
-DB_consultorioJuridico
-```
+### JWT
 
-La propiedad `spring.jpa.hibernate.ddl-auto` se controla mediante variable de entorno.
-
-## JWT y cookie de sesión
-
-El backend genera tokens JWT y los entrega al cliente mediante cookie HTTP.
-
-Propiedades relevantes:
-
-| Propiedad | Uso |
-|---|---|
-| `app.jwt.secret` | Secreto usado para firmar y validar tokens. |
-| `app.jwt.expiration-ms` | Tiempo de expiración del token. |
-| `app.auth.cookie.secure` | Define el atributo Secure de la cookie. |
-| `app.auth.cookie.same-site` | Define política SameSite de la cookie. |
-
-## CORS
-
-La configuración de CORS se encuentra en:
+El secreto JWT se lee desde `JWT_SECRET`. El tiempo de expiración configurado en código es:
 
 ```text
-config/cors
+app.jwt.expiration-ms=3600000
 ```
 
-Componentes:
+Esto equivale a una hora.
 
-- `CorsConfig`;
-- `CorsProperties`.
+### Cookie de autenticación
 
-La configuración permite ajustar orígenes, métodos, headers, credenciales y tiempo máximo sin modificar código Java.
+El backend crea una cookie llamada:
 
-Propiedades base:
+```text
+access_token
+```
 
-| Propiedad | Uso |
-|---|---|
-| `app.cors.allowed-origin-patterns` | Orígenes permitidos. |
-| `app.cors.allowed-methods` | Métodos HTTP permitidos. |
-| `app.cors.allowed-headers` | Headers permitidos. |
-| `app.cors.allow-credentials` | Permite envío de credenciales. |
-| `app.cors.max-age` | Tiempo de cache para preflight. |
+Características observadas:
 
-## Configuración frontend
+- `HttpOnly`;
+- `Secure` configurable con `AUTH_COOKIE_SECURE`;
+- `SameSite` configurable con `AUTH_COOKIE_SAME_SITE`;
+- ruta `/`;
+- duración máxima de una hora en login;
+- expiración inmediata en logout.
 
-Archivo principal:
+### CORS
+
+CORS se configura en:
+
+```text
+config/cors/CorsConfig.java
+config/cors/CorsProperties.java
+```
+
+La configuración permite cambiar orígenes, métodos, headers, credenciales y tiempo de cache mediante propiedades `app.cors.*`. El código incluye valores por defecto para desarrollo local y despliegues Vercel.
+
+### Correo
+
+El sistema usa configuración de correo para:
+
+- recuperación de contraseña;
+- notificaciones de seguimiento;
+- notificaciones de reuniones de conciliación.
+
+Los valores sensibles se leen desde variables y no deben registrarse en documentación con valores reales.
+
+### Archivos
+
+El servicio de archivos usa la propiedad:
+
+```text
+file.upload-dir
+```
+
+Si no se define `UPLOAD_DIR`, el valor por defecto es `uploads`.
+
+## Frontend
+
+La configuración de URLs se centraliza en:
 
 ```text
 frontend/src/lib/config.js
 ```
 
-Constantes exportadas:
+Variables públicas del frontend:
 
-```javascript
-API_URL_BASE
-FILE_STORAGE_API_URL_BASE
+| Variable | Uso |
+|---|---|
+| `NEXT_PUBLIC_API_URL_BASE` | URL base principal de la API. |
+| `NEXT_PUBLIC_API_URL` | Alternativa para URL base de la API. |
+| `NEXT_PUBLIC_FILE_STORAGE_API_URL_BASE` | URL base para operaciones de archivos. |
+
+El frontend normaliza la URL para asegurar que tenga esquema HTTP/HTTPS, que no termine en `/` y que termine en `/api`.
+
+## Cliente HTTP frontend
+
+El archivo `src/lib/apiClient.js` centraliza peticiones HTTP y usa:
+
+```text
+credentials: "include"
 ```
 
-Variables soportadas:
+Esto permite enviar la cookie de sesión al backend en peticiones autenticadas.
 
-| Variable | Propósito |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | URL pública base del backend. |
-| `NEXT_PUBLIC_API_URL_BASE` | URL pública base de API. |
-| `NEXT_PUBLIC_FILE_STORAGE_API_URL_BASE` | URL pública base para archivos. |
+## Manejo de errores frontend
 
-Las variables `NEXT_PUBLIC_*` son visibles para el navegador y no deben contener secretos.
+El archivo `src/lib/api.js` contiene utilidades para:
 
-## Docker Compose
+- leer cuerpo de respuesta;
+- extraer título de error;
+- extraer detalles de validación;
+- construir descripciones legibles para interfaz.
 
-El proyecto define servicios para backend y frontend.
+## Consideraciones de seguridad documental
 
-El frontend usa URL pública accesible desde el navegador para conectarse al backend.
+La documentación técnica debe describir nombres de variables, finalidad y flujo. No debe incluir:
 
-## Almacenamiento de archivos
-
-La propiedad `file.upload-dir` define el directorio de almacenamiento.
-
-Los módulos que guardan documentos deben delegar en el servicio de archivos para evitar rutas construidas de forma insegura.
-
-## Reglas de seguridad operacional
-
-- No versionar archivos `.env` con valores reales.
-- No publicar valores reales de secretos ni API keys.
-- No documentar credenciales de usuarios reales.
-- No usar variables públicas de frontend para secretos.
-- Mantener fuera del repositorio builds, reportes locales y configuraciones de IDE.
-- Documentar propósito de variables, no sus valores.
+- contraseñas reales;
+- tokens reales;
+- `JWT_SECRET` real;
+- API keys reales;
+- cadenas JDBC con credenciales reales;
+- correos personales usados como prueba;
+- cookies o tokens capturados.
